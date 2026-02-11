@@ -1,0 +1,20 @@
+{
+  "name": "308-309",
+  "version": "1.0.0",
+  "description": "Style guide: https://airbnb.io/javascript/react/",
+  "homepage": "https://github.com/fourr-bytess/308-309#readme",
+  "bugs": {
+    "url": "https://github.com/fourr-bytess/308-309/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fourr-bytess/308-309.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}

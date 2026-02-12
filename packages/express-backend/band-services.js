@@ -32,9 +32,6 @@ function addBand(band) {
     return band;
 }
 
-function findBandByName(name) {
-    return bandModel.find({ name: name });
-}
 
 export default {
     addBand,

@@ -27,7 +27,7 @@ function getBands(name, member_names, genres, locations, price_range) {
 }
 
 function findBandById(id) {
-    return bandModel.findbyId(id);
+    return bandModel.findById(id);
 }
 
 function addBand(band) {

@@ -14,9 +14,17 @@ mongoose
 app.get("/bands", async (req, res) => {
   try {
     const bands = await Band.find();
-    res.json({data: bands});
-  } catch(err){
+    res.json({ data: bands });
+  } catch (err) {
     res.status(500).json({ error: "Failed to fetch bands" });
+  }
+});
+app.post("/bands", async (req, res) => {
+  try {
+    const created = await Band.create(req.body);
+    res.status(201).json({ data: created });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create" });
   }
 });
 

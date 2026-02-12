@@ -27,5 +27,17 @@ app.post("/bands", async (req, res) => {
     res.status(400).json({ error: "Failed to create" });
   }
 });
+app.get("/bands/:id", async (req, res) => {
+  try {
+    const band = await Band.findById(req.params.id);
+    if (!band) {
+      res.status(401).json({ error: "Band not found" });
+    }
+    res.json({ data: band });
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
 
 app.listen(3001, () => console.log("Server running on http://localhost:3001"));

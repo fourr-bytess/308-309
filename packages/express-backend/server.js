@@ -39,5 +39,16 @@ app.get("/bands/:id", async (req, res) => {
   }
 });
 
+app.delete("/bands/:id", async (req,res) => {
+    try{
+        const deleted = await Band.findByIdAndDelete(req.params.id);
+        if (!band){
+            res.status(400).json({error: "Band not found"});
+        }
+        res.json({data: deleted});
+    }catch(err){
+        return res.status(400).json({error: "Invalid ID"});
+    }
+});
 
 app.listen(3001, () => console.log("Server running on http://localhost:3001"));

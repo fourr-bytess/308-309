@@ -26,15 +26,24 @@ function getBands(name, member_names, genres, locations, price_range) {
     return promise;
 }
 
+function findBandById(id) {
+    return bandModel.findbyId(id);
+}
+
 function addBand(band) {
     const bandToAdd = new bandModel(band);
     const promise = bandToAdd.save();
     return band;
 }
 
+function findBandByIdAndDelete(id) {
+    return bandModel.findByIdAndDelete(id);
+}
+
 
 export default {
     addBand,
     getBands,
-    findBandByName
+    findBandById,
+    findBandByIdAndDelete
 };

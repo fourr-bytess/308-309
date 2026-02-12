@@ -31,7 +31,7 @@ app.get("/bands/:id", async (req, res) => {
   try {
     const band = await Band.findById(req.params.id);
     if (!band) {
-      res.status(401).json({ error: "Band not found" });
+      return res.status(404).json({ error: "Band not found" });
     }
     res.json({ data: band });
   } catch (err) {
@@ -42,12 +42,12 @@ app.get("/bands/:id", async (req, res) => {
 app.delete("/bands/:id", async (req,res) => {
     try{
         const deleted = await Band.findByIdAndDelete(req.params.id);
-        if (!band){
-            res.status(400).json({error: "Band not found"});
+        if (!deleted){
+            return res.status(404).json({error: "Band not found"});
         }
         res.json({data: deleted});
     }catch(err){
-        return res.status(400).json({error: "Invalid ID"});
+        return res.status(404).json({error: "Invalid ID"});
     }
 });
 

@@ -22,12 +22,23 @@ function getBands(name, member_names, genres, locations, price_range) {
             $lte: price_range[1]
         };
     }
-    promise = bandModel.find(query);
+    promise = bandModel.find(query).select('name member_names genres locations price_range');
     return promise;
 }
 
+function getBandsCount(){
+    return bandModel.countDocuments({});
+}
+
+function getBandsPaginated(limit, offset) {
+    const bandsPromise = bandModel.find({}).skip(offset).limit(limit).select('name member_names genres locations price_range');
+    const countPromise = bandModel.countDocuments({});
+    return Promise.all([bandsPromise, countPromise]).then(([bands, total]) => ({ bands, total }));
+}
+
+
 function findBandById(id) {
-    return bandModel.findbyId(id);
+    return bandModel.findById(id);
 }
 
 function addBand(band) {
@@ -41,9 +52,12 @@ function findBandByIdAndDelete(id) {
 }
 
 
+
 export default {
     addBand,
     getBands,
+    getBandsCount,
+    getBandsPaginated,
     findBandById,
     findBandByIdAndDelete
 };

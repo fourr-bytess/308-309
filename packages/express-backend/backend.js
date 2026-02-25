@@ -16,9 +16,22 @@ app.get('/bands', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
     const offset = parseInt(req.query.offset, 10) || 0;
-    const total = await bandServices.getBandsCount();
+    const total = await bandServices.getBandsCount({
+      name: req.query.name,
+      member_names: req.query.member_names?.split(','),
+      genres: req.query.genres?.split(','),
+      locations: req.query.locations?.split(','),
+      price_range: [req.query.min_price, req.query.max_price]
+    });
     const cappedLimit = Math.min(limit, 50);
-    const { bands } = await bandServices.getBandsPaginated(cappedLimit, offset);
+    const { bands } = await bandServices.getBandsPaginated(cappedLimit, offset, {
+      name: req.query.name,
+      member_names: req.query.member_names?.split(','),
+      genres: req.query.genres?.split(','),
+      locations: req.query.locations?.split(','),
+      price_range: [req.query.min_price, req.query.max_price]
+      
+    });
     res.status(200).json({ data: bands, meta : { limit: cappedLimit, offset, total } });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch bands' });

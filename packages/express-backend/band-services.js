@@ -1,38 +1,45 @@
 import mongoose from "mongoose";
 import bandModel from "./band.js";
 
-function getBands(name, member_names, genres, locations, price_range) {
-    let promise;
+const BAND_SELECT = 'name member_names genres locations price_range';
+
+/** Builds a MongoDB query from filter options (shared by getBands, getBandsCount, getBandsPaginated). */
+function buildBandsQuery(filters = {}) {
     const query = {};
-    if (name) {
-        query.name = name.toLowerCase();
+    if (filters.name) {
+        query.name = filters.name.toLowerCase();
     }
-    if (member_names) {
-        query.member_names = { $in: member_names.map(m => m.toLowerCase())};
+    if (filters.member_names) {
+        query.member_names = { $in: filters.member_names.map(m => m.toLowerCase()) };
     }
-    if (genres?.length) {
-        query.genres = { $in: genres.map(g => g.toLowerCase())};
+    if (filters.genres?.length) {
+        query.genres = { $in: filters.genres.map(g => g.toLowerCase()) };
     }
-    if (locations?.length) {
-        query.locations = { $in: locations.map(l => l.toLowerCase())};
+    if (filters.locations?.length) {
+        query.locations = { $in: filters.locations.map(l => l.toLowerCase()) };
     }
-    if (price_range?.length === 2) {
+    if (filters.price_range?.length === 2) {
         query.price = {
-            $gte: price_range[0],
-            $lte: price_range[1]
+            $gte: filters.price_range[0],
+            $lte: filters.price_range[1]
         };
     }
-    promise = bandModel.find(query).select('name member_names genres locations price_range');
-    return promise;
+    return query;
 }
 
-function getBandsCount(){
-    return bandModel.countDocuments({});
+function getBands(name, member_names, genres, locations, price_range) {
+    const query = buildBandsQuery({ name, member_names, genres, locations, price_range });
+    return bandModel.find(query).select(BAND_SELECT);
 }
 
-function getBandsPaginated(limit, offset) {
-    const bandsPromise = bandModel.find({}).skip(offset).limit(limit).select('name member_names genres locations price_range');
-    const countPromise = bandModel.countDocuments({});
+function getBandsCount(filters = {}) {
+    return bandModel.countDocuments(buildBandsQuery(filters));
+}
+
+function getBandsPaginated(limit, offset, filters = {}) {
+    const query = buildBandsQuery(filters);
+    const bandsPromise = bandModel.find(query).skip(offset).limit(limit).select(BAND_SELECT);
+    const countPromise = bandModel.countDocuments(query);
     return Promise.all([bandsPromise, countPromise]).then(([bands, total]) => ({ bands, total }));
 }
 
@@ -43,8 +50,7 @@ function findBandById(id) {
 
 function addBand(band) {
     const bandToAdd = new bandModel(band);
-    const promise = bandToAdd.save();
-    return band;
+    return bandToAdd.save();
 }
 
 function findBandByIdAndDelete(id) {

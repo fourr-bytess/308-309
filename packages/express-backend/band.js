@@ -6,6 +6,8 @@ const BandSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
+            lowercase: true,
+            minlength: 1,
         },
         member_names: {
             type: [String],

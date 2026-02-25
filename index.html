@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giggly</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Navigation Bar... -->
+
+  <header class="navbar">
+    <div class="logo" id="homeLogo">🎵 Giggly 🎵</div>
+    <div class="nav-buttons">
+      <button id="loginBtn">Login</button>
+      <button id="signupBtn">Sign Up</button>
+    </div>
+  </header>
+
+  <!-- Landing Page... -->
+
+  <section id="landing" class="page active">
+    <div class="center-card">
+      <h1>Welcome to Giggly</h1>
+      <p>Connecting Bands and Venues Seamlessly</p>
+      <button id="hireBandBtn">Hire a Band</button>
+      <button id="findGigBtn">Find a Gig</button>
+    </div>
+  </section>
+
+  <!-- Bands Page... -->
+
+  <section id="bands" class="page">
+    <h2>Featured Bands</h2>
+
+    <div class="search-row">
+      <input type="text" placeholder="Search for bands near you..." />
+      <select>
+        <option>Filter by</option>
+        <option>Genre</option>
+        <option>Price</option>
+        <option>Distance</option>
+
+      </select>
+    </div>
+
+    <div class="card-grid"></div>
+  </section>
+
+  <section id="gigs" class="page">
+    <h2>Gigs !</h2>
+
+    <div class="search-row">
+      <input type="text" placeholder="Search for gigs near you..." />
+      <select>
+        <option>Filter by</option>
+        <option>Genre</option>
+        <option>Price</option>
+        <option>Distance</option>
+
+      </select>
+    </div>
+
+    <div class="card-grid"></div>
+  </section>
+
+  <!-- Login Page... -->
+
+  <section id="login" class="page">
+    <div class="form-card">
+      <h2>Sign In</h2>
+      <input type="email" placeholder="Email" />
+      <input type="password" placeholder="Password" />
+      <div class="login-buttons">
+        <button id="loginBandBtn">Log In As Band</button>
+        <button id="loginVenueBtn">Log In As Venue</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Profile Page... -->
+
+  <section id="profile" class="page">
+    <h2>Band Profile</h2>
+    <p>This is your profile page.</p>
+  </section>
+
+  <!-- Dashboard Page... -->
+  
+  <section id="dashboard" class="page">
+    <h2>Venue Dashboard</h2>
+    <p>This is your dashboard page.</p>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import bandModel from "./musician.js";
+import musicianModel from "./musician.js";
 
 const MUSICIAN_SELECT = 'name band_affiliations instruments bio';
 

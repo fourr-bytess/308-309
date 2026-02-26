@@ -3,8 +3,7 @@ import reviewModel from "./review.js";
 
 const REVIEW_SELECT = 'rating header body';
 
-/** Builds a MongoDB query from filter options (shared by getBands, getBandsCount, getBandsPaginated). */
-function buildBandsQuery(filters = {}) {
+function buildReviewsQuery(filters = {}) {
     const query = {};
     if (filters.rating) {
         query.rating = filters.rating();

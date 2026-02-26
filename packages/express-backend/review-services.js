@@ -1,12 +1,18 @@
 import mongoose from "mongoose";
 import reviewModel from "./review.js";
 
-const REVIEW_SELECT = 'rating header body';
+const REVIEW_SELECT = 'rating reviewer reviewee header body';
 
 function buildReviewsQuery(filters = {}) {
     const query = {};
     if (filters.rating) {
         query.rating = filters.rating();
+    }
+    if (filters.reviewer) {
+        query.reviewer = filters.reviewer();
+    }
+    if (filters.reviewee) {
+        query.reviewee = filters.reviewee();
     }
     if (filters.header) {
         query.header = filters.header.toLowerCase();
@@ -17,8 +23,8 @@ function buildReviewsQuery(filters = {}) {
     return query;
 }
 
-function getReviews(rating, header, body) {
-    const query = buildReviewsQuery({ rating, header, body });
+function getReviews(rating, reviewer, reviewee, header, body) {
+    const query = buildReviewsQuery({ rating, reviewer, reviewee, header, body });
     return reviewModel.find(query).select(REVIEW_SELECT);
 }
 

@@ -7,8 +7,10 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+require("dotenv").config();
+
 mongoose
-  .connect('mongodb://localhost:27017/bands')
+  .connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch((error) => console.error('MongoDB connection error:', error));
 

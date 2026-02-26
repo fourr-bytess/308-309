@@ -30,7 +30,7 @@ function getMusiciansCount(filters = {}) {
 }
 
 function getMusiciansPaginated(limit, offset, filters = {}) {
-    const query = buildMusicianssQuery(filters);
+    const query = buildMusiciansQuery(filters);
     const musiciansPromise = musicianModel.find(query).skip(offset).limit(limit).select(MUSICIAN_SELECT);
     const countPromise = musicianModel.countDocuments(query);
     return Promise.all([musiciansPromise, countPromise]).then(([musicians, total]) => ({ musicians, total }));

@@ -1,4 +1,6 @@
 import mongoose from "mongoose";
+import bandModel from "./band.js";
+import venueModel from "./venue.js";
 
 const GigSchema = new mongoose.Schema(
     {
@@ -19,15 +21,19 @@ const GigSchema = new mongoose.Schema(
         price_range: [Number],
         date: Date,
         time: [Date],
-        hosts: {
-            type: [Stirng],
+        host: {
+            type: venueModel.Types.ObjectID,
+            ref: 'Venue',
             required: true
         },
         booked: {
             type: Boolean,
             required: true
         },
-        bands_hired: [String]
+        bands_hired: {
+            type: [bandModel.Types.ObjectID],
+            ref: 'Band'
+        }
 
     },
     { collection: "gigs_list" }

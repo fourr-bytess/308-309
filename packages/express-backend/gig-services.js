@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import gigModel from "./gig.js";
 
-const GIG_SELECT = 'name description genres location price_range date time hosts booked bands_hired';
+const GIG_SELECT = 'name description genres location price_range date time host booked bands_hired';
 
 function buildGigsQuery(filters = {}) {
     const query = {};
@@ -32,8 +32,8 @@ function buildGigsQuery(filters = {}) {
             $lte: filters.time[1]
         };
     }
-    if (filters.hosts?.length) {
-        query.hosts = { $in: filters.hosts.map(g => g.toLowerCase()) };
+    if (filters.host) {
+        query.host = filters.host.toLowerCase();
     }
     if (filters.booked) {
         query.booked = filters.booked();
@@ -44,8 +44,8 @@ function buildGigsQuery(filters = {}) {
     return query;
 }
 
-function getGigs(name, description, genres, location, price_range, date, time, hosts, booked, bands_hired) {
-    const query = buildGigsQuery({ name, description, genres, location, price_range, date, time, hosts, booked, bands_hired });
+function getGigs(name, description, genres, location, price_range, date, time, host, booked, bands_hired) {
+    const query = buildGigsQuery({ name, description, genres, location, price_range, date, time, host, booked, bands_hired });
     return gigModel.find(query).select(GIG_SELECT);
 }
 

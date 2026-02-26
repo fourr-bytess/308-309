@@ -19,7 +19,7 @@ function buildBandsQuery(filters = {}) {
         query.locations = { $in: filters.locations.map(l => l.toLowerCase()) };
     }
     if (filters.price_range?.length === 2) {
-        query.price = {
+        query.price_range = {
             $gte: filters.price_range[0],
             $lte: filters.price_range[1]
         };

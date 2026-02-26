@@ -13,7 +13,12 @@ const MusicianSchema = new mongoose.Schema(
             type: [String],
             required: true
         },
-        instruments: [String]
+        instruments: [String],
+        bio: {
+            type: String,
+            trim: true,
+            maxLength: 1000
+        }
     },
     { collection: "musicians_list" }
 );

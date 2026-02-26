@@ -4,6 +4,7 @@ import cors from 'cors';
 import bandServices from './band-services.js';
 import venueServices from './venue-services.js';
 import dotenv from "dotenv";
+import musicianServices from './musician-services.js';
 dotenv.config({ path: new URL("./.env", import.meta.url).pathname });
 
 const app = express();
@@ -45,7 +46,7 @@ app.get('/bands', async (req, res) => {
 
 app.get("/bands/:id", async (req, res) => {
   try {
-    const band = await bandServices.findById(req.params.id);
+    const band = await bandServices.findBandById(req.params.id);
     if (!band) {
       return res.status(404).json({ error: "Band not found" });
     }
@@ -68,7 +69,7 @@ app.post('/bands', async (req, res) => {
 
 app.delete("/bands/:id", async (req,res) => {
     try{
-        const deleted = await bandServices.findByIdAndDelete(req.params.id);
+        const deleted = await bandServices.findBandByIdAndDelete(req.params.id);
         if (!deleted){
             return res.status(404).json({error: "Band not found"});
         }
@@ -140,6 +141,68 @@ app.delete("/venues/:id", async (req, res) => {
     res.json({ data: deleted });
   } catch (err) {
     return res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
+// GET /musicians
+app.get("/musicians", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const cappedLimit = Math.min(limit, 50);
+
+    const filters = {
+      name: req.query.name,
+      instruments: req.query.instruments?.split(","),
+      band_affiliations: req.query.band_affiliations?.split(","),
+    };
+
+    const total = await musicianServices.getMusiciansCount(filters);
+    const { musicians } = await musicianServices.getMusiciansPaginated(
+      cappedLimit,
+      offset,
+      filters
+    );
+
+    res.status(200).json({ data: musicians, meta: { limit: cappedLimit, offset, total } });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch musicians" });
+  }
+});
+
+// GET /musicians/:id
+app.get("/musicians/:id", async (req, res) => {
+  try {
+    const musician = await musicianServices.findMusicianById(req.params.id);
+    if (!musician) {
+      return res.status(404).json({ error: "Musician not found" });
+    }
+    res.status(200).json({ data: musician });
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
+// POST /musicians
+app.post("/musicians", async (req, res) => {
+  try {
+    const created = await musicianServices.addMusician(req.body);
+    res.status(201).json({ data: created });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create musician" });
+  }
+});
+
+// DELETE /musicians/:id
+app.delete("/musicians/:id", async (req, res) => {
+  try {
+    const deleted = await musicianServices.findMusicianByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: "Musician not found" });
+    }
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    res.status(400).json({ error: "Invalid ID" });
   }
 });
 

@@ -2,12 +2,14 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import bandServices from './band-services.js';
+import venueServices from './venue-services.js';
+import dotenv from "dotenv";
+dotenv.config({ path: new URL("./.env", import.meta.url).pathname });
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-require("dotenv").config();
 
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -40,15 +42,16 @@ app.get('/bands', async (req, res) => {
   }
 });
 
-app.get('/bands/:id', async (req, res) => {
+
+app.get("/bands/:id", async (req, res) => {
   try {
-    const band = await bandServices.findBandById(req.params.id);
-    if (!band){
-      return res.status(404).json({ error: 'Band not found' });
+    const band = await bandServices.findById(req.params.id);
+    if (!band) {
+      return res.status(404).json({ error: "Band not found" });
     }
     res.status(200).json({ data: band });
-  } catch (error) {
-    res.status(400).json({ error: 'Failed to fetch band' });
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid ID" });
   }
 });
 
@@ -62,6 +65,84 @@ app.post('/bands', async (req, res) => {
     res.status(400).json({ error: 'Failed to create band' });
   }
 });
+
+app.delete("/bands/:id", async (req,res) => {
+    try{
+        const deleted = await bandServices.findByIdAndDelete(req.params.id);
+        if (!deleted){
+            return res.status(404).json({error: "Band not found"});
+        }
+        res.status(200).json({data: deleted});
+    }catch(err){
+        return res.status(404).json({error: "Invalid ID"});
+    }
+});
+
+//GET /venues
+app.get("/venues", async (req, res) => {
+  try {
+    const { name, city, state, zip } = req.query;
+
+    const minCap =
+      req.query.minCap !== undefined ? Number(req.query.minCap) : undefined;
+    const maxCap =
+      req.query.maxCap !== undefined ? Number(req.query.maxCap) : undefined;
+
+    const capacity_range =
+      Number.isFinite(minCap) && Number.isFinite(maxCap)
+        ? [minCap, maxCap]
+        : undefined;
+
+    const venues = await venueServices.getVenue(
+      name,
+      city,
+      state,
+      zip,
+      capacity_range
+    );
+
+    res.json({ data: venues });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch venues" });
+  }
+});
+
+// POST /venues
+app.post("/venues", async (req, res) => {
+  try {
+    const created = await venueServices.addVenue(req.body);
+    res.status(201).json({ data: created });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create venue" });
+  }
+});
+
+// GET /venues/:id
+app.get("/venues/:id", async (req, res) => {
+  try {
+    const venue = await venueServices.findVenueById(req.params.id);
+    if (!venue) {
+      return res.status(404).json({ error: "Venue not found" });
+    }
+    res.json({ data: venue });
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
+// DELETE /venues/:id
+app.delete("/venues/:id", async (req, res) => {
+  try {
+    const deleted = await venueServices.findVenueByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: "Venue not found" });
+    }
+    res.json({ data: deleted });
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

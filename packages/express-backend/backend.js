@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import bandServices from './band-services.js';
+import musicianServices from './musician-services.js';
 
 const app = express();
 app.use(express.json());
@@ -21,18 +22,23 @@ app.get('/bands', async (req, res) => {
       member_names: req.query.member_names?.split(','),
       genres: req.query.genres?.split(','),
       locations: req.query.locations?.split(','),
-      price_range: [req.query.min_price, req.query.max_price]
+      price_range: [req.query.min_price, req.query.max_price],
     });
     const cappedLimit = Math.min(limit, 50);
-    const { bands } = await bandServices.getBandsPaginated(cappedLimit, offset, {
-      name: req.query.name,
-      member_names: req.query.member_names?.split(','),
-      genres: req.query.genres?.split(','),
-      locations: req.query.locations?.split(','),
-      price_range: [req.query.min_price, req.query.max_price]
-      
-    });
-    res.status(200).json({ data: bands, meta : { limit: cappedLimit, offset, total } });
+    const { bands } = await bandServices.getBandsPaginated(
+      cappedLimit,
+      offset,
+      {
+        name: req.query.name,
+        member_names: req.query.member_names?.split(','),
+        genres: req.query.genres?.split(','),
+        locations: req.query.locations?.split(','),
+        price_range: [req.query.min_price, req.query.max_price],
+      },
+    );
+    res
+      .status(200)
+      .json({ data: bands, meta: { limit: cappedLimit, offset, total } });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch bands' });
   }
@@ -41,7 +47,7 @@ app.get('/bands', async (req, res) => {
 app.get('/bands/:id', async (req, res) => {
   try {
     const band = await bandServices.findBandById(req.params.id);
-    if (!band){
+    if (!band) {
       return res.status(404).json({ error: 'Band not found' });
     }
     res.status(200).json({ data: band });
@@ -50,14 +56,63 @@ app.get('/bands/:id', async (req, res) => {
   }
 });
 
-
-
 app.post('/bands', async (req, res) => {
   try {
     const created = await bandServices.addBand(req.body);
     res.status(201).json({ data: created });
   } catch (error) {
     res.status(400).json({ error: 'Failed to create band' });
+  }
+});
+
+// Musicians
+app.get('/musicians', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const offset = parseInt(req.query.offset, 10) || 0;
+
+    const filters = {
+      name: req.query.name,
+      band_affiliations: req.query.band_affiliations?.split(','),
+      instruments: req.query.instruments?.split(','),
+      bio: req.query.bio,
+      interested_genres: req.query.interested_genres?.split(','),
+    };
+
+    const total = await musicianServices.getMusiciansCount(filters);
+    const cappedLimit = Math.min(limit, 50);
+    const { musicians } = await musicianServices.getMusiciansPaginated(
+      cappedLimit,
+      offset,
+      filters,
+    );
+
+    res
+      .status(200)
+      .json({ data: musicians, meta: { limit: cappedLimit, offset, total } });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch musicians' });
+  }
+});
+
+app.get('/musicians/:id', async (req, res) => {
+  try {
+    const musician = await musicianServices.findMusicianById(req.params.id);
+    if (!musician) {
+      return res.status(404).json({ error: 'Musician not found' });
+    }
+    res.status(200).json({ data: musician });
+  } catch (error) {
+    res.status(400).json({ error: 'Failed to fetch musician' });
+  }
+});
+
+app.post('/musicians', async (req, res) => {
+  try {
+    const created = await musicianServices.addMusician(req.body);
+    res.status(201).json({ data: created });
+  } catch (error) {
+    res.status(400).json({ error: 'Failed to create musician' });
   }
 });
 

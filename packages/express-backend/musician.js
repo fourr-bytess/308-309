@@ -11,7 +11,7 @@ const MusicianSchema = new mongoose.Schema(
             minlength: 1,
         },
         band_affiliations: {
-            type: [bandModel.Types.ObjectID],
+            type: [mongoose.Schema.Types.ObjectId],
             ref: 'Band',
             required: true
         },

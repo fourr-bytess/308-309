@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import bandModel from "./band.js";
 
-const BAND_SELECT = 'name member_names genres locations price_range';
+const BAND_SELECT = 'name members genres locations price_range';
 
 /** Builds a MongoDB query from filter options (shared by getBands, getBandsCount, getBandsPaginated). */
 function buildBandsQuery(filters = {}) {
@@ -9,8 +9,8 @@ function buildBandsQuery(filters = {}) {
     if (filters.name) {
         query.name = filters.name.toLowerCase();
     }
-    if (filters.member_names) {
-        query.member_names = { $in: filters.member_names.map(m => m.toLowerCase()) };
+    if (filters.members) {
+        query.members = { $in: filters.members.map(m => m.toLowerCase()) };
     }
     if (filters.genres?.length) {
         query.genres = { $in: filters.genres.map(g => g.toLowerCase()) };
@@ -27,8 +27,8 @@ function buildBandsQuery(filters = {}) {
     return query;
 }
 
-function getBands(name, member_names, genres, locations, price_range) {
-    const query = buildBandsQuery({ name, member_names, genres, locations, price_range });
+function getBands(name, members, genres, locations, price_range) {
+    const query = buildBandsQuery({ name, members, genres, locations, price_range });
     return bandModel.find(query).select(BAND_SELECT);
 }
 

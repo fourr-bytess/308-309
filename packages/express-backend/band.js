@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import musicianModel from "./musician.js";
 
 const BandSchema = new mongoose.Schema(
     {
@@ -9,8 +10,9 @@ const BandSchema = new mongoose.Schema(
             lowercase: true,
             minlength: 1,
         },
-        member_names: {
-            type: [String],
+        members: {
+            type: [musicianModel.Types.ObjectID],
+            ref: 'Musician',
             required: true
         },
         genres: [String],

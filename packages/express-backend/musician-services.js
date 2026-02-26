@@ -1,10 +1,8 @@
 import mongoose from "mongoose";
-import bandModel from "./musician.js";
+import musicianModel from "./musician.js";
 
-const MUSICIAN_SELECT = 'name band_affiliations instruments';
+const MUSICIAN_SELECT = 'name band_affiliations instruments bio';
 
-
-/** Builds a MongoDB query from filter options (shared by getBands, getBandsCount, getBandsPaginated). */
 function buildMusiciansQuery(filters = {}) {
     const query = {};
     if (filters.name) {
@@ -15,6 +13,9 @@ function buildMusiciansQuery(filters = {}) {
     }
     if (filters.instruments?.length) {
         query.instruments = { $in: filters.instruments.map(g => g.toLowerCase()) };
+    }
+    if (filters.bio?.length) {
+        query.bio = { $in: filters.bio.map(g => g.toLowerCase()) };
     }
     return query;
 }

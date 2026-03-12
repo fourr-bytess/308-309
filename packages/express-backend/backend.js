@@ -4,8 +4,14 @@ import cors from 'cors';
 import bandServices from './band-services.js';
 import venueServices from './venue-services.js';
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import musicianServices from './musician-services.js';
-dotenv.config({ path: new URL("./.env", import.meta.url).pathname });
+import reviewServices from './review-services.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 app.use(express.json());
@@ -13,7 +19,7 @@ app.use(cors());
 
 
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/bands")
   .then(() => console.log('Connected to MongoDB'))
   .catch((error) => console.error('MongoDB connection error:', error));
 
@@ -203,6 +209,79 @@ app.delete("/musicians/:id", async (req, res) => {
     res.status(200).json({ data: deleted });
   } catch (err) {
     res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
+// GET /musicians/:id/reviews
+app.get("/musicians/:id/reviews", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const cappedLimit = Math.min(limit, 50);
+
+    const filters = { reviewee: req.params.id, revieweeType: 'Musician' };
+    const total = await reviewServices.getReviewsCount(filters);
+    const { reviews } = await reviewServices.getReviewsPaginated(cappedLimit, offset, filters);
+
+    res.status(200).json({ data: reviews, meta: { limit: cappedLimit, offset, total } });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch reviews" });
+  }
+});
+
+// GET /reviews
+app.get("/reviews", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const cappedLimit = Math.min(limit, 50);
+
+    const filters = {
+      reviewee: req.query.reviewee,
+      reviewer: req.query.reviewer,
+      revieweeType: req.query.revieweeType,
+      rating: req.query.rating,
+      header: req.query.header,
+      body: req.query.body,
+    };
+
+    const total = await reviewServices.getReviewsCount(filters);
+    const { reviews } = await reviewServices.getReviewsPaginated(cappedLimit, offset, filters);
+    res.status(200).json({ data: reviews, meta: { limit: cappedLimit, offset, total } });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch reviews" });
+  }
+});
+
+// POST /reviews
+app.post("/reviews", async (req, res) => {
+  try {
+    const { reviewer, reviewee, revieweeType, rating, header, body } = req.body;
+    if (reviewer == null || reviewee == null || revieweeType == null || rating == null) {
+      return res.status(400).json({ error: "reviewer, reviewee, revieweeType, and rating are required" });
+    }
+
+    const ratingNum = Number(rating);
+    if (!Number.isFinite(ratingNum) || ratingNum < 0 || ratingNum > 5) {
+      return res.status(400).json({ error: "rating must be a number between 0 and 5" });
+    }
+
+    const validTypes = ['Band', 'Venue', 'Musician'];
+    if (!validTypes.includes(revieweeType)) {
+      return res.status(400).json({ error: "revieweeType must be Band, Venue, or Musician" });
+    }
+
+    const created = await reviewServices.addReview({
+      reviewer,
+      reviewee,
+      revieweeType,
+      rating: ratingNum,
+      header: header || undefined,
+      body: body || undefined,
+    });
+    res.status(201).json({ data: created });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create review" });
   }
 });
 

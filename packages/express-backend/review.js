@@ -1,6 +1,4 @@
 import mongoose from "mongoose";
-import bandModel from "./band.js";
-import venueModel from "./venue.js";
 
 const ReviewSchema = new mongoose.Schema(
     {
@@ -11,13 +9,16 @@ const ReviewSchema = new mongoose.Schema(
             required: true
         },
         reviewer: {
-            type: [bandModel.Types.ObjectID, venueModel.Types.ObjectID],
-            ref: ['Band', 'Venue'],
+            type: mongoose.Schema.Types.ObjectId,
             required: true
         },
         reviewee: {
-            type: [bandModel.Types.ObjectID, venueModel.Types.ObjectID],
-            ref: ['Band', 'Venue'],
+            type: mongoose.Schema.Types.ObjectId,
+            required: true
+        },
+        revieweeType: {
+            type: String,
+            enum: ['Band', 'Venue', 'Musician'],
             required: true
         },
         header: {
@@ -36,4 +37,4 @@ const ReviewSchema = new mongoose.Schema(
 
 const Review = mongoose.model("Review", ReviewSchema);
 
-export default Review
+export default Review;

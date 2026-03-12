@@ -1,24 +1,27 @@
 import mongoose from "mongoose";
 import reviewModel from "./review.js";
 
-const REVIEW_SELECT = 'rating reviewer reviewee header body';
+const REVIEW_SELECT = 'rating reviewer reviewee revieweeType header body';
 
 function buildReviewsQuery(filters = {}) {
     const query = {};
-    if (filters.rating) {
-        query.rating = filters.rating();
+    if (filters.rating !== undefined && filters.rating !== '') {
+        query.rating = Number(filters.rating);
     }
     if (filters.reviewer) {
-        query.reviewer = filters.reviewer();
+        query.reviewer = filters.reviewer;
     }
     if (filters.reviewee) {
-        query.reviewee = filters.reviewee();
+        query.reviewee = filters.reviewee;
+    }
+    if (filters.revieweeType) {
+        query.revieweeType = filters.revieweeType;
     }
     if (filters.header) {
-        query.header = filters.header.toLowerCase();
+        query.header = filters.header;
     }
     if (filters.body) {
-        query.body = filters.body.toLowerCase();
+        query.body = filters.body;
     }
     return query;
 }

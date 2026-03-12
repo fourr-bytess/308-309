@@ -257,3 +257,20 @@ body {
 .primary-btn:hover {
   background: #5a67d8;
 }
+
+/* Profile editing input styling... */
+
+.edit-input {
+  width: 220px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  background: white;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}

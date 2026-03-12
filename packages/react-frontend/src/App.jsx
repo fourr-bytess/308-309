@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import "./App.css"
 
 export default function App() {
@@ -11,6 +11,10 @@ export default function App() {
 
   const [page, setPage] = useState("landing")
 
+  // Controls if the profile is currently in editing mode...
+
+  const [isEditing, setIsEditing] = useState(false)
+
   // Stores profile information...
 
   const [profile, setProfile] = useState({
@@ -19,7 +23,20 @@ export default function App() {
     email: "hello@email.com",
     password: "12345",
     role: "Artist"
-})
+  })
+
+  // Stores bands coming from backend database...
+
+  const [bands, setBands] = useState([])
+
+  // Stores venues for the venue dashboard...
+
+  const [venues, setVenues] = useState([])
+
+  // Stores gigs for the gig page (THIS WAS MISSING AND CAUSED THE CRASH)
+
+  const [gigs, setGigs] = useState([])
+
 
   function showPage(pageId) {
     setPage(pageId)
@@ -41,33 +58,60 @@ export default function App() {
     return true
   }
 
-  // Card generators...
+  // Handles any profile input changes when editing...
+  // This updates the profile state dynamically...
 
-  function generateBands() {
+  function handleChange(e) {
 
-    const bands = []
+    setProfile({
+      ...profile,
+      [e.target.name]: e.target.value
+    })
 
-    for (let i = 1; i <= 12; i++) {
+  }
 
-      bands.push("Band " + i)
+  // -----------------------------------------
+  // Backend Connections
+  // -----------------------------------------
+  // Whenever the page changes we check if we
+  // need to load data from the backend.
+
+  useEffect(() => {
+
+    // Load bands when the bands page opens
+
+    if (page === "bands") {
+
+      fetch("http://localhost:3001/bands")
+        .then(res => res.json())
+        .then(data => {
+
+          // backend returns { data: [...] }
+
+          setBands(data.data)
+
+        })
+        .catch(err => console.error("Failed to load bands:", err))
 
     }
 
-    return bands
-  }
+    // Load venues when dashboard opens
 
-  function generateGigs() {
+    if (page === "dashboard") {
 
-    const gigs = []
+      fetch("http://localhost:3001/venues")
+        .then(res => res.json())
+        .then(data => {
 
-    for (let i = 1; i <= 12; i++) {
+          setVenues(data.data)
 
-      gigs.push("Gig " + i)
+        })
+        .catch(err => console.error("Failed to load venues:", err))
 
     }
 
-    return gigs
-  }
+  }, [page])
+
 
   return (
 
@@ -173,13 +217,19 @@ export default function App() {
 
           </div>
 
+          {/* Cards generated from backend band data */}
+
           <div className="card-grid">
 
-            {generateBands().map((band, index) => (
+            {bands.map((band, index) => (
 
               <div key={index} className="card">
 
-                {band}
+                <h3>{band.name}</h3>
+
+                {/* These fields depend on your database structure */}
+
+                <p>{band.location}</p>
 
               </div>
 
@@ -198,7 +248,9 @@ export default function App() {
 
         <section id="gigs" className="page active">
 
-          <h2>Gigs !</h2>
+          <h2>Available Gigs</h2>
+
+          {/* Search + Filter Row */}
 
           <div className="search-row">
 
@@ -211,24 +263,40 @@ export default function App() {
 
               <option>Filter by</option>
               <option>Genre</option>
-              <option>Price</option>
+              <option>Pay</option>
               <option>Distance</option>
 
             </select>
 
           </div>
 
+          {/* Gig Cards */}
+
           <div className="card-grid">
 
-            {generateGigs().map((gig, index) => (
+            {gigs.length === 0 ? (
 
-              <div key={index} className="card">
+              <p style={{color:"white"}}>
+                No gigs available yet.
+              </p>
 
-                {gig}
+            ) : (
 
-              </div>
+              gigs.map((gig,index)=>(
 
-            ))}
+                <div key={index} className="card">
+
+                  <h3>{gig.title}</h3>
+
+                  <p>{gig.location}</p>
+
+                  <p>${gig.pay}</p>
+
+                </div>
+
+              ))
+
+            )}
 
           </div>
 
@@ -294,87 +362,168 @@ export default function App() {
       )}
 
 
-{/* Profile Page... */}
+      {/* Profile Page... */}
 
-{page === "profile" && (
+      {page === "profile" && (
 
-<section id="profile" className="page active">
+        <section id="profile" className="page active">
 
-  {/* Main popup card that holds profile information */}
+          <div className="profile-popup">
 
-  <div className="profile-popup">
+            <h2>User Profile</h2>
 
-    <h2>User Profile</h2>
+            {isEditing ? (
 
-    {/* First Name */}
+              <>
 
-    <div className="profile-row">
-      <span className="label">First Name</span>
-      <span className="value">{profile.first}</span>
-    </div>
+                <div className="profile-row">
+                  <span className="label">First Name</span>
+                  <input
+                    className="edit-input"
+                    name="first"
+                    value={profile.first}
+                    onChange={handleChange}
+                  />
+                </div>
 
-    {/* Last Name */}
+                <div className="profile-row">
+                  <span className="label">Last Name</span>
+                  <input
+                    className="edit-input"
+                    name="last"
+                    value={profile.last}
+                    onChange={handleChange}
+                  />
+                </div>
 
-    <div className="profile-row">
-      <span className="label">Last Name</span>
-      <span className="value">{profile.last}</span>
-    </div>
+                <div className="profile-row">
+                  <span className="label">Email</span>
+                  <input
+                    className="edit-input"
+                    name="email"
+                    value={profile.email}
+                    onChange={handleChange}
+                  />
+                </div>
 
-    {/* Email */}
+                <div className="profile-row">
+                  <span className="label">Password</span>
+                  <input
+                    className="edit-input"
+                    type="password"
+                    name="password"
+                    value={profile.password}
+                    onChange={handleChange}
+                  />
+                </div>
 
-    <div className="profile-row">
-      <span className="label">Email</span>
-      <span className="value">{profile.email}</span>
-    </div>
+                <div className="profile-row">
+                  <span className="label">Role</span>
+                  <select
+                    className="edit-input"
+                    name="role"
+                    value={profile.role}
+                    onChange={handleChange}
+                  >
+                    <option>Artist</option>
+                    <option>Venue</option>
+                  </select>
+                </div>
 
-    {/* Password */}
+                <button
+                  className="primary-btn"
+                  onClick={() => setIsEditing(false)}
+                >
+                  Save Changes
+                </button>
 
-    <div className="profile-row">
-      <span className="label">Password</span>
-      <span className="value">
-        {"•".repeat(profile.password.length)}
-      </span>
-    </div>
+              </>
 
-    {/* Role */}
+            ) : (
 
-    <div className="profile-row">
-      <span className="label">Role</span>
-      <span className="value">{profile.role}</span>
-    </div>
+              <>
 
-    {/* Edit Button */}
+                <div className="profile-row">
+                  <span className="label">First Name</span>
+                  <span className="value">{profile.first}</span>
+                </div>
 
-    <button
-      className="primary-btn"
-      onClick={() => showPage("login")}
-    >
-      Edit
-    </button>
+                <div className="profile-row">
+                  <span className="label">Last Name</span>
+                  <span className="value">{profile.last}</span>
+                </div>
 
-  </div>
+                <div className="profile-row">
+                  <span className="label">Email</span>
+                  <span className="value">{profile.email}</span>
+                </div>
 
-</section>
+                <div className="profile-row">
+                  <span className="label">Password</span>
+                  <span className="value">
+                    {"•".repeat(profile.password.length)}
+                  </span>
+                </div>
 
-)}
+                <div className="profile-row">
+                  <span className="label">Role</span>
+                  <span className="value">{profile.role}</span>
+                </div>
+
+                <button
+                  className="primary-btn"
+                  onClick={() => setIsEditing(true)}
+                >
+                  Edit
+                </button>
+
+              </>
+
+            )}
+
+          </div>
+
+        </section>
+
+      )}
 
 
-      {/* Dashboard Page... */}
+      {/* Venue Dashboard Page... */}
 
       {page === "dashboard" && (
 
         <section id="dashboard" className="page active">
 
-          <h2>Venue Dashboard</h2>
+          <div className="dashboard-card">
 
-          <p>This is your dashboard page.</p>
+            <h2>Venue Dashboard</h2>
+
+            <p>Your registered venues</p>
+
+            <div className="dashboard-grid">
+
+              {venues.map((venue, index) => (
+
+                <div key={index} className="venue-gig-card">
+
+                  <h3>{venue.name}</h3>
+
+                  <p><strong>City:</strong> {venue.city}</p>
+
+                  <p><strong>Capacity:</strong> {venue.capacity}</p>
+
+                </div>
+
+              ))}
+
+            </div>
+
+          </div>
 
         </section>
 
       )}
 
     </>
-
   )
-
 }

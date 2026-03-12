@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1773331421178" clover="3.2.0">
-  <project timestamp="1773331421179" name="All files">
-    <metrics statements="330" coveredstatements="106" conditionals="156" coveredconditionals="53" methods="79" coveredmethods="36" elements="565" coveredelements="195" complexity="0" loc="330" ncloc="330" packages="3" files="18" classes="18"/>
+<coverage generated="1773336753564" clover="3.2.0">
+  <project timestamp="1773336753564" name="All files">
+    <metrics statements="329" coveredstatements="123" conditionals="156" coveredconditionals="63" methods="79" coveredmethods="40" elements="564" coveredelements="226" complexity="0" loc="329" ncloc="329" packages="3" files="18" classes="18"/>
     <package name="express-backend">
-      <metrics statements="287" coveredstatements="106" conditionals="150" coveredconditionals="53" methods="66" coveredmethods="36"/>
+      <metrics statements="286" coveredstatements="123" conditionals="150" coveredconditionals="63" methods="66" coveredmethods="40"/>
       <file name="availability-service.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/availability-service.js">
         <metrics statements="12" coveredstatements="12" conditionals="13" coveredconditionals="10" methods="2" coveredmethods="2"/>
         <line num="4" count="2" type="stmt"/>
@@ -311,30 +311,29 @@
         <line num="38" count="0" type="stmt"/>
       </file>
       <file name="venue-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/venue-services.js">
-        <metrics statements="18" coveredstatements="0" conditionals="10" coveredconditionals="0" methods="4" coveredmethods="0"/>
-        <line num="4" count="0" type="stmt"/>
-        <line num="6" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="7" count="0" type="stmt"/>
-        <line num="9" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="10" count="0" type="stmt"/>
-        <line num="12" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="13" count="0" type="stmt"/>
-        <line num="15" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="16" count="0" type="stmt"/>
-        <line num="18" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="19" count="0" type="stmt"/>
-        <line num="24" count="0" type="stmt"/>
-        <line num="28" count="0" type="stmt"/>
-        <line num="39" count="0" type="stmt"/>
-        <line num="40" count="0" type="stmt"/>
-        <line num="41" count="0" type="stmt"/>
-        <line num="45" count="0" type="stmt"/>
-        <line num="49" count="0" type="stmt"/>
+        <metrics statements="17" coveredstatements="17" conditionals="10" coveredconditionals="10" methods="4" coveredmethods="4"/>
+        <line num="4" count="2" type="stmt"/>
+        <line num="6" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="7" count="1" type="stmt"/>
+        <line num="9" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="10" count="1" type="stmt"/>
+        <line num="12" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="13" count="1" type="stmt"/>
+        <line num="15" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="16" count="1" type="stmt"/>
+        <line num="18" count="2" type="cond" truecount="2" falsecount="0"/>
+        <line num="19" count="1" type="stmt"/>
+        <line num="24" count="2" type="stmt"/>
+        <line num="28" count="1" type="stmt"/>
+        <line num="29" count="1" type="stmt"/>
+        <line num="30" count="1" type="stmt"/>
+        <line num="34" count="1" type="stmt"/>
+        <line num="38" count="1" type="stmt"/>
       </file>
       <file name="venue.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/venue.js">
         <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
-        <line num="3" count="1" type="stmt"/>
-        <line num="44" count="1" type="stmt"/>
+        <line num="3" count="2" type="stmt"/>
+        <line num="47" count="2" type="stmt"/>
       </file>
     </package>
     <package name="react-frontend">

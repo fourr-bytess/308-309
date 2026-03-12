@@ -4,14 +4,14 @@ async function createAvailability({ bandId, start, end, notes }) {
   const s = new Date(start);
   const e = new Date(end);
 
-  const conflict = await Availibility.findOne({
+  const conflict = await Availability.findOne({
     bandId,
     status: { $in: ["available", "pending", "unavailable"] },
     start: { $lt: e },
     end: { $gt: s },
   });
 
-  if (conflict) throw new Error("Availibility overlaps existing time slot");
+  if (conflict) throw new Error("Availability overlaps existing time slot");
 
   return Availability.create({
     bandId,
@@ -32,7 +32,7 @@ async function getSlots({ bandId, startime, endtime, status = "open" }) {
     if (endtime) query.start.$lte = new Date(endtime);
   }
 
-  return Availibility.find(query).sort({ start: 1 });
+  return Availability.find(query).sort({ start: 1 });
 }
 
 export default {

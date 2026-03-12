@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
-const availabilitySchema = new Schema({
+const availabilitySchema = new mongoose.Schema({
   bandId: {
-    type: Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: "Band",
     required: true,
     index: true,
@@ -32,14 +32,13 @@ const availabilitySchema = new Schema({
   },
 });
 
-availabilitySchema.pre("validate", function (next) {
+availabilitySchema.pre("validate", function () {
   if (this.start && this.end) {
     if (this.end <= this.start) {
-      return next(new Error("End time must be after start time."));
+      throw new Error("End time must be after start time.");
     }
   }
-  next();
 });
 
-const Availibility = mongoose.model("Availibility", availabilitySchema);
-export default Availibility;
+const Availability = mongoose.model("Availability", availabilitySchema);
+export default Availability;

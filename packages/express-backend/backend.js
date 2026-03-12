@@ -1,13 +1,14 @@
-import express from 'express';
-import mongoose from 'mongoose';
-import cors from 'cors';
-import bandServices from './band-services.js';
-import venueServices from './venue-services.js';
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import bandServices from "./band-services.js";
+import venueServices from "./venue-services.js";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
-import musicianServices from './musician-services.js';
-import reviewServices from './review-services.js';
+import musicianServices from "./musician-services.js";
+import reviewServices from "./review-services.js";
+import availabilityServices from "./availability-service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,38 +18,41 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/bands")
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((error) => console.error('MongoDB connection error:', error));
+  .then(() => console.log("Connected to MongoDB"))
+  .catch((error) => console.error("MongoDB connection error:", error));
 
-app.get('/bands', async (req, res) => {
+app.get("/bands", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
     const offset = parseInt(req.query.offset, 10) || 0;
     const total = await bandServices.getBandsCount({
       name: req.query.name,
-      member_names: req.query.member_names?.split(','),
-      genres: req.query.genres?.split(','),
-      locations: req.query.locations?.split(','),
-      price_range: [req.query.min_price, req.query.max_price]
+      member_names: req.query.member_names?.split(","),
+      genres: req.query.genres?.split(","),
+      locations: req.query.locations?.split(","),
+      price_range: [req.query.min_price, req.query.max_price],
     });
     const cappedLimit = Math.min(limit, 50);
-    const { bands } = await bandServices.getBandsPaginated(cappedLimit, offset, {
-      name: req.query.name,
-      member_names: req.query.member_names?.split(','),
-      genres: req.query.genres?.split(','),
-      locations: req.query.locations?.split(','),
-      price_range: [req.query.min_price, req.query.max_price]
-      
-    });
-    res.status(200).json({ data: bands, meta : { limit: cappedLimit, offset, total } });
+    const { bands } = await bandServices.getBandsPaginated(
+      cappedLimit,
+      offset,
+      {
+        name: req.query.name,
+        member_names: req.query.member_names?.split(","),
+        genres: req.query.genres?.split(","),
+        locations: req.query.locations?.split(","),
+        price_range: [req.query.min_price, req.query.max_price],
+      },
+    );
+    res
+      .status(200)
+      .json({ data: bands, meta: { limit: cappedLimit, offset, total } });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch bands' });
+    res.status(500).json({ error: "Failed to fetch bands" });
   }
 });
-
 
 app.get("/bands/:id", async (req, res) => {
   try {
@@ -62,27 +66,25 @@ app.get("/bands/:id", async (req, res) => {
   }
 });
 
-
-
-app.post('/bands', async (req, res) => {
+app.post("/bands", async (req, res) => {
   try {
     const created = await bandServices.addBand(req.body);
     res.status(201).json({ data: created });
   } catch (error) {
-    res.status(400).json({ error: 'Failed to create band' });
+    res.status(400).json({ error: "Failed to create band" });
   }
 });
 
-app.delete("/bands/:id", async (req,res) => {
-    try{
-        const deleted = await bandServices.findBandByIdAndDelete(req.params.id);
-        if (!deleted){
-            return res.status(404).json({error: "Band not found"});
-        }
-        res.status(200).json({data: deleted});
-    }catch(err){
-        return res.status(404).json({error: "Invalid ID"});
+app.delete("/bands/:id", async (req, res) => {
+  try {
+    const deleted = await bandServices.findBandByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: "Band not found" });
     }
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    return res.status(404).json({ error: "Invalid ID" });
+  }
 });
 
 //GET /venues
@@ -105,7 +107,7 @@ app.get("/venues", async (req, res) => {
       city,
       state,
       zip,
-      capacity_range
+      capacity_range,
     );
 
     res.json({ data: venues });
@@ -167,10 +169,12 @@ app.get("/musicians", async (req, res) => {
     const { musicians } = await musicianServices.getMusiciansPaginated(
       cappedLimit,
       offset,
-      filters
+      filters,
     );
 
-    res.status(200).json({ data: musicians, meta: { limit: cappedLimit, offset, total } });
+    res
+      .status(200)
+      .json({ data: musicians, meta: { limit: cappedLimit, offset, total } });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch musicians" });
   }
@@ -202,7 +206,9 @@ app.post("/musicians", async (req, res) => {
 // DELETE /musicians/:id
 app.delete("/musicians/:id", async (req, res) => {
   try {
-    const deleted = await musicianServices.findMusicianByIdAndDelete(req.params.id);
+    const deleted = await musicianServices.findMusicianByIdAndDelete(
+      req.params.id,
+    );
     if (!deleted) {
       return res.status(404).json({ error: "Musician not found" });
     }
@@ -219,11 +225,17 @@ app.get("/musicians/:id/reviews", async (req, res) => {
     const offset = parseInt(req.query.offset, 10) || 0;
     const cappedLimit = Math.min(limit, 50);
 
-    const filters = { reviewee: req.params.id, revieweeType: 'Musician' };
+    const filters = { reviewee: req.params.id, revieweeType: "Musician" };
     const total = await reviewServices.getReviewsCount(filters);
-    const { reviews } = await reviewServices.getReviewsPaginated(cappedLimit, offset, filters);
+    const { reviews } = await reviewServices.getReviewsPaginated(
+      cappedLimit,
+      offset,
+      filters,
+    );
 
-    res.status(200).json({ data: reviews, meta: { limit: cappedLimit, offset, total } });
+    res
+      .status(200)
+      .json({ data: reviews, meta: { limit: cappedLimit, offset, total } });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch reviews" });
   }
@@ -246,8 +258,14 @@ app.get("/reviews", async (req, res) => {
     };
 
     const total = await reviewServices.getReviewsCount(filters);
-    const { reviews } = await reviewServices.getReviewsPaginated(cappedLimit, offset, filters);
-    res.status(200).json({ data: reviews, meta: { limit: cappedLimit, offset, total } });
+    const { reviews } = await reviewServices.getReviewsPaginated(
+      cappedLimit,
+      offset,
+      filters,
+    );
+    res
+      .status(200)
+      .json({ data: reviews, meta: { limit: cappedLimit, offset, total } });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch reviews" });
   }
@@ -257,18 +275,29 @@ app.get("/reviews", async (req, res) => {
 app.post("/reviews", async (req, res) => {
   try {
     const { reviewer, reviewee, revieweeType, rating, header, body } = req.body;
-    if (reviewer == null || reviewee == null || revieweeType == null || rating == null) {
-      return res.status(400).json({ error: "reviewer, reviewee, revieweeType, and rating are required" });
+    if (
+      reviewer == null ||
+      reviewee == null ||
+      revieweeType == null ||
+      rating == null
+    ) {
+      return res.status(400).json({
+        error: "reviewer, reviewee, revieweeType, and rating are required",
+      });
     }
 
     const ratingNum = Number(rating);
     if (!Number.isFinite(ratingNum) || ratingNum < 0 || ratingNum > 5) {
-      return res.status(400).json({ error: "rating must be a number between 0 and 5" });
+      return res
+        .status(400)
+        .json({ error: "rating must be a number between 0 and 5" });
     }
 
-    const validTypes = ['Band', 'Venue', 'Musician'];
+    const validTypes = ["Band", "Venue", "Musician"];
     if (!validTypes.includes(revieweeType)) {
-      return res.status(400).json({ error: "revieweeType must be Band, Venue, or Musician" });
+      return res
+        .status(400)
+        .json({ error: "revieweeType must be Band, Venue, or Musician" });
     }
 
     const created = await reviewServices.addReview({
@@ -284,7 +313,73 @@ app.post("/reviews", async (req, res) => {
     res.status(400).json({ error: "Failed to create review" });
   }
 });
+// Availability
+app.post("/availability", async (req, res) => {
+  try {
+    const slot = await availabilityServices.createAvailability(req.body);
+    res.status(201).json({ data: slot });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 
+app.get("/availability", async (req, res) => {
+  try {
+    const slots = await availabilityServices.getSlots(req.query);
+    res.status(200).json({ data: slots });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.get("/availability/:id", async (req, res) => {
+  try {
+    const slot = await availabilityServices.getSlotById(req.params.id);
+
+    if (!slot) {
+      return res.status(404).json({ error: "Slot not found" });
+    }
+
+    res.status(200).json({ data: slot });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put("/availability/:id", async (req, res) => {
+  try {
+    const updated = await availabilityServices.updateAvailability(
+      req.params.id,
+      req.body,
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: "Slot not found" });
+    }
+
+    res.status(200).json({ data: updated });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete("/availability/:id", async (req, res) => {
+  try {
+    const deleted = await availabilityServices.deleteAvailability(
+      req.params.id,
+    );
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Slot not found" });
+    }
+
+    res.status(200).json({ message: "Availability deleted" });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`Server running on http://localhost:${PORT}`),
+);

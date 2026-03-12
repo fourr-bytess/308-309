@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const conversationSchema = new Schema({
+const conversationSchema = new mongoose.Schema({
   bandId: {
     type: Schema.Types.ObjectId,
     ref: "Band",

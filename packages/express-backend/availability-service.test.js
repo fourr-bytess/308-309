@@ -2,9 +2,7 @@ import { jest } from '@jest/globals';
 import Availability from "./availability.js";
 import availabilityService from "./availability-service.js";
 
-// jest.mock('./availability.js');
-
-describe("Availability Model Functions Test Suite", () => {
+describe("Availability Functions Test Suite", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         Availability.findOne = jest.fn();

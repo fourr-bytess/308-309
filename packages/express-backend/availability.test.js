@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Availability from "./availability";
 
-describe("Availability Schema Remaining Coverage", () => {
+describe("Availability Model Remaining Coverage", () => {
     test("Testing if end time is before start time -- failure", async () => {
         const invalidDoc = new Availability({
             bandId: new mongoose.Types.ObjectId(),

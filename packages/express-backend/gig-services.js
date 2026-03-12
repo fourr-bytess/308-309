@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import gigModel from "./gig.js";
 
-const GIG_SELECT = 'name description genres location price_range date time host booked bands_hired';
+const GIG_SELECT = 'name description genres locations price_range date time host booked bands_hired';
 
 function buildGigsQuery(filters = {}) {
     const query = {};
@@ -27,7 +27,7 @@ function buildGigsQuery(filters = {}) {
         query.date = filters.date();
     }
     if (filters.time?.length === 2) {
-        query.price = {
+        query.time = {
             $gte: filters.time[0],
             $lte: filters.time[1]
         };
@@ -44,8 +44,8 @@ function buildGigsQuery(filters = {}) {
     return query;
 }
 
-function getGigs(name, description, genres, location, price_range, date, time, host, booked, bands_hired) {
-    const query = buildGigsQuery({ name, description, genres, location, price_range, date, time, host, booked, bands_hired });
+function getGigs(name, description, genres, locations, price_range, date, time, host, booked, bands_hired) {
+    const query = buildGigsQuery({ name, description, genres, locations, price_range, date, time, host, booked, bands_hired });
     return gigModel.find(query).select(GIG_SELECT);
 }
 
@@ -73,8 +73,6 @@ function addGig(gig) {
 function findGigByIdAndDelete(id) {
     return gigModel.findByIdAndDelete(id);
 }
-
-
 
 export default {
     addGig,

@@ -22,7 +22,7 @@ const GigSchema = new mongoose.Schema(
         date: Date,
         time: [Date],
         host: {
-            type: venueModel.Types.ObjectID,
+            type: mongoose.Schema.Types.ObjectId,
             ref: 'Venue',
             required: true
         },
@@ -31,7 +31,7 @@ const GigSchema = new mongoose.Schema(
             required: true
         },
         bands_hired: {
-            type: [bandModel.Types.ObjectID],
+            type: [mongoose.Schema.Types.ObjectId],
             ref: 'Band'
         }
 

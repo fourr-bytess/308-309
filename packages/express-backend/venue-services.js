@@ -25,18 +25,7 @@ function getVenue(name, city, state, zip, capacity_range) {
 }
 
 function addVenue(venue) {
-  const venueToAdd = {
-    name: venue.name?.toLowerCase(),
-    address: venue.address?.toLowerCase(),
-    city: venue.city?.toLowerCase(),
-    state: venue.state?.toLowerCase(),
-    zip: venue.zip,
-    capacity: venue.capacity,
-    contact_email: venue.contact_email?.toLowerCase(),
-    description: venue.description,
-  };
-
-  const newVenue = new venueModel(venueToAdd);
+  const newVenue = new venueModel(venue);
   const promise = newVenue.save();
   return promise;
 }

@@ -5,6 +5,7 @@ const venueSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      lowercase: true,
       trim: true
     },
     address: {
@@ -14,11 +15,13 @@ const venueSchema = new mongoose.Schema(
     city: {
       type: String,
       required: true,
+      lowercase: true,
       trim: true
     },
     state: {
       type: String,
       required: true,
+      lowercase: true,
       trim: true
     },
     zip: {

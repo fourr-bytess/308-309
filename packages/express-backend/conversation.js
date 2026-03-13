@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+const {Schema} = mongoose;
 
 const conversationSchema = new Schema({
   bandId: {
@@ -38,7 +39,7 @@ const conversationSchema = new Schema({
 conversationSchema.index(
   {
     bandId: 1,
-    venueID: 1,
+    venueId: 1,
   },
   {
     unique: true,

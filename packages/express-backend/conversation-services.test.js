@@ -3,7 +3,6 @@ import conversationModel from "./conversation.js";
 import conversationServices from "./conversation-services.js";
 
 describe("Conversation Services Test Suite", () => {
-
   beforeEach(() => {
     jest.clearAllMocks();
     conversationModel.find = jest.fn();
@@ -14,7 +13,7 @@ describe("Conversation Services Test Suite", () => {
   });
 
   describe("getConversations", () => {
-    test("should build correct query", async () => {
+    test("should build correct query with both filters", async () => {
       conversationModel.find.mockResolvedValue([]);
 
       await conversationServices.getConversations("band1", "venue1");
@@ -24,10 +23,37 @@ describe("Conversation Services Test Suite", () => {
         venueId: "venue1",
       });
     });
+
+    test("should handle only bandId filter", async () => {
+      conversationModel.find.mockResolvedValue([]);
+
+      await conversationServices.getConversations("bandOnly", null);
+
+      expect(conversationModel.find).toHaveBeenCalledWith({
+        bandId: "bandOnly",
+      });
+    });
+
+    test("should handle only venueId filter", async () => {
+      conversationModel.find.mockResolvedValue([]);
+
+      await conversationServices.getConversations(null, "venueOnly");
+
+      expect(conversationModel.find).toHaveBeenCalledWith({
+        venueId: "venueOnly",
+      });
+    });
+
+    test("should handle no filters", async () => {
+      conversationModel.find.mockResolvedValue([]);
+
+      await conversationServices.getConversations(null, null);
+
+      expect(conversationModel.find).toHaveBeenCalledWith({});
+    });
   });
 
   describe("CRUD operations", () => {
-
     test("addConversation -- success", async () => {
       const data = { bandId: "1", venueId: "2" };
 
@@ -54,7 +80,29 @@ describe("Conversation Services Test Suite", () => {
 
       expect(conversationModel.findByIdAndDelete).toHaveBeenCalledWith("123");
     });
-
   });
+  describe("Pagination and Count", () => {
+    test("getConversationsCount -- success", async () => {
+      conversationModel.countDocuments.mockResolvedValue(5);
 
+      const result = await conversationServices.getConversationsCount({});
+
+      expect(result).toBe(5);
+      expect(conversationModel.countDocuments).toHaveBeenCalled();
+    });
+
+    test("getConversationsPaginated -- success", async () => {
+      const mockConversations = [{ id: 1 }];
+
+      conversationModel.find.mockReturnValue({
+        skip: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue(mockConversations),
+        }),
+      });
+
+      await conversationServices.getConversationsPaginated(10, 0, {});
+
+      expect(conversationModel.find).toHaveBeenCalled();
+    });
+  });
 });

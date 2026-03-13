@@ -3,10 +3,10 @@ import messageModel from "./messages.js";
 import messageServices from "./message-services.js";
 
 describe("Message Services Test Suite", () => {
-
   beforeEach(() => {
     jest.clearAllMocks();
     messageModel.find = jest.fn();
+    messageModel.countDocuments = jest.fn();
     messageModel.findById = jest.fn();
     messageModel.findByIdAndDelete = jest.fn();
     jest.spyOn(messageModel.prototype, "save").mockReturnThis();
@@ -19,13 +19,38 @@ describe("Message Services Test Suite", () => {
       await messageServices.getMessages("123");
 
       expect(messageModel.find).toHaveBeenCalledWith({
-        conversationId: "123"
+        conversationId: "123",
       });
     });
   });
 
-  describe("CRUD operations", () => {
+  describe("Pagination and Count", () => {
+    test("getMessagesCount -- success", async () => {
+      messageModel.countDocuments.mockResolvedValue(7);
 
+      const result = await messageServices.getMessagesCount({});
+
+      expect(result).toBe(7);
+      expect(messageModel.countDocuments).toHaveBeenCalledWith({});
+    });
+
+    test("getMessagesPaginated -- success", async () => {
+      const mockMessages = [{ text: "hello" }];
+
+      messageModel.find.mockReturnValue({
+        skip: jest.fn().mockReturnValue({
+          limit: jest.fn().mockResolvedValue(mockMessages),
+        }),
+      });
+
+      const result = await messageServices.getMessagesPaginated(10, 5, {});
+
+      expect(messageModel.find).toHaveBeenCalledWith({});
+      expect(result).toEqual(mockMessages);
+    });
+  });
+
+  describe("CRUD operations", () => {
     test("addMessage -- success", async () => {
       const messageData = { text: "Hello" };
 
@@ -52,7 +77,5 @@ describe("Message Services Test Suite", () => {
 
       expect(messageModel.findByIdAndDelete).toHaveBeenCalledWith("111");
     });
-
   });
-
 });

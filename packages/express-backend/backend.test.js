@@ -125,6 +125,14 @@ describe('backend initialization', () => {
     await loadBackend({ connectShouldReject: false });
     expect(mockConnect).toHaveBeenCalled();
     expect(mockApp.listen).toHaveBeenCalled();
+    const listenCallback = mockApp.listen.mock.calls[0][1];
+    expect(listenCallback).toBeDefined();
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    listenCallback();
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Server running'),
+    );
+    logSpy.mockRestore();
   });
 
   test('logs connection error when MongoDB connect fails', async () => {
@@ -152,6 +160,39 @@ describe('backend initialization', () => {
 
     if (originalUri !== undefined) {
       process.env.MONGODB_URI = originalUri;
+    }
+  });
+
+  test('uses MONGODB_URI from env when set', async () => {
+    const originalUri = process.env.MONGODB_URI;
+    const customUri = 'mongodb://env-set:27017/mydb';
+    process.env.MONGODB_URI = customUri;
+
+    await loadBackend({ connectShouldReject: false });
+
+    expect(mockConnect).toHaveBeenCalledWith(customUri);
+
+    if (originalUri !== undefined) {
+      process.env.MONGODB_URI = originalUri;
+    } else {
+      delete process.env.MONGODB_URI;
+    }
+  });
+
+  test('uses default Mongo URI when MONGODB_URI is empty string', async () => {
+    const originalUri = process.env.MONGODB_URI;
+    process.env.MONGODB_URI = '';
+
+    await loadBackend({ connectShouldReject: false });
+
+    expect(mockConnect).toHaveBeenCalledWith(
+      'mongodb://127.0.0.1:27017/bands',
+    );
+
+    if (originalUri !== undefined) {
+      process.env.MONGODB_URI = originalUri;
+    } else {
+      delete process.env.MONGODB_URI;
     }
   });
 });

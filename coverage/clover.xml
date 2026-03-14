@@ -1,10 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<<<<<<< HEAD
 <coverage generated="1773438901509" clover="3.2.0">
   <project timestamp="1773438901509" name="All files">
     <metrics statements="333" coveredstatements="305" conditionals="154" coveredconditionals="137" methods="89" coveredmethods="77" elements="576" coveredelements="519" complexity="0" loc="333" ncloc="333" packages="3" files="21" classes="21"/>
     <package name="express-backend">
       <metrics statements="305" coveredstatements="305" conditionals="154" coveredconditionals="137" methods="78" coveredmethods="77"/>
       <file name="availability-service.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/availability-service.js">
+=======
+<coverage generated="1773457305130" clover="3.2.0">
+  <project timestamp="1773457305130" name="All files">
+    <metrics statements="333" coveredstatements="305" conditionals="154" coveredconditionals="138" methods="89" coveredmethods="77" elements="576" coveredelements="520" complexity="0" loc="333" ncloc="333" packages="3" files="21" classes="21"/>
+    <package name="express-backend">
+      <metrics statements="305" coveredstatements="305" conditionals="154" coveredconditionals="138" methods="78" coveredmethods="77"/>
+      <file name="availability-service.js" path="/Users/abyss/giggly-app/packages/express-backend/availability-service.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="12" coveredstatements="12" conditionals="13" coveredconditionals="10" methods="2" coveredmethods="2"/>
         <line num="4" count="2" type="stmt"/>
         <line num="5" count="2" type="stmt"/>
@@ -19,7 +28,11 @@
         <line num="32" count="1" type="cond" truecount="1" falsecount="1"/>
         <line num="35" count="2" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="availability.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/availability.js">
+=======
+      <file name="availability.js" path="/Users/abyss/giggly-app/packages/express-backend/availability.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="6" coveredstatements="6" conditionals="6" coveredconditionals="5" methods="1" coveredmethods="1"/>
         <line num="3" count="2" type="stmt"/>
         <line num="35" count="2" type="stmt"/>
@@ -28,8 +41,13 @@
         <line num="38" count="2" type="stmt"/>
         <line num="43" count="2" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="backend.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/backend.js">
         <metrics statements="130" coveredstatements="130" conditionals="57" coveredconditionals="56" methods="18" coveredmethods="17"/>
+=======
+      <file name="backend.js" path="/Users/abyss/giggly-app/packages/express-backend/backend.js">
+        <metrics statements="130" coveredstatements="130" conditionals="57" coveredconditionals="57" methods="18" coveredmethods="17"/>
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <line num="12" count="7" type="stmt"/>
         <line num="13" count="7" type="stmt"/>
         <line num="14" count="7" type="stmt"/>
@@ -161,7 +179,11 @@
         <line num="289" count="7" type="cond" truecount="2" falsecount="0"/>
         <line num="290" count="7" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="band-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/band-services.js">
+=======
+      <file name="band-services.js" path="/Users/abyss/giggly-app/packages/express-backend/band-services.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="24" coveredstatements="24" conditionals="13" coveredconditionals="10" methods="11" coveredmethods="11"/>
         <line num="4" count="1" type="stmt"/>
         <line num="8" count="5" type="stmt"/>
@@ -188,12 +210,20 @@
         <line num="53" count="1" type="stmt"/>
         <line num="57" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="band.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/band.js">
+=======
+      <file name="band.js" path="/Users/abyss/giggly-app/packages/express-backend/band.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="4" count="3" type="stmt"/>
         <line num="25" count="3" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="conversation-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/conversation-services.js">
+=======
+      <file name="conversation-services.js" path="/Users/abyss/giggly-app/packages/express-backend/conversation-services.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="10" coveredstatements="10" conditionals="4" coveredconditionals="4" methods="6" coveredmethods="6"/>
         <line num="4" count="4" type="stmt"/>
         <line num="6" count="4" type="cond" truecount="2" falsecount="0"/>
@@ -206,14 +236,22 @@
         <line num="28" count="1" type="stmt"/>
         <line num="32" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="conversation.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/conversation.js">
+=======
+      <file name="conversation.js" path="/Users/abyss/giggly-app/packages/express-backend/conversation.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="4" coveredstatements="4" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="2" count="1" type="stmt"/>
         <line num="4" count="1" type="stmt"/>
         <line num="39" count="1" type="stmt"/>
         <line num="49" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="gig-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/gig-services.js">
+=======
+      <file name="gig-services.js" path="/Users/abyss/giggly-app/packages/express-backend/gig-services.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="34" coveredstatements="34" conditionals="23" coveredconditionals="20" methods="11" coveredmethods="11"/>
         <line num="4" count="1" type="stmt"/>
         <line num="7" count="4" type="stmt"/>
@@ -250,15 +288,26 @@
         <line num="70" count="1" type="stmt"/>
         <line num="74" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="gig.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/gig.js">
+=======
+      <file name="gig.js" path="/Users/abyss/giggly-app/packages/express-backend/gig.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="5" count="1" type="stmt"/>
         <line num="42" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="jest.config.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/jest.config.js">
         <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
       </file>
       <file name="message-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/message-services.js">
+=======
+      <file name="jest.config.js" path="/Users/abyss/giggly-app/packages/express-backend/jest.config.js">
+        <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      </file>
+      <file name="message-services.js" path="/Users/abyss/giggly-app/packages/express-backend/message-services.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="7" coveredstatements="7" conditionals="0" coveredconditionals="0" methods="6" coveredmethods="6"/>
         <line num="4" count="1" type="stmt"/>
         <line num="8" count="1" type="stmt"/>
@@ -268,13 +317,21 @@
         <line num="23" count="1" type="stmt"/>
         <line num="27" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="messages.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/messages.js">
+=======
+      <file name="messages.js" path="/Users/abyss/giggly-app/packages/express-backend/messages.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="3" coveredstatements="3" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="2" count="1" type="stmt"/>
         <line num="3" count="1" type="stmt"/>
         <line num="41" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="musician-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/musician-services.js">
+=======
+      <file name="musician-services.js" path="/Users/abyss/giggly-app/packages/express-backend/musician-services.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="22" coveredstatements="22" conditionals="11" coveredconditionals="8" methods="11" coveredmethods="11"/>
         <line num="4" count="1" type="stmt"/>
         <line num="7" count="4" type="stmt"/>
@@ -299,12 +356,20 @@
         <line num="46" count="1" type="stmt"/>
         <line num="50" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="musician.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/musician.js">
+=======
+      <file name="musician.js" path="/Users/abyss/giggly-app/packages/express-backend/musician.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="4" count="3" type="stmt"/>
         <line num="28" count="3" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="review-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/review-services.js">
+=======
+      <file name="review-services.js" path="/Users/abyss/giggly-app/packages/express-backend/review-services.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="26" coveredstatements="26" conditionals="17" coveredconditionals="14" methods="8" coveredmethods="8"/>
         <line num="4" count="1" type="stmt"/>
         <line num="7" count="4" type="stmt"/>
@@ -333,12 +398,20 @@
         <line num="52" count="1" type="stmt"/>
         <line num="56" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="review.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/review.js">
+=======
+      <file name="review.js" path="/Users/abyss/giggly-app/packages/express-backend/review.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="3" count="1" type="stmt"/>
         <line num="38" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="venue-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/venue-services.js">
+=======
+      <file name="venue-services.js" path="/Users/abyss/giggly-app/packages/express-backend/venue-services.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="17" coveredstatements="17" conditionals="10" coveredconditionals="10" methods="4" coveredmethods="4"/>
         <line num="4" count="2" type="stmt"/>
         <line num="6" count="2" type="cond" truecount="2" falsecount="0"/>
@@ -358,7 +431,11 @@
         <line num="34" count="1" type="stmt"/>
         <line num="38" count="1" type="stmt"/>
       </file>
+<<<<<<< HEAD
       <file name="venue.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/venue.js">
+=======
+      <file name="venue.js" path="/Users/abyss/giggly-app/packages/express-backend/venue.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="2" coveredstatements="2" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
         <line num="3" count="2" type="stmt"/>
         <line num="47" count="2" type="stmt"/>
@@ -366,16 +443,27 @@
     </package>
     <package name="react-frontend">
       <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+<<<<<<< HEAD
       <file name="eslint.config.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/react-frontend/eslint.config.js">
         <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
       </file>
       <file name="vite.config.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/react-frontend/vite.config.js">
+=======
+      <file name="eslint.config.js" path="/Users/abyss/giggly-app/packages/react-frontend/eslint.config.js">
+        <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
+      </file>
+      <file name="vite.config.js" path="/Users/abyss/giggly-app/packages/react-frontend/vite.config.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="0" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="0" coveredmethods="0"/>
       </file>
     </package>
     <package name="react-frontend.src.api">
       <metrics statements="28" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="11" coveredmethods="0"/>
+<<<<<<< HEAD
       <file name="api.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/react-frontend/src/api/api.js">
+=======
+      <file name="api.js" path="/Users/abyss/giggly-app/packages/react-frontend/src/api/api.js">
+>>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
         <metrics statements="28" coveredstatements="0" conditionals="0" coveredconditionals="0" methods="11" coveredmethods="0"/>
         <line num="1" count="0" type="stmt"/>
         <line num="6" count="0" type="stmt"/>

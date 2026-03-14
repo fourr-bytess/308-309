@@ -15,11 +15,17 @@ export default function App() {
 
   const [isEditing, setIsEditing] = useState(false)
 
-  // Stores profile information...
+  // LOGIN input state...
+  // These store what the user types so we can update the profile...
+
+  const [loginEmail, setLoginEmail] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+
+  // Profile state...
 
   const [profile, setProfile] = useState({
-    first: "hello",
-    last: "hello",
+    first: "First Name",
+    last: "Last Name",
     email: "hello@email.com",
     password: "12345",
     role: "Artist"
@@ -33,10 +39,9 @@ export default function App() {
 
   const [venues, setVenues] = useState([])
 
-  // Stores gigs for the gig page (THIS WAS MISSING AND CAUSED THE CRASH)
+  // Fix for gigs page crash (state was missing)
 
   const [gigs, setGigs] = useState([])
-
 
   function showPage(pageId) {
     setPage(pageId)
@@ -70,11 +75,7 @@ export default function App() {
 
   }
 
-  // -----------------------------------------
   // Backend Connections
-  // -----------------------------------------
-  // Whenever the page changes we check if we
-  // need to load data from the backend.
 
   useEffect(() => {
 
@@ -85,8 +86,6 @@ export default function App() {
       fetch("http://localhost:3001/bands")
         .then(res => res.json())
         .then(data => {
-
-          // backend returns { data: [...] }
 
           setBands(data.data)
 
@@ -217,8 +216,6 @@ export default function App() {
 
           </div>
 
-          {/* Cards generated from backend band data */}
-
           <div className="card-grid">
 
             {bands.map((band, index) => (
@@ -226,8 +223,6 @@ export default function App() {
               <div key={index} className="card">
 
                 <h3>{band.name}</h3>
-
-                {/* These fields depend on your database structure */}
 
                 <p>{band.location}</p>
 
@@ -250,8 +245,6 @@ export default function App() {
 
           <h2>Available Gigs</h2>
 
-          {/* Search + Filter Row */}
-
           <div className="search-row">
 
             <input
@@ -269,8 +262,6 @@ export default function App() {
             </select>
 
           </div>
-
-          {/* Gig Cards */}
 
           <div className="card-grid">
 
@@ -315,21 +306,38 @@ export default function App() {
 
             <h2>Sign In</h2>
 
+            {/* Email input now stores user input */}
+
             <input
               type="email"
               placeholder="Email"
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
             />
+
+            {/* Password input now stores user input */}
 
             <input
               type="password"
               placeholder="Password"
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
             />
 
             <div className="login-buttons">
 
+              {/* Band login updates profile */}
+
               <button
                 id="loginBandBtn"
                 onClick={() => {
+
+                  setProfile({
+                    ...profile,
+                    email: loginEmail,
+                    password: loginPassword,
+                    role: "Artist"
+                  })
 
                   setIsLoggedIn(true)
 
@@ -340,9 +348,18 @@ export default function App() {
                 Log In As Band
               </button>
 
+              {/* Venue login updates profile */}
+
               <button
                 id="loginVenueBtn"
                 onClick={() => {
+
+                  setProfile({
+                    ...profile,
+                    email: loginEmail,
+                    password: loginPassword,
+                    role: "Venue"
+                  })
 
                   setIsLoggedIn(true)
 

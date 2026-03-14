@@ -3,7 +3,7 @@
 <html lang="en">
 
 <head>
-    <title>Code coverage report for express-backend/venue-services.js</title>
+    <title>Code coverage report for express-backend/conversation-services.js</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../prettify.css" />
     <link rel="stylesheet" href="../base.css" />
@@ -19,34 +19,34 @@
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">express-backend</a> venue-services.js</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">express-backend</a> conversation-services.js</h1>
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>17/17</span>
+                <span class='fraction'>12/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>10/10</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
-                <span class="quiet">Functions</span>
                 <span class='fraction'>4/4</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>6/6</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>17/17</span>
+                <span class='fraction'>10/10</span>
             </div>
         
             
@@ -104,39 +104,28 @@
 <a name='L39'></a><a href='#L39'>39</a>
 <a name='L40'></a><a href='#L40'>40</a>
 <a name='L41'></a><a href='#L41'>41</a>
-<a name='L42'></a><a href='#L42'>42</a>
-<a name='L43'></a><a href='#L43'>43</a>
-<a name='L44'></a><a href='#L44'>44</a>
-<a name='L45'></a><a href='#L45'>45</a>
-<a name='L46'></a><a href='#L46'>46</a>
-<a name='L47'></a><a href='#L47'>47</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L42'></a><a href='#L42'>42</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -155,53 +144,49 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import venueModel from "./venue.js";
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import Conversation from "./conversation.js";
 &nbsp;
-function getVenue(name, city, state, zip, capacity_range) {
+function getConversations(bandId, venueId) {
   const query = {};
 &nbsp;
-  if (name) {
-    query.name = name.toLowerCase();
-  }
-  if (city) {
-    query.city = city.toLowerCase();
-  }
-  if (state) {
-    query.state = state.toLowerCase();
-  }
-  if (zip) {
-    query.zip = zip;
-  }
-  if (capacity_range?.length === 2) {
-    query.capacity = {
-      $gte: capacity_range[0],
-      $lte: capacity_range[1],
-    };
-  }
-  return venueModel.find(query);
+  if (bandId) query.bandId = bandId;
+  if (venueId) query.venueId = venueId;
+&nbsp;
+  return Conversation.find(query);
 }
 &nbsp;
-function addVenue(venue) {
-  const newVenue = new venueModel(venue);
-  const promise = newVenue.save();
-  return promise;
+function getConversationsCount(filters) {
+  return Conversation.countDocuments(filters);
 }
 &nbsp;
-function findVenueById(id) {
-  return venueModel.findById(id);
+function getConversationsPaginated(limit, offset, filters) {
+  return Conversation.find(filters)
+    .skip(offset)
+    .limit(limit);
 }
 &nbsp;
-function findVenueByIdAndDelete(id) {
-  return venueModel.findByIdAndDelete(id);
+function addConversation(data) {
+  const newConversation = new Conversation(data);
+  return newConversation.save();
+}
+&nbsp;
+function findConversationById(id) {
+  return Conversation.findById(id);
+}
+&nbsp;
+function findConversationByIdAndDelete(id) {
+  return Conversation.findByIdAndDelete(id);
 }
 &nbsp;
 export default {
-  getVenue,
-  addVenue,
-  findVenueById,
-  findVenueByIdAndDelete,
-};
-&nbsp;</pre></td></tr></table></pre>
+  getConversations,
+  getConversationsCount,
+  getConversationsPaginated,
+  addConversation,
+  findConversationById,
+  findConversationByIdAndDelete,
+};</pre></td></tr></table></pre>
 
                 <div class='push'></div><!-- for sticky footer -->
             </div><!-- /wrapper -->

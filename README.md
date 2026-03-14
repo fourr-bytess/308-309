@@ -9,4 +9,5 @@ Environment Variables: Each create a .env file in your local backend folder and 
 
 Tech Spec: https://docs.google.com/document/d/1RuQh3vAZfjID2lXiiwgDy6RssXGZlYOx47hWpeH72KE/edit?usp=sharing
 
-Test Coverage: 
+Code Coverage Report (Date and Time Generated: 03/13/26 09:10PM): 
+

@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1773460826176" clover="3.2.0">
-  <project timestamp="1773460826176" name="All files">
-    <metrics statements="333" coveredstatements="333" conditionals="154" coveredconditionals="137" methods="89" coveredmethods="88" elements="576" coveredelements="558" complexity="0" loc="333" ncloc="333" packages="3" files="21" classes="21"/>
+<coverage generated="1773461245336" clover="3.2.0">
+  <project timestamp="1773461245336" name="All files">
+    <metrics statements="333" coveredstatements="333" conditionals="154" coveredconditionals="138" methods="89" coveredmethods="89" elements="576" coveredelements="560" complexity="0" loc="333" ncloc="333" packages="3" files="21" classes="21"/>
     <package name="express-backend">
-      <metrics statements="305" coveredstatements="305" conditionals="154" coveredconditionals="137" methods="78" coveredmethods="77"/>
+      <metrics statements="305" coveredstatements="305" conditionals="154" coveredconditionals="138" methods="78" coveredmethods="78"/>
       <file name="availability-service.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/availability-service.js">
         <metrics statements="12" coveredstatements="12" conditionals="13" coveredconditionals="10" methods="2" coveredmethods="2"/>
         <line num="4" count="2" type="stmt"/>
@@ -29,17 +29,17 @@
         <line num="43" count="2" type="stmt"/>
       </file>
       <file name="backend.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/backend.js">
-        <metrics statements="130" coveredstatements="130" conditionals="57" coveredconditionals="56" methods="18" coveredmethods="17"/>
-        <line num="12" count="7" type="stmt"/>
-        <line num="13" count="7" type="stmt"/>
-        <line num="14" count="7" type="stmt"/>
-        <line num="16" count="7" type="stmt"/>
-        <line num="17" count="7" type="stmt"/>
-        <line num="18" count="7" type="stmt"/>
-        <line num="21" count="7" type="stmt"/>
-        <line num="23" count="6" type="stmt"/>
+        <metrics statements="130" coveredstatements="130" conditionals="57" coveredconditionals="57" methods="18" coveredmethods="18"/>
+        <line num="12" count="9" type="stmt"/>
+        <line num="13" count="9" type="stmt"/>
+        <line num="14" count="9" type="stmt"/>
+        <line num="16" count="9" type="stmt"/>
+        <line num="17" count="9" type="stmt"/>
+        <line num="18" count="9" type="stmt"/>
+        <line num="21" count="9" type="stmt"/>
+        <line num="23" count="8" type="stmt"/>
         <line num="24" count="1" type="stmt"/>
-        <line num="26" count="7" type="stmt"/>
+        <line num="26" count="9" type="stmt"/>
         <line num="27" count="2" type="stmt"/>
         <line num="28" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="29" count="2" type="cond" truecount="2" falsecount="0"/>
@@ -48,26 +48,26 @@
         <line num="38" count="1" type="stmt"/>
         <line num="46" count="1" type="stmt"/>
         <line num="48" count="1" type="stmt"/>
-        <line num="53" count="7" type="stmt"/>
+        <line num="53" count="9" type="stmt"/>
         <line num="54" count="3" type="stmt"/>
         <line num="55" count="3" type="stmt"/>
         <line num="56" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="57" count="1" type="stmt"/>
         <line num="59" count="1" type="stmt"/>
         <line num="61" count="1" type="stmt"/>
-        <line num="67" count="7" type="stmt"/>
+        <line num="67" count="9" type="stmt"/>
         <line num="68" count="2" type="stmt"/>
         <line num="69" count="2" type="stmt"/>
         <line num="70" count="1" type="stmt"/>
         <line num="72" count="1" type="stmt"/>
-        <line num="76" count="7" type="stmt"/>
+        <line num="76" count="9" type="stmt"/>
         <line num="77" count="3" type="stmt"/>
         <line num="78" count="3" type="stmt"/>
         <line num="79" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="80" count="1" type="stmt"/>
         <line num="82" count="1" type="stmt"/>
         <line num="84" count="1" type="stmt"/>
-        <line num="89" count="7" type="stmt"/>
+        <line num="89" count="9" type="stmt"/>
         <line num="90" count="2" type="stmt"/>
         <line num="91" count="2" type="stmt"/>
         <line num="94" count="2" type="cond" truecount="2" falsecount="0"/>
@@ -76,26 +76,26 @@
         <line num="103" count="2" type="stmt"/>
         <line num="111" count="1" type="stmt"/>
         <line num="113" count="1" type="stmt"/>
-        <line num="118" count="7" type="stmt"/>
+        <line num="118" count="9" type="stmt"/>
         <line num="119" count="2" type="stmt"/>
         <line num="120" count="2" type="stmt"/>
         <line num="121" count="1" type="stmt"/>
         <line num="123" count="1" type="stmt"/>
-        <line num="128" count="7" type="stmt"/>
+        <line num="128" count="9" type="stmt"/>
         <line num="129" count="3" type="stmt"/>
         <line num="130" count="3" type="stmt"/>
         <line num="131" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="132" count="1" type="stmt"/>
         <line num="134" count="1" type="stmt"/>
         <line num="136" count="1" type="stmt"/>
-        <line num="141" count="7" type="stmt"/>
+        <line num="141" count="9" type="stmt"/>
         <line num="142" count="3" type="stmt"/>
         <line num="143" count="3" type="stmt"/>
         <line num="144" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="145" count="1" type="stmt"/>
         <line num="147" count="1" type="stmt"/>
         <line num="149" count="1" type="stmt"/>
-        <line num="154" count="7" type="stmt"/>
+        <line num="154" count="9" type="stmt"/>
         <line num="155" count="2" type="stmt"/>
         <line num="156" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="157" count="2" type="cond" truecount="2" falsecount="0"/>
@@ -105,26 +105,26 @@
         <line num="167" count="1" type="stmt"/>
         <line num="173" count="1" type="stmt"/>
         <line num="175" count="1" type="stmt"/>
-        <line num="180" count="7" type="stmt"/>
+        <line num="180" count="9" type="stmt"/>
         <line num="181" count="3" type="stmt"/>
         <line num="182" count="3" type="stmt"/>
         <line num="183" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="184" count="1" type="stmt"/>
         <line num="186" count="1" type="stmt"/>
         <line num="188" count="1" type="stmt"/>
-        <line num="193" count="7" type="stmt"/>
+        <line num="193" count="9" type="stmt"/>
         <line num="194" count="2" type="stmt"/>
         <line num="195" count="2" type="stmt"/>
         <line num="196" count="1" type="stmt"/>
         <line num="198" count="1" type="stmt"/>
-        <line num="203" count="7" type="stmt"/>
+        <line num="203" count="9" type="stmt"/>
         <line num="204" count="3" type="stmt"/>
         <line num="205" count="3" type="stmt"/>
         <line num="206" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="207" count="1" type="stmt"/>
         <line num="209" count="1" type="stmt"/>
         <line num="211" count="1" type="stmt"/>
-        <line num="216" count="7" type="stmt"/>
+        <line num="216" count="9" type="stmt"/>
         <line num="217" count="2" type="stmt"/>
         <line num="218" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="219" count="2" type="cond" truecount="2" falsecount="0"/>
@@ -134,7 +134,7 @@
         <line num="224" count="1" type="stmt"/>
         <line num="226" count="1" type="stmt"/>
         <line num="228" count="1" type="stmt"/>
-        <line num="233" count="7" type="stmt"/>
+        <line num="233" count="9" type="stmt"/>
         <line num="234" count="2" type="stmt"/>
         <line num="235" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="236" count="2" type="cond" truecount="2" falsecount="0"/>
@@ -144,7 +144,7 @@
         <line num="249" count="1" type="stmt"/>
         <line num="250" count="1" type="stmt"/>
         <line num="252" count="1" type="stmt"/>
-        <line num="257" count="7" type="stmt"/>
+        <line num="257" count="9" type="stmt"/>
         <line num="258" count="5" type="stmt"/>
         <line num="259" count="5" type="stmt"/>
         <line num="260" count="5" type="cond" truecount="6" falsecount="0"/>
@@ -158,8 +158,8 @@
         <line num="274" count="2" type="stmt"/>
         <line num="282" count="1" type="stmt"/>
         <line num="284" count="1" type="stmt"/>
-        <line num="289" count="7" type="cond" truecount="2" falsecount="0"/>
-        <line num="290" count="7" type="stmt"/>
+        <line num="289" count="9" type="cond" truecount="2" falsecount="0"/>
+        <line num="290" count="9" type="stmt"/>
       </file>
       <file name="band-services.js" path="/Users/kaitlynbresnan/csc_308-309/308-309/packages/express-backend/band-services.js">
         <metrics statements="24" coveredstatements="24" conditionals="13" coveredconditionals="10" methods="11" coveredmethods="11"/>

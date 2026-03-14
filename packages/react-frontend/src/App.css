@@ -188,6 +188,7 @@ body {
   background: white;
   border-radius: 12px;
 }
+
 /* Profile Popup Card... */
 
 .profile-popup {
@@ -206,7 +207,7 @@ body {
   align-items: center;
 }
 
-/* Profile title */
+/* Profile title... */
 
 .profile-popup h2 {
   text-align: center;
@@ -214,7 +215,7 @@ body {
   margin-bottom: 30px;
 }
 
-/* Profile rows */
+/* Profile rows... */
 
 .profile-row {
   display: flex;
@@ -225,7 +226,7 @@ body {
   border-bottom: 1px solid #eee;
 }
 
-/* Left column */
+/* Left column.. */
 
 .label {
   font-weight: 600;
@@ -233,14 +234,14 @@ body {
   font-size: 1.1rem;
 }
 
-/* Right column */
+/* Right column... */
 
 .value {
   text-align: right;
   font-size: 1.1rem;
 }
 
-/* Edit Button */
+/* Edit Button... */
 
 .primary-btn {
   width: 100%;

@@ -15,8 +15,7 @@ export default function App() {
 
   const [isEditing, setIsEditing] = useState(false)
 
-  // LOGIN input state...
-  // These store what the user types so we can update the profile...
+  // Login input state...
 
   const [loginEmail, setLoginEmail] = useState("")
   const [loginPassword, setLoginPassword] = useState("")
@@ -38,8 +37,6 @@ export default function App() {
   // Stores venues for the venue dashboard...
 
   const [venues, setVenues] = useState([])
-
-  // Fix for gigs page crash (state was missing)
 
   const [gigs, setGigs] = useState([])
 
@@ -64,7 +61,6 @@ export default function App() {
   }
 
   // Handles any profile input changes when editing...
-  // This updates the profile state dynamically...
 
   function handleChange(e) {
 
@@ -75,11 +71,11 @@ export default function App() {
 
   }
 
-  // Backend Connections
+  // Backend Connections...
 
   useEffect(() => {
 
-    // Load bands when the bands page opens
+    // Loads bands when the bands page opens...
 
     if (page === "bands") {
 
@@ -94,7 +90,7 @@ export default function App() {
 
     }
 
-    // Load venues when dashboard opens
+    // Loads venues when dashboard opens...
 
     if (page === "dashboard") {
 
@@ -306,7 +302,7 @@ export default function App() {
 
             <h2>Sign In</h2>
 
-            {/* Email input now stores user input */}
+            {/* Email input now stores user input... */}
 
             <input
               type="email"
@@ -315,7 +311,7 @@ export default function App() {
               onChange={(e) => setLoginEmail(e.target.value)}
             />
 
-            {/* Password input now stores user input */}
+            {/* Password input now stores user input... */}
 
             <input
               type="password"
@@ -326,7 +322,7 @@ export default function App() {
 
             <div className="login-buttons">
 
-              {/* Band login updates profile */}
+              {/* Band login updates profile... */}
 
               <button
                 id="loginBandBtn"
@@ -348,7 +344,7 @@ export default function App() {
                 Log In As Band
               </button>
 
-              {/* Venue login updates profile */}
+              {/* Venue login updates profile... */}
 
               <button
                 id="loginVenueBtn"

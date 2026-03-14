@@ -232,11 +232,7 @@ DA:290,7
 LF:130
 LH:130
 BRDA:22,0,0,7
-<<<<<<< HEAD
 BRDA:22,0,1,0
-=======
-BRDA:22,0,1,7
->>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
 BRDA:28,1,0,2
 BRDA:28,1,1,1
 BRDA:29,2,0,2
@@ -293,11 +289,7 @@ BRDA:280,25,1,1
 BRDA:289,26,0,7
 BRDA:289,26,1,7
 BRF:57
-<<<<<<< HEAD
 BRH:56
-=======
-BRH:57
->>>>>>> d0020259a9f142b5d7213abda07b6f120506b3d6
 end_of_record
 TN:
 SF:packages/express-backend/band-services.js

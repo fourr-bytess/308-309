@@ -31,6 +31,8 @@
     "supertest": "^7.2.2"
   },
   "dependencies": {
-    "mongoose": "^9.1.6"
+    "leaflet": "^1.9.4",
+    "mongoose": "^9.1.6",
+    "react-leaflet": "^5.0.0"
   }
 }

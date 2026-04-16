@@ -75,7 +75,7 @@ function makeUploadedImageUrl(req, folder, filename) {
 
 
 mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/bands")
+  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/giggly")
   .then(() => console.log('Connected to MongoDB'))
   .catch((error) => console.error('MongoDB connection error:', error));
 
@@ -190,7 +190,7 @@ app.delete("/bands/:id/gallery", async (req, res) => {
   }
 });
 
-app.post("/bands/:id/videos", async (req, res) => {
+app.post("/bands/:id", async (req, res) => {
   try {
     const { videoUrl } = req.body;
     const videoId = videoUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/)?.[1];
@@ -204,10 +204,19 @@ app.post("/bands/:id/videos", async (req, res) => {
 
 app.delete("/bands/:id/videos/:videoId", async (req, res) => {
   try {
-    const updated = await bandServices.removeBandVideo(req.params.id, req.params.videoId);
+    // 2. Now both id and videoId are available in req.params
+    const { id, videoId } = req.params;
+    
+    const updated = await bandServices.removeBandVideo(id, videoId);
+    
+    if (!updated) {
+      return res.status(404).json({ error: "Band not found" });
+    }
+
     res.status(200).json({ data: updated });
   } catch (err) {
-    res.status(400).json({ error: "Failed to delete video"});
+    console.error("Delete Error:", err);
+    res.status(400).json({ error: "Failed to delete video" });
   }
 });
 
@@ -434,7 +443,7 @@ app.post("/musicians/:id/videos", async (req, res) => {
 
 app.delete("/musicians/:id/videos/:videoId", async (req, res) => {
   try {
-    const updated = await musicianServices.removeMusicianVideo(req.params.id, req.params.videoId);
+    const updated = await musicianServices.removeMusicianVideo(id, videoId);
     res.status(200).json({ data: updated });
   } catch (err) {
     res.status(400).json({ error: "Failed to delete video"});

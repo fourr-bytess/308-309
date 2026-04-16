@@ -8,6 +8,7 @@ import {
   Link,
 } from "react-router-dom"
 import "./App.css"
+import BandPublicProfile from "./components/BandPublicProfile.jsx";
 
 const API_BASE_URL = "http://localhost:3001"
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
@@ -270,11 +271,6 @@ export default function App() {
 
   const [musicianDetails, setMusicianDetails] = useState(null);
   const pathMusicianId = location.pathname.match(/^\/musicians\/([^/]+)$/)?.[1];
-  if (pathMusicianId) {
-    fetch(`${API_BASE_URL}/musicians/${pathMusicianId}`)
-      .then(res => res.json())
-      .then(data => setMusicianDetails(data.data));
-  }
   
   async function uploadMusicianProfilePicture(file) {
     const validationMessage = validateImageFile(file)
@@ -440,10 +436,10 @@ export default function App() {
 
   const [bandVideoLink, setBandVideoLink] = useState("");
   async function addBandVideo() {
-    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}/videos`, {
+    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bandVideoUrl: bandVideoLink }),
+      body: JSON.stringify({ videoUrl: bandVideoLink }),
     });
     const payload = await response.json();
     if (response.ok) {
@@ -621,7 +617,13 @@ export default function App() {
           setBandDetailsError("Could not load this band.")
         })
     }
-  }, [location.pathname])
+
+    if (pathMusicianId) {
+    fetch(`${API_BASE_URL}/musicians/${pathMusicianId}`)
+      .then(res => res.json())
+      .then(data => setMusicianDetails(data.data));
+    }
+  }, [location.pathname, pathMusicianId])
 
   return (
     <>
@@ -669,18 +671,19 @@ export default function App() {
                 type="button"
                 onClick={() => navigate("/profile")}
               >
-                Profile
-              </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-              >
 
                 My Page
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate(`/musicians/${musicianId}`)}
+                >
+
+                Profile
+              </button>
+              <button
+                type="button"
+                onClick={handleLogout}
               >
 
                 Log Out
@@ -1019,8 +1022,10 @@ export default function App() {
           }
         />
 
+        <Route path="/bands/:id/public" element={<BandPublicProfile />} />
+
         <Route path="/musicians/:id" element={
-          <ProtectedRoute isLoggedIn={isLoggedIn}>
+          // <ProtectedRoute isLoggedIn={isLoggedIn}>
             <section id="profile" className="page active">
               <div className="profile-popup band-profile-popup">
                 {musicianDetails && (
@@ -1030,7 +1035,7 @@ export default function App() {
                   <p className="bio-text">{musicianDetails.bio || "No bio yet."}</p>
                   
                   {/* editing tools to be shown only if logged in as ownder*/}
-                  {musicianId === pathMusicianId && (
+                  {/* {musicianId === pathMusicianId && ( */}
                     <div className="management-box" style={{border: '1px dashed" #667eea', padding: '15px', borderRadius: '8px', marginBottom: '20px'}}>
                       <h4 style={{marginBottom: '10px'}}>Manage your page</h4>
                       <div className = "profile-row upload-row">
@@ -1048,7 +1053,7 @@ export default function App() {
                         <input className="edit-input" type="file" onChange={(e) => handleMusicianGalleryUpload(e.target.files[0])} />
                       </div>
                     </div>
-                  )}
+                  {/* )} */}
 
                   <h3>Videos</h3>
                   <div className="video-grid">
@@ -1072,7 +1077,7 @@ export default function App() {
                 )}
               </div>
             </section>
-          </ProtectedRoute>
+          // </ProtectedRoute>
         } />
 
         <Route

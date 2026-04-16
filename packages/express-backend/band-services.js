@@ -81,6 +81,21 @@ function removeBandGalleryImage(id, imageUrl) {
     );
 }
 
+function addBandVideo(id, videoId) {
+    return bandModel.findByIdAndUpdate(
+        id,
+        { $push: { video_urls: videoId }},
+        { new: true }
+    );
+}
+
+function removeBandVideo(id, videoId) {
+    return bandModel.findByIdAndUpdate(
+        id,
+        { $pull: { video_urls: videoId }},
+        { new: true }
+    );
+}
 
 
 export default {
@@ -93,4 +108,6 @@ export default {
     updateBandProfilePicture,
     addBandGalleryImage,
     removeBandGalleryImage,
+    addBandVideo,
+    removeBandVideo
 };

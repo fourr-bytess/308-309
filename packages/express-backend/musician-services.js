@@ -58,6 +58,22 @@ function updateMusicianProfilePicture(id, profile_picture_url) {
     );
 }
 
+function addMusicianVideo(id, videoId) {
+    return musicianModel.findByIdAndUpdate(
+        id,
+        { $push: { video_urls: videoId }},
+        { new: true }
+    );
+}
+
+function removeMusicianVideo(id, videoId) {
+    return musicianModel.findByIdAndUpdate(
+        id,
+        { $pull: { video_urls: videoId }},
+        { new: true }
+    );
+}
+
 
 
 export default {
@@ -68,4 +84,6 @@ export default {
     findMusicianById,
     findMusicianByIdAndDelete,
     updateMusicianProfilePicture,
+    addMusicianVideo,
+    removeMusicianVideo
 };

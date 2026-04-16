@@ -47,10 +47,6 @@ export default function App() {
     "Classical",
   ];
 
-  // Controls if the profile is currently in editing mode...
-
-  const [isEditing, setIsEditing] = useState(false);
-
   // Login input state...
 
   const [loginEmail, setLoginEmail] = useState("");
@@ -583,8 +579,10 @@ export default function App() {
           }
         />
 
+
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
-  );
+  )
 }

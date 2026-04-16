@@ -27,6 +27,7 @@ const BandSchema = new mongoose.Schema(
             type: [String],
             default: []
         },
+        video_urls: [{ type: String }]
     },
     { collection: "bands_list" }
 );

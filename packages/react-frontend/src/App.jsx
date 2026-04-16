@@ -8,6 +8,7 @@ import {
   Link,
 } from "react-router-dom"
 import "./App.css"
+import BandPublicProfile from "./components/BandPublicProfile.jsx";
 
 const API_BASE_URL = "http://localhost:3001"
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
@@ -268,6 +269,9 @@ export default function App() {
   const showMusicianLogin = !preferredLoginRole || preferredLoginRole === "Artist"
   const showVenueLogin = !preferredLoginRole || preferredLoginRole === "Venue"
 
+  const [musicianDetails, setMusicianDetails] = useState(null);
+  const pathMusicianId = location.pathname.match(/^\/musicians\/([^/]+)$/)?.[1];
+  
   async function uploadMusicianProfilePicture(file) {
     const validationMessage = validateImageFile(file)
     if (validationMessage) {
@@ -299,6 +303,54 @@ export default function App() {
       profilePictureUrl: payload.data.profile_picture_url || "",
     }))
     setMusicianUploadMessage("Profile picture uploaded.")
+  }
+  
+  async function handleMusicianGalleryUpload(file) {
+    const validationMessage = validateImageFile(file)
+    if (validationMessage) {
+      setMusicianUploadMessage(validationMessage)
+      return
+    }
+    if(!pathMusicianId) {
+      setMusicianUploadMessage("No musician selected")
+      return
+    }
+    const body = new FormData()
+    body.append("image", file)
+
+    const response = await fetch(`${API_BASE_URL}/musicians/${pathMusicianId}/gallery`, {
+      method: "POST",
+      body,
+  })
+  const payload = await response.json()
+  if (!response.ok) {
+    setMusicianUploadMessage(payload.error || "Failed to upload photos")
+    return
+  }
+
+  setMusicianDetails(payload.data)
+}
+
+  const [musicianVideoLink, setMusicianVideoLink] = useState("");  
+  async function addMusicianVideo() {
+    const response = await fetch(`${API_BASE_URL}/musicians/${musicianId}/videos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ musicianVideoUrl: musicianVideoLink }),
+    });
+    const payload = await response.json();
+    if (response.ok) {
+      setProfile(prev => ({ ...prev, video_urls: payload.data.video_urls }));
+      setMusicianVideoLink("");
+    }
+  }
+
+  async function removeMusicianVideo(videoId) {
+    const response = await fetch(`${API_BASE_URL}/musicians/${musicianId}/videos/${videoId}`, {
+      method: "DELETE"
+    });
+    const payload = await response.json();
+    if (response.ok) setProfile(prev => ({ ...prev, video_urls: payload.data.video_urls }));
   }
 
   async function uploadBandProfilePicture(file) {
@@ -380,6 +432,28 @@ export default function App() {
 
     setBandDetails(payload.data)
     setBandUploadMessage("Gallery image removed.")
+  }
+
+  const [bandVideoLink, setBandVideoLink] = useState("");
+  async function addBandVideo() {
+    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoUrl: bandVideoLink }),
+    });
+    const payload = await response.json();
+    if (response.ok) {
+      setBandDetails(payload.data);
+      setBandVideoLink("");
+    }
+  }
+
+  async function removeBandVideo(videoId) {
+    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}/videos/${videoId}`, {
+      method: "DELETE"
+    });
+    const payload = await response.json();
+    if (response.ok) setBandDetails(payload.data);
   }
 
   async function createBandFromForm(event) {
@@ -543,7 +617,13 @@ export default function App() {
           setBandDetailsError("Could not load this band.")
         })
     }
-  }, [location.pathname])
+
+    if (pathMusicianId) {
+    fetch(`${API_BASE_URL}/musicians/${pathMusicianId}`)
+      .then(res => res.json())
+      .then(data => setMusicianDetails(data.data));
+    }
+  }, [location.pathname, pathMusicianId])
 
   return (
     <>
@@ -591,12 +671,21 @@ export default function App() {
                 type="button"
                 onClick={() => navigate("/profile")}
               >
+
+                My Page
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/musicians/${musicianId}`)}
+                >
+
                 Profile
               </button>
               <button
                 type="button"
                 onClick={handleLogout}
               >
+
                 Log Out
               </button>
             </>
@@ -890,6 +979,32 @@ export default function App() {
                         ))}
                       </div>
 
+                      <div className = "profile-row upload-row">
+                        <span className="label">Upload YouTube Video</span>
+                        <input
+                          className="edit-input"
+                          placeholder="Paste YouTube link here"
+                          value={bandVideoLink}
+                          onChange={(e) => setBandVideoLink(e.target.value)}
+                          />
+                          <button onClick={addBandVideo} className="secondary-btn" style={{width: 'auto', marginTop: 0}}>Add</button>
+                      </div>
+
+                      <div className="video-grid">
+                        {bandDetails.video_urls?.map(vidId => (
+                          <div key={vidId} className="video-item">
+                            <iframe
+                              width="100%"
+                              height="200"
+                              src={`https://www.youtube.com/embed/${vidId}`}
+                              frameBorder="0"
+                              allowFullScreen
+                              ></iframe>
+                              <button className="secondary-btn" onClick={() => removeBandVideo(vidId)}>Remove Video</button>
+                              </div>
+                        ))}
+                      </div>
+                      
                       {bandUploadMessage && <p className="upload-message">{bandUploadMessage}</p>}
 
                       <button
@@ -906,6 +1021,64 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route path="/bands/:id/public" element={<BandPublicProfile />} />
+
+        <Route path="/musicians/:id" element={
+          // <ProtectedRoute isLoggedIn={isLoggedIn}>
+            <section id="profile" className="page active">
+              <div className="profile-popup band-profile-popup">
+                {musicianDetails && (
+                  <>
+                  <img className="profile-image" src={musicianDetails.profile_picture_url || DEFAULT_PLACEHOLDER_IMAGE} />
+                  <h2>{musicianDetails.name}</h2>
+                  <p className="bio-text">{musicianDetails.bio || "No bio yet."}</p>
+                  
+                  {/* editing tools to be shown only if logged in as ownder*/}
+                  {/* {musicianId === pathMusicianId && ( */}
+                    <div className="management-box" style={{border: '1px dashed" #667eea', padding: '15px', borderRadius: '8px', marginBottom: '20px'}}>
+                      <h4 style={{marginBottom: '10px'}}>Manage your page</h4>
+                      <div className = "profile-row upload-row">
+                        <span className="label">Upload YouTube Video</span>
+                        <input
+                          className="edit-input"
+                          placeholder="Paste YouTube link here"
+                          value={musicianVideoLink}
+                          onChange={(e) => setMusicianVideoLink(e.target.value)}
+                          />
+                          <button className="secondary-btn" onClick={addMusicianVideo}>Add</button>
+                      </div>
+                      <div className="profile-row upload-row">
+                        <span className="label">Add photo</span>
+                        <input className="edit-input" type="file" onChange={(e) => handleMusicianGalleryUpload(e.target.files[0])} />
+                      </div>
+                    </div>
+                  {/* )} */}
+
+                  <h3>Videos</h3>
+                  <div className="video-grid">
+                        {musicianDetails.video_urls?.map(vidId => (
+                          <div key={vidId} className="video-item">
+                            <iframe src={`https://www.youtube.com/embed/${vidId}`} frameBorder="0" allowFullScreen></iframe>
+                            {musicianId === pathMusicianId && (
+                                <button className="secondary-btn" onClick={() => removeMusicianVideo(vidId)}>Remove Video</button>
+                            )}  
+                            </div>
+                      ))}
+                    </div>
+
+                  <h3>Photos</h3>
+                  <div className="gallery-grid">
+                    {musicianDetails.gallery_images?.map(url => (
+                      <div className="gallery-item" key={url}><img src={url} /></div>
+                    ))}
+                  </div>
+                  </>
+                )}
+              </div>
+            </section>
+          // </ProtectedRoute>
+        } />
 
         <Route
           path="/gigs"
@@ -1110,7 +1283,7 @@ export default function App() {
                       <div className="profile-row">
                         <span className="label">Password</span>
                         <span className="value">
-                          {"ù".repeat(profile.password.length)}
+                          {"ÔøΩ".repeat(profile.password.length)}
                         </span>
                       </div>
 

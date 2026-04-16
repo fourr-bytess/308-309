@@ -75,7 +75,7 @@ function makeUploadedImageUrl(req, folder, filename) {
 
 
 mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/bands")
+  .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/giggly")
   .then(() => console.log('Connected to MongoDB'))
   .catch((error) => console.error('MongoDB connection error:', error));
 
@@ -187,6 +187,36 @@ app.delete("/bands/:id/gallery", async (req, res) => {
     res.status(200).json({ data: updatedBand });
   } catch (err) {
     res.status(400).json({ error: "Failed to remove band gallery image" });
+  }
+});
+
+app.post("/bands/:id", async (req, res) => {
+  try {
+    const { videoUrl } = req.body;
+    const videoId = videoUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/)?.[1];
+    if (!videoId) return res.status(400).json({ error: "Invalid URL"});
+    const updatedBand = await bandServices.addBandVideo(req.params.id, videoId);
+    res.status(200).json({ data: updatedBand });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to upload video"});
+  }
+});
+
+app.delete("/bands/:id/videos/:videoId", async (req, res) => {
+  try {
+    // 2. Now both id and videoId are available in req.params
+    const { id, videoId } = req.params;
+    
+    const updated = await bandServices.removeBandVideo(id, videoId);
+    
+    if (!updated) {
+      return res.status(404).json({ error: "Band not found" });
+    }
+
+    res.status(200).json({ data: updated });
+  } catch (err) {
+    console.error("Delete Error:", err);
+    res.status(400).json({ error: "Failed to delete video" });
   }
 });
 
@@ -396,6 +426,27 @@ app.post("/musicians/:id/profile-picture", imageUpload.single("image"), async (r
     res.status(200).json({ data: updatedMusician });
   } catch (err) {
     res.status(400).json({ error: "Failed to upload musician profile picture" });
+  }
+});
+
+app.post("/musicians/:id/videos", async (req, res) => {
+  try {
+    const { videoUrl } = req.body;
+    const videoId = videoUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/)?.[1];
+    if (!videoId) return res.status(400).json({ error: "Invalid URL"});
+    const updatedMusician = await musicianServices.addMusicianVideo(req.params.id, videoId);
+    res.status(200).json({ data: updatedMusician });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to upload video"});
+  }
+});
+
+app.delete("/musicians/:id/videos/:videoId", async (req, res) => {
+  try {
+    const updated = await musicianServices.removeMusicianVideo(id, videoId);
+    res.status(200).json({ data: updated });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete video"});
   }
 });
 

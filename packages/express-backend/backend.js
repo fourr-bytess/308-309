@@ -5,9 +5,12 @@ import bandServices from './band-services.js';
 import venueServices from './venue-services.js';
 import dotenv from "dotenv";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
+import multer from "multer";
 import musicianServices from './musician-services.js';
 import reviewServices from './review-services.js';
+import gigServices from "./gig-services.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +19,59 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+const uploadsRoot = path.join(__dirname, "uploads");
+const musiciansUploads = path.join(uploadsRoot, "musicians");
+const bandsUploads = path.join(uploadsRoot, "bands");
+const bandGalleryUploads = path.join(uploadsRoot, "band-gallery");
+fs.mkdirSync(musiciansUploads, { recursive: true });
+fs.mkdirSync(bandsUploads, { recursive: true });
+fs.mkdirSync(bandGalleryUploads, { recursive: true });
+
+const ALLOWED_IMAGE_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+
+const uploadStorage = multer.diskStorage({
+  destination: (req, _file, cb) => {
+    if (req.path.includes("/musicians/")) {
+      cb(null, musiciansUploads);
+      return;
+    }
+    if (req.path.includes("/gallery")) {
+      cb(null, bandGalleryUploads);
+      return;
+    }
+    cb(null, bandsUploads);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, uniqueName);
+  },
+});
+
+const imageUpload = multer({
+  storage: uploadStorage,
+  limits: { fileSize: MAX_IMAGE_SIZE_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+      cb(new Error("Only image uploads are allowed"));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+app.use("/uploads", express.static(uploadsRoot));
+
+function makeUploadedImageUrl(req, folder, filename) {
+  return `${req.protocol}://${req.get("host")}/uploads/${folder}/${filename}`;
+}
 
 
 mongoose
@@ -27,22 +83,23 @@ app.get('/bands', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
     const offset = parseInt(req.query.offset, 10) || 0;
-    const total = await bandServices.getBandsCount({
+
+    const minPrice = req.query.min_price !== undefined ? Number(req.query.min_price) : undefined;
+    const maxPrice = req.query.max_price !== undefined ? Number(req.query.max_price) : undefined;
+    const price_range =
+      Number.isFinite(minPrice) && Number.isFinite(maxPrice) ? [minPrice, maxPrice] : undefined;
+
+    const filters = {
       name: req.query.name,
-      member_names: req.query.member_names?.split(','),
+      members: req.query.members?.split(','),
       genres: req.query.genres?.split(','),
       locations: req.query.locations?.split(','),
-      price_range: [req.query.min_price, req.query.max_price]
-    });
+      price_range,
+    };
+
+    const total = await bandServices.getBandsCount(filters);
     const cappedLimit = Math.min(limit, 50);
-    const { bands } = await bandServices.getBandsPaginated(cappedLimit, offset, {
-      name: req.query.name,
-      member_names: req.query.member_names?.split(','),
-      genres: req.query.genres?.split(','),
-      locations: req.query.locations?.split(','),
-      price_range: [req.query.min_price, req.query.max_price]
-      
-    });
+    const { bands } = await bandServices.getBandsPaginated(cappedLimit, offset, filters);
     res.status(200).json({ data: bands, meta : { limit: cappedLimit, offset, total } });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch bands' });
@@ -83,6 +140,54 @@ app.delete("/bands/:id", async (req,res) => {
     }catch(err){
         return res.status(404).json({error: "Invalid ID"});
     }
+});
+
+app.post("/bands/:id/profile-picture", imageUpload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Image file is required" });
+    }
+    const imageUrl = makeUploadedImageUrl(req, "bands", req.file.filename);
+    const updatedBand = await bandServices.updateBandProfilePicture(req.params.id, imageUrl);
+    if (!updatedBand) {
+      return res.status(404).json({ error: "Band not found" });
+    }
+    res.status(200).json({ data: updatedBand });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to upload band profile picture" });
+  }
+});
+
+app.post("/bands/:id/gallery", imageUpload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Image file is required" });
+    }
+    const imageUrl = makeUploadedImageUrl(req, "band-gallery", req.file.filename);
+    const updatedBand = await bandServices.addBandGalleryImage(req.params.id, imageUrl);
+    if (!updatedBand) {
+      return res.status(404).json({ error: "Band not found" });
+    }
+    res.status(200).json({ data: updatedBand });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to upload band gallery image" });
+  }
+});
+
+app.delete("/bands/:id/gallery", async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    if (!imageUrl) {
+      return res.status(400).json({ error: "imageUrl is required" });
+    }
+    const updatedBand = await bandServices.removeBandGalleryImage(req.params.id, imageUrl);
+    if (!updatedBand) {
+      return res.status(404).json({ error: "Band not found" });
+    }
+    res.status(200).json({ data: updatedBand });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to remove band gallery image" });
+  }
 });
 
 //GET /venues
@@ -150,6 +255,72 @@ app.delete("/venues/:id", async (req, res) => {
   }
 });
 
+// GET /gigs
+app.get("/gigs", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const offset = parseInt(req.query.offset, 10) || 0;
+    const cappedLimit = Math.min(limit, 50);
+
+    const minPrice = req.query.min_price !== undefined ? Number(req.query.min_price) : undefined;
+    const maxPrice = req.query.max_price !== undefined ? Number(req.query.max_price) : undefined;
+    const price_range =
+      Number.isFinite(minPrice) && Number.isFinite(maxPrice) ? [minPrice, maxPrice] : undefined;
+
+    const filters = {
+      name: req.query.name,
+      description: req.query.description,
+      genres: req.query.genres?.split(","),
+      location: req.query.location,
+      price_range,
+      host: req.query.host,
+      booked: req.query.booked === "true" ? true : req.query.booked === "false" ? false : undefined,
+    };
+
+    const total = await gigServices.getGigsCount(filters);
+    const { gigs } = await gigServices.getGigsPaginated(cappedLimit, offset, filters);
+    res.status(200).json({ data: gigs, meta: { limit: cappedLimit, offset, total } });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch gigs" });
+  }
+});
+
+// GET /gigs/:id
+app.get("/gigs/:id", async (req, res) => {
+  try {
+    const gig = await gigServices.findGigById(req.params.id);
+    if (!gig) {
+      return res.status(404).json({ error: "Gig not found" });
+    }
+    res.status(200).json({ data: gig });
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
+// POST /gigs
+app.post("/gigs", async (req, res) => {
+  try {
+    const created = await gigServices.addGig(req.body);
+    res.status(201).json({ data: created });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create gig" });
+  }
+});
+
+// DELETE /gigs/:id
+app.delete("/gigs/:id", async (req, res) => {
+  try {
+    const deleted = await gigServices.findGigByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ error: "Gig not found" });
+    }
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
 // GET /musicians
 app.get("/musicians", async (req, res) => {
   try {
@@ -209,6 +380,22 @@ app.delete("/musicians/:id", async (req, res) => {
     res.status(200).json({ data: deleted });
   } catch (err) {
     res.status(400).json({ error: "Invalid ID" });
+  }
+});
+
+app.post("/musicians/:id/profile-picture", imageUpload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "Image file is required" });
+    }
+    const imageUrl = makeUploadedImageUrl(req, "musicians", req.file.filename);
+    const updatedMusician = await musicianServices.updateMusicianProfilePicture(req.params.id, imageUrl);
+    if (!updatedMusician) {
+      return res.status(404).json({ error: "Musician not found" });
+    }
+    res.status(200).json({ data: updatedMusician });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to upload musician profile picture" });
   }
 });
 
@@ -283,6 +470,19 @@ app.post("/reviews", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Failed to create review" });
   }
+});
+
+app.use((err, _req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ error: "Image must be 5MB or smaller" });
+    }
+    return res.status(400).json({ error: "Upload failed" });
+  }
+  if (err && err.message === "Only image uploads are allowed") {
+    return res.status(400).json({ error: err.message });
+  }
+  return next(err);
 });
 
 

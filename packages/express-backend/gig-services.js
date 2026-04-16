@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import gigModel from "./gig.js";
 
-const GIG_SELECT = 'name description genres locations price_range date time host booked bands_hired';
+const GIG_SELECT = "name description genres location price_range date time host booked bands_hired";
 
 function buildGigsQuery(filters = {}) {
     const query = {};
@@ -14,17 +14,17 @@ function buildGigsQuery(filters = {}) {
     if (filters.genres?.length) {
         query.genres = { $in: filters.genres.map(g => g.toLowerCase()) };
     }
-    if (filters.locations?.length) {
-        query.locations = { $in: filters.locations.map(l => l.toLowerCase()) };
+    if (filters.location) {
+        query.location = filters.location.toLowerCase();
     }
     if (filters.price_range?.length === 2) {
-        query.price = {
+        query.price_range = {
             $gte: filters.price_range[0],
             $lte: filters.price_range[1]
         };
     }
     if (filters.date) {
-        query.date = filters.date();
+        query.date = filters.date;
     }
     if (filters.time?.length === 2) {
         query.time = {
@@ -33,19 +33,19 @@ function buildGigsQuery(filters = {}) {
         };
     }
     if (filters.host) {
-        query.host = filters.host.toLowerCase();
+        query.host = filters.host;
     }
-    if (filters.booked) {
-        query.booked = filters.booked();
+    if (typeof filters.booked === "boolean") {
+        query.booked = filters.booked;
     }
     if (filters.bands_hired?.length) {
-        query.bands_hired = { $in: filters.bands_hired.map(g => g.toLowerCase()) };
+        query.bands_hired = { $in: filters.bands_hired };
     }
     return query;
 }
 
-function getGigs(name, description, genres, locations, price_range, date, time, host, booked, bands_hired) {
-    const query = buildGigsQuery({ name, description, genres, locations, price_range, date, time, host, booked, bands_hired });
+function getGigs(name, description, genres, location, price_range, date, time, host, booked, bands_hired) {
+    const query = buildGigsQuery({ name, description, genres, location, price_range, date, time, host, booked, bands_hired });
     return gigModel.find(query).select(GIG_SELECT);
 }
 

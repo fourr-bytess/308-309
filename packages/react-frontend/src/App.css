@@ -174,6 +174,11 @@ body {
   transform: scale(1.03);
 }
 
+.login-role-btn.recommended-role {
+  outline: 3px solid #c7d2fe;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+}
+
 /* Grid preferences... */
 
 .card-grid {
@@ -189,6 +194,79 @@ body {
   height: 120px;
   background: white;
   border-radius: 12px;
+}
+
+.band-card {
+  height: auto;
+  padding: 16px;
+}
+
+.create-band-form {
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.create-band-form h3 {
+  margin-bottom: 10px;
+}
+
+.create-band-form input {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 8px;
+}
+
+.create-band-price-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.create-band-btn {
+  margin-top: 12px;
+}
+
+.create-band-form-page {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.create-band-tile {
+  width: 100%;
+  max-width: 900px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  text-align: left;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+}
+
+.create-band-tile:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.create-band-tile-title {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.create-band-tile-subtitle {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.95rem;
 }
 
 /* Profile Popup Card... */
@@ -261,6 +339,21 @@ body {
   background: #5a67d8;
 }
 
+.secondary-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #667eea;
+  background: white;
+  color: #667eea;
+  cursor: pointer;
+}
+
+.secondary-btn:hover {
+  background: #eef2ff;
+}
+
 /* Profile editing input styling... */
 
 .edit-input {
@@ -276,4 +369,57 @@ body {
   outline: none;
   border-color: #667eea;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+}
+
+.profile-image {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto 20px auto;
+  border: 3px solid #e7ebff;
+}
+
+.upload-row {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.upload-message {
+  margin-top: 8px;
+  margin-bottom: 12px;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.upload-message.error {
+  color: #b91c1c;
+}
+
+.band-profile-popup {
+  width: 680px;
+}
+
+.gallery-title {
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #dbe1ff;
+}
+
+.gallery-empty {
+  color: #334155;
 }

@@ -20,7 +20,12 @@ const MusicianSchema = new mongoose.Schema(
             type: String,
             trim: true,
             maxLength: 1000
-        }
+        },
+        profile_picture_url: {
+            type: String,
+            trim: true,
+            default: ""
+        },
     },
     { collection: "musicians_list" }
 );

@@ -15,11 +15,11 @@
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
-    "mongoose": "^9.2.1"
+    "mongoose": "^9.2.1",
+    "multer": "^2.1.1"
   },
   "devDependencies": {
     "@jest/globals": "^30.3.0",
     "jest": "^30.3.0"
   }
-
 }

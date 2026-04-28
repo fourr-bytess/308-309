@@ -11,6 +11,8 @@ import multer from "multer";
 import musicianServices from './musician-services.js';
 import reviewServices from './review-services.js';
 import gigServices from "./gig-services.js";
+import authServices from "./auth-services.js";
+import { VALID_ROLES } from "./user.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,11 +75,66 @@ function makeUploadedImageUrl(req, folder, filename) {
   return `${req.protocol}://${req.get("host")}/uploads/${folder}/${filename}`;
 }
 
+function isValidEmail(email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+}
+
 
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/giggly")
   .then(() => console.log('Connected to MongoDB'))
   .catch((error) => console.error('MongoDB connection error:', error));
+
+app.post("/auth/register", async (req, res) => {
+  try {
+    const { email, password, display_name, role } = req.body;
+
+    if (!email || !password || !display_name || !role) {
+      return res.status(400).json({
+        error: "email, password, display_name, and role are required",
+      });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+
+    if (String(password).length < 8) {
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 8 characters" });
+    }
+
+    if (!VALID_ROLES.includes(role)) {
+      return res
+        .status(400)
+        .json({ error: "role must be musician, band, or venue" });
+    }
+
+    const created = await authServices.registerUser({
+      email,
+      password,
+      display_name,
+      role,
+    });
+
+    return res.status(201).json({
+      data: {
+        id: created._id,
+        email: created.email,
+        display_name: created.display_name,
+        role: created.role,
+        createdAt: created.createdAt,
+      },
+    });
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(409).json({ error: "Email already registered" });
+    }
+    return res.status(400).json({ error: "Failed to register user" });
+  }
+});
 
 app.get('/bands', async (req, res) => {
   try {

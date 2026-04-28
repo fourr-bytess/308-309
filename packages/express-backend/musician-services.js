@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import musicianModel from "./musician.js";
 
-const MUSICIAN_SELECT = 'name band_affiliations instruments bio';
+const MUSICIAN_SELECT = "name band_affiliations instruments bio profile_picture_url";
 
 function buildMusiciansQuery(filters = {}) {
     const query = {};
@@ -50,6 +50,30 @@ function findMusicianByIdAndDelete(id) {
     return musicianModel.findByIdAndDelete(id);
 }
 
+function updateMusicianProfilePicture(id, profile_picture_url) {
+    return musicianModel.findByIdAndUpdate(
+        id,
+        { profile_picture_url },
+        { new: true, runValidators: true }
+    );
+}
+
+function addMusicianVideo(id, videoId) {
+    return musicianModel.findByIdAndUpdate(
+        id,
+        { $push: { video_urls: videoId }},
+        { new: true }
+    );
+}
+
+function removeMusicianVideo(id, videoId) {
+    return musicianModel.findByIdAndUpdate(
+        id,
+        { $pull: { video_urls: videoId }},
+        { new: true }
+    );
+}
+
 
 
 export default {
@@ -58,5 +82,8 @@ export default {
     getMusiciansCount,
     getMusiciansPaginated,
     findMusicianById,
-    findMusicianByIdAndDelete
+    findMusicianByIdAndDelete,
+    updateMusicianProfilePicture,
+    addMusicianVideo,
+    removeMusicianVideo
 };

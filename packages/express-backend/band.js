@@ -18,6 +18,16 @@ const BandSchema = new mongoose.Schema(
         genres: [String],
         locations: [String],
         price_range: [Number],
+        profile_picture_url: {
+            type: String,
+            trim: true,
+            default: ""
+        },
+        gallery_images: {
+            type: [String],
+            default: []
+        },
+        video_urls: [{ type: String }]
     },
     { collection: "bands_list" }
 );

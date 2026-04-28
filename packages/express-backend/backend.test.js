@@ -6,6 +6,7 @@ let mockBandServices;
 let mockVenueServices;
 let mockMusicianServices;
 let mockReviewServices;
+let mockAuthServices;
 let mockConnect;
 
 function createMockRes() {
@@ -67,6 +68,10 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     addReview: jest.fn(),
   };
 
+  mockAuthServices = {
+    registerUser: jest.fn(),
+  };
+
   mockApp = {
     use: jest.fn(),
     get: jest.fn((path, handler) => {
@@ -91,12 +96,25 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     const expressFn = () => mockApp;
     // Provide a json middleware function so app.use(express.json()) works
     expressFn.json = jest.fn(() => jest.fn());
+    expressFn.static = jest.fn(() => jest.fn());
     return { default: expressFn };
   });
 
-  await jest.unstable_mockModule('mongoose', () => ({
-    default: { connect: mockConnect },
-  }));
+  await jest.unstable_mockModule('mongoose', () => {
+    class MockSchema {
+      constructor(_definition, _options) {}
+      index() {}
+    }
+    MockSchema.Types = { ObjectId: class MockObjectId {} };
+
+    return {
+      default: {
+        connect: mockConnect,
+        Schema: MockSchema,
+        model: jest.fn(() => ({})),
+      },
+    };
+  });
 
   await jest.unstable_mockModule('./band-services.js', () => ({
     default: mockBandServices,
@@ -112,6 +130,14 @@ async function loadBackend({ connectShouldReject = false } = {}) {
 
   await jest.unstable_mockModule('./review-services.js', () => ({
     default: mockReviewServices,
+  }));
+
+  await jest.unstable_mockModule('./auth-services.js', () => ({
+    default: mockAuthServices,
+  }));
+
+  await jest.unstable_mockModule('./user.js', () => ({
+    VALID_ROLES: ['musician', 'band', 'venue'],
   }));
 
   const backend = await import('./backend.js');
@@ -154,8 +180,10 @@ describe('backend initialization', () => {
 
     await loadBackend({ connectShouldReject: false });
 
+    const expectedUri =
+      process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/giggly';
     expect(mockConnect).toHaveBeenCalledWith(
-      'mongodb://127.0.0.1:27017/bands',
+      expectedUri,
     );
 
     if (originalUri !== undefined) {
@@ -186,7 +214,7 @@ describe('backend initialization', () => {
     await loadBackend({ connectShouldReject: false });
 
     expect(mockConnect).toHaveBeenCalledWith(
-      'mongodb://127.0.0.1:27017/bands',
+      'mongodb://127.0.0.1:27017/giggly',
     );
 
     if (originalUri !== undefined) {
@@ -869,6 +897,144 @@ describe('review routes', () => {
     await handler(req, res);
 
     expect(res.statusCode).toBe(400);
+  });
+});
+
+describe('auth routes', () => {
+  beforeAll(async () => {
+    await loadBackend();
+  });
+
+  test('POST /auth/register success', async () => {
+    const handler = findRoute('post', '/auth/register');
+    const created = {
+      _id: 'u1',
+      email: 'person@test.com',
+      display_name: 'Person',
+      role: 'musician',
+      createdAt: new Date().toISOString(),
+    };
+    mockAuthServices.registerUser.mockResolvedValue(created);
+
+    const req = {
+      body: {
+        email: 'person@test.com',
+        password: 'password123',
+        display_name: 'Person',
+        role: 'musician',
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(201);
+    expect(mockAuthServices.registerUser).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'person@test.com',
+        password: 'password123',
+        display_name: 'Person',
+        role: 'musician',
+      }),
+    );
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          id: 'u1',
+          email: 'person@test.com',
+          display_name: 'Person',
+          role: 'musician',
+        }),
+      }),
+    );
+  });
+
+  test('POST /auth/register returns 400 when required fields missing', async () => {
+    const handler = findRoute('post', '/auth/register');
+    const req = {
+      body: {
+        email: 'person@test.com',
+        password: 'password123',
+        role: 'musician',
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  test('POST /auth/register returns 400 on invalid email', async () => {
+    const handler = findRoute('post', '/auth/register');
+    const req = {
+      body: {
+        email: 'bad-email',
+        password: 'password123',
+        display_name: 'Person',
+        role: 'musician',
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  test('POST /auth/register returns 400 on short password', async () => {
+    const handler = findRoute('post', '/auth/register');
+    const req = {
+      body: {
+        email: 'person@test.com',
+        password: 'short',
+        display_name: 'Person',
+        role: 'musician',
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  test('POST /auth/register returns 400 on invalid role', async () => {
+    const handler = findRoute('post', '/auth/register');
+    const req = {
+      body: {
+        email: 'person@test.com',
+        password: 'password123',
+        display_name: 'Person',
+        role: 'admin',
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  test('POST /auth/register returns 409 when email exists', async () => {
+    const handler = findRoute('post', '/auth/register');
+    const duplicateError = new Error('duplicate');
+    duplicateError.code = 11000;
+    mockAuthServices.registerUser.mockRejectedValue(duplicateError);
+
+    const req = {
+      body: {
+        email: 'person@test.com',
+        password: 'password123',
+        display_name: 'Person',
+        role: 'musician',
+      },
+    };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(409);
   });
 });
 

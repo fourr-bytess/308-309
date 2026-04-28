@@ -96,3 +96,30 @@ export async function createReview(review) {
 
   return res.json();
 }
+
+// Conversations - Jose
+export async function getConversations(){
+  const res = await fetch(`${API_URL}/conversations`);
+  const data = await res.json();
+  return data.data;
+}
+export async function getConversationsById(id){
+  const res = await fetch(`${API_URL}/conversations/${id}`);
+  const data = await res.json();
+  return data.data;
+}
+
+export async function createConversation(message){
+  const res = await fetch(`${API_URL}/conversations`,{
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(message),
+  });
+  return res.json();
+}
+
+export async function deleteConversationById(id){
+  const res = await fetch(`${API_URL}/conversations/${id}`, {
+    method: "DELETE",
+  });
+}

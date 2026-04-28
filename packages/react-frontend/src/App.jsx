@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   Navigate,
   useLocation,
@@ -6,56 +6,63 @@ import {
   Routes,
   Route,
   Link,
-} from "react-router-dom"
-import "./App.css"
+} from "react-router-dom";
+import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
+import Location from "./components/Location.jsx";
 
-const API_BASE_URL = "http://localhost:3001"
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
-const DEFAULT_PLACEHOLDER_IMAGE = "https://placehold.co/240x240/png?text=No+Photo"
+const API_BASE_URL = "http://localhost:3001";
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+];
+const DEFAULT_PLACEHOLDER_IMAGE =
+  "https://placehold.co/240x240/png?text=No+Photo";
 
 function ProtectedRoute({ isLoggedIn, children }) {
-  const location = useLocation()
+  const location = useLocation();
 
   if (!isLoggedIn) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return children
+  return children;
 }
 
 function getBandIdFromPath(pathname) {
-  const match = pathname.match(/^\/bands\/([^/]+)$/)
-  return match ? match[1] : null
+  const match = pathname.match(/^\/bands\/([^/]+)$/);
+  return match ? match[1] : null;
 }
 
 function validateImageFile(file) {
   if (!file) {
-    return "Please choose an image file."
+    return "Please choose an image file.";
   }
   if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-    return "Only JPG, PNG, WEBP, and GIF files are allowed."
+    return "Only JPG, PNG, WEBP, and GIF files are allowed.";
   }
   if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    return "Image must be 5MB or smaller."
+    return "Image must be 5MB or smaller.";
   }
-  return null
+  return null;
 }
 
 export default function App() {
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(false);
 
-  const [loginEmail, setLoginEmail] = useState("")
-  const [loginPassword, setLoginPassword] = useState("")
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
 
-  const [musicianId, setMusicianId] = useState("")
-  const [venueId, setVenueId] = useState("")
+  const [musicianId, setMusicianId] = useState("");
+  const [venueId, setVenueId] = useState("");
 
   const [profile, setProfile] = useState({
     first: "First Name",
@@ -64,28 +71,28 @@ export default function App() {
     password: "12345",
     role: "Artist",
     profilePictureUrl: "",
-  })
+  });
 
-  const [bands, setBands] = useState([])
+  const [bands, setBands] = useState([]);
 
-  const [venues, setVenues] = useState([])
+  const [venues, setVenues] = useState([]);
 
-  const [gigs, setGigs] = useState([])
+  const [gigs, setGigs] = useState([]);
 
-  const [bandDetails, setBandDetails] = useState(null)
-  const [bandDetailsError, setBandDetailsError] = useState("")
-  const [createBandMessage, setCreateBandMessage] = useState("")
+  const [bandDetails, setBandDetails] = useState(null);
+  const [bandDetailsError, setBandDetailsError] = useState("");
+  const [createBandMessage, setCreateBandMessage] = useState("");
   const [createBandForm, setCreateBandForm] = useState({
     name: "",
     genre: "",
     location: "",
     minPrice: "",
     maxPrice: "",
-  })
+  });
 
-  const [musicianUploadMessage, setMusicianUploadMessage] = useState("")
-  const [bandUploadMessage, setBandUploadMessage] = useState("")
-  const [createGigMessage, setCreateGigMessage] = useState("")
+  const [musicianUploadMessage, setMusicianUploadMessage] = useState("");
+  const [bandUploadMessage, setBandUploadMessage] = useState("");
+  const [createGigMessage, setCreateGigMessage] = useState("");
   const [createGigForm, setCreateGigForm] = useState({
     name: "",
     description: "",
@@ -94,65 +101,69 @@ export default function App() {
     minPrice: "",
     maxPrice: "",
     date: "",
-  })
+  });
 
   function requireLogin(targetPath, expectedRole) {
     if (!isLoggedIn) {
-      alert("Please login or sign up before continuing.")
+      alert("Please login or sign up before continuing.");
 
       navigate("/login", {
         state: {
           from: { pathname: targetPath },
           expectedRole,
         },
-      })
+      });
 
-      return false
+      return false;
     }
 
-    navigate(targetPath)
+    navigate(targetPath);
 
-    return true
+    return true;
   }
 
   function handleChange(e) {
     setProfile({
       ...profile,
       [e.target.name]: e.target.value,
-    })
+    });
   }
 
   function getPreferredLoginRole() {
     if (location.pathname !== "/login") {
-      return null
+      return null;
     }
 
-    const expectedRole = location.state?.expectedRole
+    const expectedRole = location.state?.expectedRole;
     if (expectedRole) {
-      return expectedRole
+      return expectedRole;
     }
 
-    const fromPath = location.state?.from?.pathname
+    const fromPath = location.state?.from?.pathname;
     if (fromPath === "/dashboard") {
-      return "Venue"
+      return "Venue";
     }
     if (fromPath === "/gigs") {
-      return "Artist"
+      return "Artist";
     }
     if (fromPath === "/bands" || fromPath?.startsWith("/bands/")) {
-      return "Venue"
+      return "Venue";
     }
 
-    return null
+    return null;
   }
 
   async function createOrLoadMusicianProfile(email) {
-    const normalizedName = (email.split("@")[0] || "artist").trim().toLowerCase()
-    const lookupResponse = await fetch(`${API_BASE_URL}/musicians?name=${encodeURIComponent(normalizedName)}&limit=1`)
-    const lookupPayload = await lookupResponse.json()
+    const normalizedName = (email.split("@")[0] || "artist")
+      .trim()
+      .toLowerCase();
+    const lookupResponse = await fetch(
+      `${API_BASE_URL}/musicians?name=${encodeURIComponent(normalizedName)}&limit=1`,
+    );
+    const lookupPayload = await lookupResponse.json();
 
     if (lookupResponse.ok && lookupPayload.data?.length) {
-      return lookupPayload.data[0]
+      return lookupPayload.data[0];
     }
 
     const createResponse = await fetch(`${API_BASE_URL}/musicians`, {
@@ -164,23 +175,25 @@ export default function App() {
         instruments: [],
         bio: "",
       }),
-    })
-    const createPayload = await createResponse.json()
+    });
+    const createPayload = await createResponse.json();
 
     if (!createResponse.ok || !createPayload.data) {
-      throw new Error("Could not create musician profile")
+      throw new Error("Could not create musician profile");
     }
 
-    return createPayload.data
+    return createPayload.data;
   }
 
   async function createOrLoadVenueProfile(email) {
-    const venueName = (email.split("@")[0] || "venue").trim().toLowerCase()
-    const lookupResponse = await fetch(`${API_BASE_URL}/venues?name=${encodeURIComponent(venueName)}`)
-    const lookupPayload = await lookupResponse.json()
+    const venueName = (email.split("@")[0] || "venue").trim().toLowerCase();
+    const lookupResponse = await fetch(
+      `${API_BASE_URL}/venues?name=${encodeURIComponent(venueName)}`,
+    );
+    const lookupPayload = await lookupResponse.json();
 
     if (lookupResponse.ok && lookupPayload.data?.length) {
-      return lookupPayload.data[0]
+      return lookupPayload.data[0];
     }
 
     const createResponse = await fetch(`${API_BASE_URL}/venues`, {
@@ -196,12 +209,12 @@ export default function App() {
         contact_email: email || "venue@example.com",
         description: "",
       }),
-    })
-    const createPayload = await createResponse.json()
+    });
+    const createPayload = await createResponse.json();
     if (!createResponse.ok || !createPayload.data) {
-      throw new Error("Could not create venue profile")
+      throw new Error("Could not create venue profile");
     }
-    return createPayload.data
+    return createPayload.data;
   }
 
   async function handleBandLogin() {
@@ -210,24 +223,24 @@ export default function App() {
       email: loginEmail,
       password: loginPassword,
       role: "Artist",
-    })
+    });
 
-    setIsLoggedIn(true)
+    setIsLoggedIn(true);
 
     try {
-      const musicianRecord = await createOrLoadMusicianProfile(loginEmail)
-      setMusicianId(musicianRecord._id)
+      const musicianRecord = await createOrLoadMusicianProfile(loginEmail);
+      setMusicianId(musicianRecord._id);
       setProfile((prev) => ({
         ...prev,
         profilePictureUrl: musicianRecord.profile_picture_url || "",
-      }))
+      }));
     } catch (error) {
-      console.error("Failed to initialize musician profile:", error)
+      console.error("Failed to initialize musician profile:", error);
     }
 
-    const from = location.state?.from?.pathname
+    const from = location.state?.from?.pathname;
 
-    navigate(from || "/gigs", { replace: true })
+    navigate(from || "/gigs", { replace: true });
   }
 
   function handleVenueLogin() {
@@ -236,202 +249,229 @@ export default function App() {
       email: loginEmail,
       password: loginPassword,
       role: "Venue",
-    })
+    });
 
-    setIsLoggedIn(true)
+    setIsLoggedIn(true);
 
     createOrLoadVenueProfile(loginEmail)
       .then((venueRecord) => {
-        setVenueId(venueRecord._id || "")
+        setVenueId(venueRecord._id || "");
       })
       .catch((error) => {
-        console.error("Failed to initialize venue profile:", error)
-      })
+        console.error("Failed to initialize venue profile:", error);
+      });
 
-    const from = location.state?.from?.pathname
+    const from = location.state?.from?.pathname;
 
-    navigate(from || "/dashboard", { replace: true })
+    navigate(from || "/dashboard", { replace: true });
   }
 
   function handleLogout() {
-    setIsLoggedIn(false)
-    setMusicianId("")
-    setVenueId("")
-    setBandDetails(null)
-    setBandDetailsError("")
-    setCreateBandMessage("")
-    setMusicianUploadMessage("")
-    setBandUploadMessage("")
-    navigate("/", { replace: true })
+    setIsLoggedIn(false);
+    setMusicianId("");
+    setVenueId("");
+    setBandDetails(null);
+    setBandDetailsError("");
+    setCreateBandMessage("");
+    setMusicianUploadMessage("");
+    setBandUploadMessage("");
+    navigate("/", { replace: true });
   }
 
-  const preferredLoginRole = getPreferredLoginRole()
-  const showMusicianLogin = !preferredLoginRole || preferredLoginRole === "Artist"
-  const showVenueLogin = !preferredLoginRole || preferredLoginRole === "Venue"
+  const preferredLoginRole = getPreferredLoginRole();
+  const showMusicianLogin =
+    !preferredLoginRole || preferredLoginRole === "Artist";
+  const showVenueLogin = !preferredLoginRole || preferredLoginRole === "Venue";
 
   const [musicianDetails, setMusicianDetails] = useState(null);
   const pathMusicianId = location.pathname.match(/^\/musicians\/([^/]+)$/)?.[1];
-  
+
   async function uploadMusicianProfilePicture(file) {
-    const validationMessage = validateImageFile(file)
+    const validationMessage = validateImageFile(file);
     if (validationMessage) {
-      setMusicianUploadMessage(validationMessage)
-      return
+      setMusicianUploadMessage(validationMessage);
+      return;
     }
 
     if (!musicianId) {
-      setMusicianUploadMessage("Please sign in as a musician first.")
-      return
+      setMusicianUploadMessage("Please sign in as a musician first.");
+      return;
     }
 
-    const body = new FormData()
-    body.append("image", file)
+    const body = new FormData();
+    body.append("image", file);
 
-    const response = await fetch(`${API_BASE_URL}/musicians/${musicianId}/profile-picture`, {
-      method: "POST",
-      body,
-    })
-    const payload = await response.json()
+    const response = await fetch(
+      `${API_BASE_URL}/musicians/${musicianId}/profile-picture`,
+      {
+        method: "POST",
+        body,
+      },
+    );
+    const payload = await response.json();
 
     if (!response.ok) {
-      setMusicianUploadMessage(payload.error || "Failed to upload musician profile picture.")
-      return
+      setMusicianUploadMessage(
+        payload.error || "Failed to upload musician profile picture.",
+      );
+      return;
     }
 
     setProfile((prev) => ({
       ...prev,
       profilePictureUrl: payload.data.profile_picture_url || "",
-    }))
-    setMusicianUploadMessage("Profile picture uploaded.")
+    }));
+    setMusicianUploadMessage("Profile picture uploaded.");
   }
-  
+
   async function handleMusicianGalleryUpload(file) {
-    const validationMessage = validateImageFile(file)
+    const validationMessage = validateImageFile(file);
     if (validationMessage) {
-      setMusicianUploadMessage(validationMessage)
-      return
+      setMusicianUploadMessage(validationMessage);
+      return;
     }
-    if(!pathMusicianId) {
-      setMusicianUploadMessage("No musician selected")
-      return
+    if (!pathMusicianId) {
+      setMusicianUploadMessage("No musician selected");
+      return;
     }
-    const body = new FormData()
-    body.append("image", file)
+    const body = new FormData();
+    body.append("image", file);
 
-    const response = await fetch(`${API_BASE_URL}/musicians/${pathMusicianId}/gallery`, {
-      method: "POST",
-      body,
-  })
-  const payload = await response.json()
-  if (!response.ok) {
-    setMusicianUploadMessage(payload.error || "Failed to upload photos")
-    return
+    const response = await fetch(
+      `${API_BASE_URL}/musicians/${pathMusicianId}/gallery`,
+      {
+        method: "POST",
+        body,
+      },
+    );
+    const payload = await response.json();
+    if (!response.ok) {
+      setMusicianUploadMessage(payload.error || "Failed to upload photos");
+      return;
+    }
+
+    setMusicianDetails(payload.data);
   }
 
-  setMusicianDetails(payload.data)
-}
-
-  const [musicianVideoLink, setMusicianVideoLink] = useState("");  
+  const [musicianVideoLink, setMusicianVideoLink] = useState("");
   async function addMusicianVideo() {
-    const response = await fetch(`${API_BASE_URL}/musicians/${musicianId}/videos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ musicianVideoUrl: musicianVideoLink }),
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/musicians/${musicianId}/videos`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ musicianVideoUrl: musicianVideoLink }),
+      },
+    );
     const payload = await response.json();
     if (response.ok) {
-      setProfile(prev => ({ ...prev, video_urls: payload.data.video_urls }));
+      setProfile((prev) => ({ ...prev, video_urls: payload.data.video_urls }));
       setMusicianVideoLink("");
     }
   }
 
   async function removeMusicianVideo(videoId) {
-    const response = await fetch(`${API_BASE_URL}/musicians/${musicianId}/videos/${videoId}`, {
-      method: "DELETE"
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/musicians/${musicianId}/videos/${videoId}`,
+      {
+        method: "DELETE",
+      },
+    );
     const payload = await response.json();
-    if (response.ok) setProfile(prev => ({ ...prev, video_urls: payload.data.video_urls }));
+    if (response.ok)
+      setProfile((prev) => ({ ...prev, video_urls: payload.data.video_urls }));
   }
 
   async function uploadBandProfilePicture(file) {
-    const validationMessage = validateImageFile(file)
+    const validationMessage = validateImageFile(file);
     if (validationMessage) {
-      setBandUploadMessage(validationMessage)
-      return
+      setBandUploadMessage(validationMessage);
+      return;
     }
 
     if (!bandDetails?._id) {
-      setBandUploadMessage("No band selected.")
-      return
+      setBandUploadMessage("No band selected.");
+      return;
     }
 
-    const body = new FormData()
-    body.append("image", file)
+    const body = new FormData();
+    body.append("image", file);
 
-    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}/profile-picture`, {
-      method: "POST",
-      body,
-    })
-    const payload = await response.json()
+    const response = await fetch(
+      `${API_BASE_URL}/bands/${bandDetails._id}/profile-picture`,
+      {
+        method: "POST",
+        body,
+      },
+    );
+    const payload = await response.json();
 
     if (!response.ok) {
-      setBandUploadMessage(payload.error || "Failed to upload band profile picture.")
-      return
+      setBandUploadMessage(
+        payload.error || "Failed to upload band profile picture.",
+      );
+      return;
     }
 
-    setBandDetails(payload.data)
-    setBandUploadMessage("Band profile picture uploaded.")
+    setBandDetails(payload.data);
+    setBandUploadMessage("Band profile picture uploaded.");
   }
 
   async function uploadBandGalleryImage(file) {
-    const validationMessage = validateImageFile(file)
+    const validationMessage = validateImageFile(file);
     if (validationMessage) {
-      setBandUploadMessage(validationMessage)
-      return
+      setBandUploadMessage(validationMessage);
+      return;
     }
 
     if (!bandDetails?._id) {
-      setBandUploadMessage("No band selected.")
-      return
+      setBandUploadMessage("No band selected.");
+      return;
     }
 
-    const body = new FormData()
-    body.append("image", file)
+    const body = new FormData();
+    body.append("image", file);
 
-    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}/gallery`, {
-      method: "POST",
-      body,
-    })
-    const payload = await response.json()
+    const response = await fetch(
+      `${API_BASE_URL}/bands/${bandDetails._id}/gallery`,
+      {
+        method: "POST",
+        body,
+      },
+    );
+    const payload = await response.json();
 
     if (!response.ok) {
-      setBandUploadMessage(payload.error || "Failed to upload gallery image.")
-      return
+      setBandUploadMessage(payload.error || "Failed to upload gallery image.");
+      return;
     }
 
-    setBandDetails(payload.data)
-    setBandUploadMessage("Gallery image uploaded.")
+    setBandDetails(payload.data);
+    setBandUploadMessage("Gallery image uploaded.");
   }
 
   async function removeBandGalleryImage(imageUrl) {
     if (!bandDetails?._id) {
-      return
+      return;
     }
 
-    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}/gallery`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl }),
-    })
-    const payload = await response.json()
+    const response = await fetch(
+      `${API_BASE_URL}/bands/${bandDetails._id}/gallery`,
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      },
+    );
+    const payload = await response.json();
 
     if (!response.ok) {
-      setBandUploadMessage(payload.error || "Failed to remove gallery image.")
-      return
+      setBandUploadMessage(payload.error || "Failed to remove gallery image.");
+      return;
     }
 
-    setBandDetails(payload.data)
-    setBandUploadMessage("Gallery image removed.")
+    setBandDetails(payload.data);
+    setBandUploadMessage("Gallery image removed.");
   }
 
   const [bandVideoLink, setBandVideoLink] = useState("");
@@ -449,117 +489,146 @@ export default function App() {
   }
 
   async function removeBandVideo(videoId) {
-    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}/videos/${videoId}`, {
-      method: "DELETE"
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/bands/${bandDetails._id}/videos/${videoId}`,
+      {
+        method: "DELETE",
+      },
+    );
     const payload = await response.json();
     if (response.ok) setBandDetails(payload.data);
   }
 
   async function createBandFromForm(event) {
-    event.preventDefault()
-    setCreateBandMessage("")
+    event.preventDefault();
+    setCreateBandMessage("");
 
     if (!createBandForm.name.trim()) {
-      setCreateBandMessage("Band name is required.")
-      return
+      setCreateBandMessage("Band name is required.");
+      return;
     }
 
     if (!musicianId) {
-      setCreateBandMessage("Sign in as a musician first so we can attach you as a member.")
-      return
+      setCreateBandMessage(
+        "Sign in as a musician first so we can attach you as a member.",
+      );
+      return;
     }
 
-    const minPrice = Number(createBandForm.minPrice || 0)
-    const maxPrice = Number(createBandForm.maxPrice || 0)
-    if (Number.isNaN(minPrice) || Number.isNaN(maxPrice) || minPrice < 0 || maxPrice < minPrice) {
-      setCreateBandMessage("Enter a valid price range.")
-      return
+    const minPrice = Number(createBandForm.minPrice || 0);
+    const maxPrice = Number(createBandForm.maxPrice || 0);
+    if (
+      Number.isNaN(minPrice) ||
+      Number.isNaN(maxPrice) ||
+      minPrice < 0 ||
+      maxPrice < minPrice
+    ) {
+      setCreateBandMessage("Enter a valid price range.");
+      return;
     }
 
     const payload = {
       name: createBandForm.name.trim().toLowerCase(),
       members: [musicianId],
-      genres: createBandForm.genre.trim() ? [createBandForm.genre.trim().toLowerCase()] : [],
-      locations: createBandForm.location.trim() ? [createBandForm.location.trim().toLowerCase()] : [],
+      genres: createBandForm.genre.trim()
+        ? [createBandForm.genre.trim().toLowerCase()]
+        : [],
+      locations: createBandForm.location.trim()
+        ? [createBandForm.location.trim().toLowerCase()]
+        : [],
       price_range: [minPrice, maxPrice],
-    }
+    };
 
     const response = await fetch(`${API_BASE_URL}/bands`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    })
-    const data = await response.json()
+    });
+    const data = await response.json();
 
     if (!response.ok) {
-      setCreateBandMessage(data.error || "Failed to create band.")
-      return
+      setCreateBandMessage(data.error || "Failed to create band.");
+      return;
     }
 
     if (!data.data?._id) {
-      setCreateBandMessage("Band API returned an unexpected response.")
-      return
+      setCreateBandMessage("Band API returned an unexpected response.");
+      return;
     }
 
-    setCreateBandMessage("Band created.")
-    setBands((prev) => [data.data, ...prev.filter((band) => band._id !== data.data._id)])
+    setCreateBandMessage("Band created.");
+    setBands((prev) => [
+      data.data,
+      ...prev.filter((band) => band._id !== data.data._id),
+    ]);
     setCreateBandForm({
       name: "",
       genre: "",
       location: "",
       minPrice: "",
       maxPrice: "",
-    })
-    navigate("/my-band")
+    });
+    navigate("/my-band");
   }
 
   async function createGigFromForm(event) {
-    event.preventDefault()
-    setCreateGigMessage("")
+    event.preventDefault();
+    setCreateGigMessage("");
 
     if (!createGigForm.name.trim()) {
-      setCreateGigMessage("Gig title is required.")
-      return
+      setCreateGigMessage("Gig title is required.");
+      return;
     }
     if (!venueId) {
-      setCreateGigMessage("Please log in as a venue first.")
-      return
+      setCreateGigMessage("Please log in as a venue first.");
+      return;
     }
 
-    const minPrice = Number(createGigForm.minPrice || 0)
-    const maxPrice = Number(createGigForm.maxPrice || 0)
-    if (Number.isNaN(minPrice) || Number.isNaN(maxPrice) || minPrice < 0 || maxPrice < minPrice) {
-      setCreateGigMessage("Enter a valid price range.")
-      return
+    const minPrice = Number(createGigForm.minPrice || 0);
+    const maxPrice = Number(createGigForm.maxPrice || 0);
+    if (
+      Number.isNaN(minPrice) ||
+      Number.isNaN(maxPrice) ||
+      minPrice < 0 ||
+      maxPrice < minPrice
+    ) {
+      setCreateGigMessage("Enter a valid price range.");
+      return;
     }
 
     const payload = {
       name: createGigForm.name.trim().toLowerCase(),
       description: createGigForm.description.trim(),
-      genres: createGigForm.genre.trim() ? [createGigForm.genre.trim().toLowerCase()] : [],
+      genres: createGigForm.genre.trim()
+        ? [createGigForm.genre.trim().toLowerCase()]
+        : [],
       location: createGigForm.location.trim().toLowerCase(),
       price_range: [minPrice, maxPrice],
-      date: createGigForm.date ? new Date(createGigForm.date).toISOString() : new Date().toISOString(),
+      date: createGigForm.date
+        ? new Date(createGigForm.date).toISOString()
+        : new Date().toISOString(),
       time: [],
       host: venueId,
       booked: false,
       bands_hired: [],
-    }
+    };
 
     const response = await fetch(`${API_BASE_URL}/gigs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    })
-    const data = await response.json()
+    });
+    const data = await response.json();
     if (!response.ok || !data.data?._id) {
-      setCreateGigMessage(data.error || "Failed to create gig.")
-      return
+      setCreateGigMessage(data.error || "Failed to create gig.");
+      return;
     }
 
-    setCreateGigMessage("Gig created.")
-    setGigs((prev) => [data.data, ...prev.filter((gig) => gig._id !== data.data._id)])
+    setCreateGigMessage("Gig created.");
+    setGigs((prev) => [
+      data.data,
+      ...prev.filter((gig) => gig._id !== data.data._id),
+    ]);
     setCreateGigForm({
       name: "",
       description: "",
@@ -568,7 +637,7 @@ export default function App() {
       minPrice: "",
       maxPrice: "",
       date: "",
-    })
+    });
   }
 
   useEffect(() => {
@@ -576,54 +645,54 @@ export default function App() {
       fetch(`${API_BASE_URL}/bands`)
         .then((res) => res.json())
         .then((data) => {
-          setBands(data.data)
+          setBands(data.data);
         })
-        .catch((err) => console.error("Failed to load bands:", err))
+        .catch((err) => console.error("Failed to load bands:", err));
     }
 
     if (location.pathname === "/dashboard") {
       fetch(`${API_BASE_URL}/venues`)
         .then((res) => res.json())
         .then((data) => {
-          setVenues(data.data)
+          setVenues(data.data);
         })
-        .catch((err) => console.error("Failed to load venues:", err))
+        .catch((err) => console.error("Failed to load venues:", err));
     }
 
     if (location.pathname === "/gigs") {
       fetch(`${API_BASE_URL}/gigs`)
         .then((res) => res.json())
         .then((data) => {
-          setGigs(data.data || [])
+          setGigs(data.data || []);
         })
-        .catch((err) => console.error("Failed to load gigs:", err))
+        .catch((err) => console.error("Failed to load gigs:", err));
     }
 
-    const bandId = getBandIdFromPath(location.pathname)
+    const bandId = getBandIdFromPath(location.pathname);
     if (bandId) {
       fetch(`${API_BASE_URL}/bands/${bandId}`)
         .then((res) => {
           if (!res.ok) {
-            throw new Error("Band not found")
+            throw new Error("Band not found");
           }
-          return res.json()
+          return res.json();
         })
         .then((data) => {
-          setBandDetails(data.data)
-          setBandDetailsError("")
+          setBandDetails(data.data);
+          setBandDetailsError("");
         })
         .catch(() => {
-          setBandDetails(null)
-          setBandDetailsError("Could not load this band.")
-        })
+          setBandDetails(null);
+          setBandDetailsError("Could not load this band.");
+        });
     }
 
     if (pathMusicianId) {
-    fetch(`${API_BASE_URL}/musicians/${pathMusicianId}`)
-      .then(res => res.json())
-      .then(data => setMusicianDetails(data.data));
+      fetch(`${API_BASE_URL}/musicians/${pathMusicianId}`)
+        .then((res) => res.json())
+        .then((data) => setMusicianDetails(data.data));
     }
-  }, [location.pathname, pathMusicianId])
+  }, [location.pathname, pathMusicianId]);
 
   return (
     <>
@@ -655,37 +724,22 @@ export default function App() {
 
           {isLoggedIn && profile.role === "Artist" && (
             <>
-              <button
-                type="button"
-                onClick={() => navigate("/gigs")}
-              >
+              <button type="button" onClick={() => navigate("/gigs")}>
                 Find a Gig
               </button>
-              <button
-                type="button"
-                onClick={() => navigate("/my-band")}
-              >
+              <button type="button" onClick={() => navigate("/my-band")}>
                 My Band
               </button>
-              <button
-                type="button"
-                onClick={() => navigate("/profile")}
-              >
-
+              <button type="button" onClick={() => navigate("/profile")}>
                 My Page
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/musicians/${musicianId}`)}
-                >
-
-                Profile
               </button>
               <button
                 type="button"
-                onClick={handleLogout}
+                onClick={() => navigate(`/musicians/${musicianId}`)}
               >
-
+                Profile
+              </button>
+              <button type="button" onClick={handleLogout}>
                 Log Out
               </button>
             </>
@@ -693,22 +747,13 @@ export default function App() {
 
           {isLoggedIn && profile.role === "Venue" && (
             <>
-              <button
-                type="button"
-                onClick={() => navigate("/bands")}
-              >
+              <button type="button" onClick={() => navigate("/bands")}>
                 Hire a Band
               </button>
-              <button
-                type="button"
-                onClick={() => navigate("/dashboard")}
-              >
+              <button type="button" onClick={() => navigate("/dashboard")}>
                 Dashboard
               </button>
-              <button
-                type="button"
-                onClick={handleLogout}
-              >
+              <button type="button" onClick={handleLogout}>
                 Log Out
               </button>
             </>
@@ -730,7 +775,7 @@ export default function App() {
                   type="button"
                   id="hireBandBtn"
                   onClick={() => {
-                    requireLogin("/bands", "Venue")
+                    requireLogin("/bands", "Venue");
                   }}
                 >
                   Hire a Band
@@ -740,13 +785,22 @@ export default function App() {
                   type="button"
                   id="findGigBtn"
                   onClick={() => {
-                    requireLogin("/gigs", "Artist")
+                    requireLogin("/gigs", "Artist");
                   }}
                 >
                   Find a Gig
                 </button>
+                <button onClick={() => navigate("/location")}>Open Map</button>
               </div>
             </section>
+          }
+        />
+        <Route
+          path="/location"
+          element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <Location />
+            </ProtectedRoute>
           }
         />
 
@@ -758,7 +812,10 @@ export default function App() {
                 <h2>Featured Bands</h2>
 
                 <div className="search-row">
-                  <input type="text" placeholder="Search for bands near you..." />
+                  <input
+                    type="text"
+                    placeholder="Search for bands near you..."
+                  />
 
                   <select>
                     <option>Filter by</option>
@@ -807,13 +864,16 @@ export default function App() {
                   >
                     <span className="create-band-tile-title">Create Band</span>
                     <span className="create-band-tile-subtitle">
-                      Create your band profile, then add photos in its profile page
+                      Create your band profile, then add photos in its profile
+                      page
                     </span>
                   </button>
 
                   <div className="card-grid">
                     {bands
-                      .filter((band) => (band.members || []).includes(musicianId))
+                      .filter((band) =>
+                        (band.members || []).includes(musicianId),
+                      )
                       .map((band) => (
                         <div key={band._id} className="card band-card">
                           <h3>{band.name}</h3>
@@ -843,14 +903,20 @@ export default function App() {
               ) : (
                 <section id="bands" className="page active">
                   <div className="create-band-form-page">
-                    <form className="create-band-form" onSubmit={createBandFromForm}>
+                    <form
+                      className="create-band-form"
+                      onSubmit={createBandFromForm}
+                    >
                       <h3>Create Band</h3>
                       <input
                         type="text"
                         placeholder="Band name"
                         value={createBandForm.name}
                         onChange={(event) =>
-                          setCreateBandForm((prev) => ({ ...prev, name: event.target.value }))
+                          setCreateBandForm((prev) => ({
+                            ...prev,
+                            name: event.target.value,
+                          }))
                         }
                       />
                       <input
@@ -858,7 +924,10 @@ export default function App() {
                         placeholder="Genre (optional)"
                         value={createBandForm.genre}
                         onChange={(event) =>
-                          setCreateBandForm((prev) => ({ ...prev, genre: event.target.value }))
+                          setCreateBandForm((prev) => ({
+                            ...prev,
+                            genre: event.target.value,
+                          }))
                         }
                       />
                       <input
@@ -866,7 +935,10 @@ export default function App() {
                         placeholder="Location (optional)"
                         value={createBandForm.location}
                         onChange={(event) =>
-                          setCreateBandForm((prev) => ({ ...prev, location: event.target.value }))
+                          setCreateBandForm((prev) => ({
+                            ...prev,
+                            location: event.target.value,
+                          }))
                         }
                       />
                       <div className="create-band-price-row">
@@ -876,7 +948,10 @@ export default function App() {
                           placeholder="Min price"
                           value={createBandForm.minPrice}
                           onChange={(event) =>
-                            setCreateBandForm((prev) => ({ ...prev, minPrice: event.target.value }))
+                            setCreateBandForm((prev) => ({
+                              ...prev,
+                              minPrice: event.target.value,
+                            }))
                           }
                         />
                         <input
@@ -885,14 +960,22 @@ export default function App() {
                           placeholder="Max price"
                           value={createBandForm.maxPrice}
                           onChange={(event) =>
-                            setCreateBandForm((prev) => ({ ...prev, maxPrice: event.target.value }))
+                            setCreateBandForm((prev) => ({
+                              ...prev,
+                              maxPrice: event.target.value,
+                            }))
                           }
                         />
                       </div>
-                      <button type="submit" className="primary-btn create-band-btn">
+                      <button
+                        type="submit"
+                        className="primary-btn create-band-btn"
+                      >
                         Create Band
                       </button>
-                      {createBandMessage && <p className="upload-message">{createBandMessage}</p>}
+                      {createBandMessage && (
+                        <p className="upload-message">{createBandMessage}</p>
+                      )}
                       <button
                         type="button"
                         className="secondary-btn"
@@ -914,9 +997,13 @@ export default function App() {
             <ProtectedRoute isLoggedIn={isLoggedIn}>
               <section id="bands" className="page active">
                 <div className="profile-popup band-profile-popup">
-                  {bandDetailsError && <p className="upload-message error">{bandDetailsError}</p>}
+                  {bandDetailsError && (
+                    <p className="upload-message error">{bandDetailsError}</p>
+                  )}
 
-                  {!bandDetails && !bandDetailsError && <p>Loading band profile...</p>}
+                  {!bandDetails && !bandDetailsError && (
+                    <p>Loading band profile...</p>
+                  )}
 
                   {bandDetails && (
                     <>
@@ -924,7 +1011,10 @@ export default function App() {
 
                       <img
                         className="profile-image"
-                        src={bandDetails.profile_picture_url || DEFAULT_PLACEHOLDER_IMAGE}
+                        src={
+                          bandDetails.profile_picture_url ||
+                          DEFAULT_PLACEHOLDER_IMAGE
+                        }
                         alt="Band profile"
                       />
 
@@ -935,9 +1025,9 @@ export default function App() {
                           type="file"
                           accept="image/*"
                           onChange={(event) => {
-                            const file = event.target.files?.[0]
+                            const file = event.target.files?.[0];
                             if (file) {
-                              uploadBandProfilePicture(file)
+                              uploadBandProfilePicture(file);
                             }
                           }}
                         />
@@ -950,9 +1040,9 @@ export default function App() {
                           type="file"
                           accept="image/*"
                           onChange={(event) => {
-                            const file = event.target.files?.[0]
+                            const file = event.target.files?.[0];
                             if (file) {
-                              uploadBandGalleryImage(file)
+                              uploadBandGalleryImage(file);
                             }
                           }}
                         />
@@ -962,7 +1052,9 @@ export default function App() {
 
                       <div className="gallery-grid">
                         {(bandDetails.gallery_images || []).length === 0 && (
-                          <p className="gallery-empty">No gallery images yet.</p>
+                          <p className="gallery-empty">
+                            No gallery images yet.
+                          </p>
                         )}
 
                         {(bandDetails.gallery_images || []).map((imageUrl) => (
@@ -979,19 +1071,25 @@ export default function App() {
                         ))}
                       </div>
 
-                      <div className = "profile-row upload-row">
+                      <div className="profile-row upload-row">
                         <span className="label">Upload YouTube Video</span>
                         <input
                           className="edit-input"
                           placeholder="Paste YouTube link here"
                           value={bandVideoLink}
                           onChange={(e) => setBandVideoLink(e.target.value)}
-                          />
-                          <button onClick={addBandVideo} className="secondary-btn" style={{width: 'auto', marginTop: 0}}>Add</button>
+                        />
+                        <button
+                          onClick={addBandVideo}
+                          className="secondary-btn"
+                          style={{ width: "auto", marginTop: 0 }}
+                        >
+                          Add
+                        </button>
                       </div>
 
                       <div className="video-grid">
-                        {bandDetails.video_urls?.map(vidId => (
+                        {bandDetails.video_urls?.map((vidId) => (
                           <div key={vidId} className="video-item">
                             <iframe
                               width="100%"
@@ -999,13 +1097,20 @@ export default function App() {
                               src={`https://www.youtube.com/embed/${vidId}`}
                               frameBorder="0"
                               allowFullScreen
-                              ></iframe>
-                              <button className="secondary-btn" onClick={() => removeBandVideo(vidId)}>Remove Video</button>
-                              </div>
+                            ></iframe>
+                            <button
+                              className="secondary-btn"
+                              onClick={() => removeBandVideo(vidId)}
+                            >
+                              Remove Video
+                            </button>
+                          </div>
                         ))}
                       </div>
-                      
-                      {bandUploadMessage && <p className="upload-message">{bandUploadMessage}</p>}
+
+                      {bandUploadMessage && (
+                        <p className="upload-message">{bandUploadMessage}</p>
+                      )}
 
                       <button
                         type="button"
@@ -1024,61 +1129,102 @@ export default function App() {
 
         <Route path="/bands/:id/public" element={<BandPublicProfile />} />
 
-        <Route path="/musicians/:id" element={
-          // <ProtectedRoute isLoggedIn={isLoggedIn}>
+        <Route
+          path="/musicians/:id"
+          element={
+            // <ProtectedRoute isLoggedIn={isLoggedIn}>
             <section id="profile" className="page active">
               <div className="profile-popup band-profile-popup">
                 {musicianDetails && (
                   <>
-                  <img className="profile-image" src={musicianDetails.profile_picture_url || DEFAULT_PLACEHOLDER_IMAGE} />
-                  <h2>{musicianDetails.name}</h2>
-                  <p className="bio-text">{musicianDetails.bio || "No bio yet."}</p>
-                  
-                  {/* editing tools to be shown only if logged in as ownder*/}
-                  {/* {musicianId === pathMusicianId && ( */}
-                    <div className="management-box" style={{border: '1px dashed" #667eea', padding: '15px', borderRadius: '8px', marginBottom: '20px'}}>
-                      <h4 style={{marginBottom: '10px'}}>Manage your page</h4>
-                      <div className = "profile-row upload-row">
+                    <img
+                      className="profile-image"
+                      src={
+                        musicianDetails.profile_picture_url ||
+                        DEFAULT_PLACEHOLDER_IMAGE
+                      }
+                    />
+                    <h2>{musicianDetails.name}</h2>
+                    <p className="bio-text">
+                      {musicianDetails.bio || "No bio yet."}
+                    </p>
+
+                    {/* editing tools to be shown only if logged in as ownder*/}
+                    {/* {musicianId === pathMusicianId && ( */}
+                    <div
+                      className="management-box"
+                      style={{
+                        border: "1px dashed #667eea",
+                        padding: "15px",
+                        borderRadius: "8px",
+                        marginBottom: "20px",
+                      }}
+                    >
+                      <h4 style={{ marginBottom: "10px" }}>Manage your page</h4>
+                      <div className="profile-row upload-row">
                         <span className="label">Upload YouTube Video</span>
                         <input
                           className="edit-input"
                           placeholder="Paste YouTube link here"
                           value={musicianVideoLink}
                           onChange={(e) => setMusicianVideoLink(e.target.value)}
-                          />
-                          <button className="secondary-btn" onClick={addMusicianVideo}>Add</button>
+                        />
+                        <button
+                          className="secondary-btn"
+                          onClick={addMusicianVideo}
+                        >
+                          Add
+                        </button>
                       </div>
                       <div className="profile-row upload-row">
                         <span className="label">Add photo</span>
-                        <input className="edit-input" type="file" onChange={(e) => handleMusicianGalleryUpload(e.target.files[0])} />
+                        <input
+                          className="edit-input"
+                          type="file"
+                          onChange={(e) =>
+                            handleMusicianGalleryUpload(e.target.files[0])
+                          }
+                        />
                       </div>
                     </div>
-                  {/* )} */}
+                    {/* )} */}
 
-                  <h3>Videos</h3>
-                  <div className="video-grid">
-                        {musicianDetails.video_urls?.map(vidId => (
-                          <div key={vidId} className="video-item">
-                            <iframe src={`https://www.youtube.com/embed/${vidId}`} frameBorder="0" allowFullScreen></iframe>
-                            {musicianId === pathMusicianId && (
-                                <button className="secondary-btn" onClick={() => removeMusicianVideo(vidId)}>Remove Video</button>
-                            )}  
-                            </div>
+                    <h3>Videos</h3>
+                    <div className="video-grid">
+                      {musicianDetails.video_urls?.map((vidId) => (
+                        <div key={vidId} className="video-item">
+                          <iframe
+                            src={`https://www.youtube.com/embed/${vidId}`}
+                            frameBorder="0"
+                            allowFullScreen
+                          ></iframe>
+                          {musicianId === pathMusicianId && (
+                            <button
+                              className="secondary-btn"
+                              onClick={() => removeMusicianVideo(vidId)}
+                            >
+                              Remove Video
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
 
-                  <h3>Photos</h3>
-                  <div className="gallery-grid">
-                    {musicianDetails.gallery_images?.map(url => (
-                      <div className="gallery-item" key={url}><img src={url} /></div>
-                    ))}
-                  </div>
+                    <h3>Photos</h3>
+                    <div className="gallery-grid">
+                      {musicianDetails.gallery_images?.map((url) => (
+                        <div className="gallery-item" key={url}>
+                          <img src={url} />
+                        </div>
+                      ))}
+                    </div>
                   </>
                 )}
               </div>
             </section>
-          // </ProtectedRoute>
-        } />
+            // </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/gigs"
@@ -1088,7 +1234,10 @@ export default function App() {
                 <h2>Available Gigs</h2>
 
                 <div className="search-row">
-                  <input type="text" placeholder="Search for gigs near you..." />
+                  <input
+                    type="text"
+                    placeholder="Search for gigs near you..."
+                  />
 
                   <select>
                     <option>Filter by</option>
@@ -1108,7 +1257,8 @@ export default function App() {
                         <p>{gig.description}</p>
                         <p>{gig.location}</p>
                         <p>
-                          ${gig.price_range?.[0] ?? 0} - ${gig.price_range?.[1] ?? 0}
+                          ${gig.price_range?.[0] ?? 0} - $
+                          {gig.price_range?.[1] ?? 0}
                         </p>
                       </div>
                     ))
@@ -1189,15 +1339,17 @@ export default function App() {
                       type="file"
                       accept="image/*"
                       onChange={(event) => {
-                        const file = event.target.files?.[0]
+                        const file = event.target.files?.[0];
                         if (file) {
-                          uploadMusicianProfilePicture(file)
+                          uploadMusicianProfilePicture(file);
                         }
                       }}
                     />
                   </div>
 
-                  {musicianUploadMessage && <p className="upload-message">{musicianUploadMessage}</p>}
+                  {musicianUploadMessage && (
+                    <p className="upload-message">{musicianUploadMessage}</p>
+                  )}
 
                   {isEditing ? (
                     <>
@@ -1317,14 +1469,20 @@ export default function App() {
 
                   <p>Your registered venues</p>
 
-                  <form className="create-band-form" onSubmit={createGigFromForm}>
+                  <form
+                    className="create-band-form"
+                    onSubmit={createGigFromForm}
+                  >
                     <h3>Create Gig</h3>
                     <input
                       type="text"
                       placeholder="Gig title"
                       value={createGigForm.name}
                       onChange={(event) =>
-                        setCreateGigForm((prev) => ({ ...prev, name: event.target.value }))
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          name: event.target.value,
+                        }))
                       }
                     />
                     <input
@@ -1332,7 +1490,10 @@ export default function App() {
                       placeholder="Description"
                       value={createGigForm.description}
                       onChange={(event) =>
-                        setCreateGigForm((prev) => ({ ...prev, description: event.target.value }))
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          description: event.target.value,
+                        }))
                       }
                     />
                     <input
@@ -1340,7 +1501,10 @@ export default function App() {
                       placeholder="Genre"
                       value={createGigForm.genre}
                       onChange={(event) =>
-                        setCreateGigForm((prev) => ({ ...prev, genre: event.target.value }))
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          genre: event.target.value,
+                        }))
                       }
                     />
                     <input
@@ -1348,14 +1512,20 @@ export default function App() {
                       placeholder="Location"
                       value={createGigForm.location}
                       onChange={(event) =>
-                        setCreateGigForm((prev) => ({ ...prev, location: event.target.value }))
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          location: event.target.value,
+                        }))
                       }
                     />
                     <input
                       type="date"
                       value={createGigForm.date}
                       onChange={(event) =>
-                        setCreateGigForm((prev) => ({ ...prev, date: event.target.value }))
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          date: event.target.value,
+                        }))
                       }
                     />
                     <div className="create-band-price-row">
@@ -1365,7 +1535,10 @@ export default function App() {
                         placeholder="Min price"
                         value={createGigForm.minPrice}
                         onChange={(event) =>
-                          setCreateGigForm((prev) => ({ ...prev, minPrice: event.target.value }))
+                          setCreateGigForm((prev) => ({
+                            ...prev,
+                            minPrice: event.target.value,
+                          }))
                         }
                       />
                       <input
@@ -1374,14 +1547,22 @@ export default function App() {
                         placeholder="Max price"
                         value={createGigForm.maxPrice}
                         onChange={(event) =>
-                          setCreateGigForm((prev) => ({ ...prev, maxPrice: event.target.value }))
+                          setCreateGigForm((prev) => ({
+                            ...prev,
+                            maxPrice: event.target.value,
+                          }))
                         }
                       />
                     </div>
-                    <button type="submit" className="primary-btn create-band-btn">
+                    <button
+                      type="submit"
+                      className="primary-btn create-band-btn"
+                    >
                       Post Gig
                     </button>
-                    {createGigMessage && <p className="upload-message">{createGigMessage}</p>}
+                    {createGigMessage && (
+                      <p className="upload-message">{createGigMessage}</p>
+                    )}
                   </form>
 
                   <div className="dashboard-grid">
@@ -1408,5 +1589,5 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
-  )
+  );
 }

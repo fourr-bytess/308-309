@@ -452,7 +452,8 @@ button, input, select, textarea {
   cursor: pointer;
 }
 
-.location-card button {
+.location-card .primary-btn,
+.location-card .enter-btn {
   width: 100%;
   padding: 12px;
   border-radius: 10px;
@@ -488,7 +489,7 @@ input[type="range"] {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 .location-card input[type="text"] {
-  width: 100px;
+  width: 114px;
   text-align: center;
   padding: 8px;
   border-radius: 8px;
@@ -511,4 +512,38 @@ input[type="range"] {
   font-weight: 600;
   margin-bottom: 15px;
   letter-spacing: 0.5px;
+}
+
+.zip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 15px;
+}
+
+.zip-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  background: #f1f1f1;
+  font-weight: bold;
+  text-align: center;
+  font-size: 14px;
+}
+.zip-row .zip-btn {
+  width: auto;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 6px;
+  flex-shrink: 0;
+
+  background: white;
+  color: #667eea;
+  border: 1px solid #667eea;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

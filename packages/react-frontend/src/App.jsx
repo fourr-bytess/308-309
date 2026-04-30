@@ -7,10 +7,11 @@ import {
   Route,
   Link,
 } from "react-router-dom";
-import logoG from './assets/giggly_g_logo-removebg-preview.png';
+import logoG from "./assets/giggly_g_logo-removebg-preview.png";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/Location.jsx";
+import BandsPage from "./components/Bands.jsx";
 
 const API_BASE_URL = "http://localhost:3001";
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -809,41 +810,11 @@ export default function App() {
           path="/bands"
           element={
             <ProtectedRoute isLoggedIn={isLoggedIn}>
-              <section id="bands" className="page active">
-                <h2>Featured Bands</h2>
-
-                <div className="search-row">
-                  <input
-                    type="text"
-                    placeholder="Search for bands near you..."
-                  />
-
-                  <select>
-                    <option>Filter by</option>
-                    <option>Genre</option>
-                    <option>Price</option>
-                    <option>Distance</option>
-                  </select>
-                </div>
-
-                <div className="card-grid">
-                  {bands.map((band, index) => (
-                    <div key={index} className="card band-card">
-                      <h3>{band.name}</h3>
-
-                      <p>{band.location}</p>
-
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => navigate(`/bands/${band._id}`)}
-                      >
-                        Open Profile
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <BandsPage
+                bands={bands}
+                navigate={navigate}
+                locationCoords={null} 
+              />
             </ProtectedRoute>
           }
         />

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { MapContainer, TileLayer, Marker, Circle } from "react-leaflet";
 
-export default function BandsPage({ bands, navigate, locationCoords }) {
+export default function BandsPage({ bands, navigate, locationCoords, userZip, userRadius }) {
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [priceRange, setPriceRange] = useState([100, 4000]);
   const [distance, setDistance] = useState(25);
@@ -25,7 +25,6 @@ export default function BandsPage({ bands, navigate, locationCoords }) {
   return (
     <section id="bands" className="page active">
       <div className="bands-layout">
-
         {/* SIDEBAR */}
         <div className="filters-sidebar">
           <h3>Filters</h3>
@@ -38,16 +37,16 @@ export default function BandsPage({ bands, navigate, locationCoords }) {
             <option>Pop</option>
           </select>
 
-          <label>Price (${priceRange[0]} - ${priceRange[1]})</label>
+          <label>
+            Price (${priceRange[0]} - ${priceRange[1]})
+          </label>
           <input
             type="range"
             min="100"
-            max="1000000"
+            max="5000"
             step="100"
             value={priceRange[1]}
-            onChange={(e) =>
-              setPriceRange([100, Number(e.target.value)])
-            }
+            onChange={(e) => setPriceRange([100, Number(e.target.value)])}
           />
 
           <label>Distance ({distance} miles)</label>
@@ -59,7 +58,6 @@ export default function BandsPage({ bands, navigate, locationCoords }) {
             onChange={(e) => setDistance(Number(e.target.value))}
           />
 
-          {/* MINI MAP */}
           <div className="mini-map">
             {locationCoords && (
               <MapContainer
@@ -81,6 +79,9 @@ export default function BandsPage({ bands, navigate, locationCoords }) {
         {/* RIGHT SIDE */}
         <div className="bands-content">
           <h2>Featured Bands</h2>
+          <p style={{ color: "white" }}>
+            ZIP: {userZip} | Radius: {userRadius}
+          </p>
 
           <div className="search-row">
             <input placeholder="Search for bands near you..." />
@@ -88,9 +89,7 @@ export default function BandsPage({ bands, navigate, locationCoords }) {
 
           <div className="card-grid">
             {filteredBands.length === 0 ? (
-              <p className="list-empty-message">
-                No bands match your filters.
-              </p>
+              <p className="list-empty-message">No bands match your filters.</p>
             ) : (
               filteredBands.map((band) => (
                 <div key={band._id} className="card band-card">
@@ -108,7 +107,6 @@ export default function BandsPage({ bands, navigate, locationCoords }) {
             )}
           </div>
         </div>
-
       </div>
     </section>
   );

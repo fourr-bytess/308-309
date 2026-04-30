@@ -69,7 +69,10 @@ export default function Location() {
           value={zipCode}
           onChange={(e) => setZip(e.target.value)}
         />
-        <button className="zip-btn" onClick={handleZipSearch}> &gt;</button>
+        <button className="zip-btn" onClick={handleZipSearch}>
+          {" "}
+          &gt;
+        </button>
 
         <div className="map-container">
           {locationCoords && (
@@ -101,7 +104,18 @@ export default function Location() {
           value={radius}
           onChange={(e) => setRadius(Number(e.target.value))}
         />
-        <button className="primary-btn" onClick={() => navigate("/bands")}>
+        <button
+          className="primary-btn"
+          onClick={() =>
+            navigate("/bands", {
+              state: {
+                coords: locationCoords,
+                radius: radius,
+                zip: zipCode,
+              },
+            })
+          }
+        >
           Enter
         </button>
       </div>

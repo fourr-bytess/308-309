@@ -26,6 +26,10 @@ const DEFAULT_PLACEHOLDER_IMAGE =
 
 function ProtectedRoute({ isLoggedIn, children }) {
   const location = useLocation();
+  const locationState = location.state || {};
+  const userCoords = locationState.coords;
+  const userRadius = locationState.radius;
+  const userZip = locationState.zip;
 
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -813,7 +817,9 @@ export default function App() {
               <BandsPage
                 bands={bands}
                 navigate={navigate}
-                locationCoords={null} 
+                locationCoords={location.state?.coords}
+                userZip={location.state?.zip}
+                userRadius={location.state?.radius}
               />
             </ProtectedRoute>
           }

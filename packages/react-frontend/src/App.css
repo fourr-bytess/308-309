@@ -87,7 +87,7 @@ body {
 #gigs, 
 #genres,
 #location {
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, #5A0F2E, #3A0F3A);
   flex-direction: column;
 }
 
@@ -97,20 +97,20 @@ body {
 #profile p,
 #bands h2,
 #gigs h2 {
-  color: white;
+  color: #F2E8CF;
 }
 
 /* Dashboard... */
 
 #dashboard {
-  background: #f4f4f4;
+  background: #F2E8CF;
   flex-direction: column;
 }
 
 /* Landing Card... */
 
 .center-card {
-  background: white;
+  background: #F2E8CF;
   padding: 50px 60px;
   border-radius: 16px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
@@ -139,22 +139,22 @@ body {
   margin: 10px 0;
   border: none;
   border-radius: 8px;
-  background: #667eea;
-  color: white;
+  background: #2A9D8F;
+  color: #F2E8CF;
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .center-card button:hover {
-  background: #5a67d8;
+  background: #1a675e;
   transform: scale(1.03);
 }
 
 /* Login Card... */
 
 .form-card {
-  background: white;
+  background: #F2E8CF;
   padding: 50px;
   border-radius: 16px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
@@ -186,21 +186,21 @@ body {
   padding: 12px;
   border-radius: 8px;
   border: none;
-  background: #667eea;
-  color: white;
+  background: #2A9D8F;
+  color: #F2E8CF;
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .login-buttons button:hover {
-  background: #5a67d8;
+  background: #1a675e;
   transform: scale(1.03);
 }
 
 .login-role-btn.recommended-role {
-  outline: 3px solid #c7d2fe;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+  outline: 3px solid #F2E8CF;
+  box-shadow: 0 0 0 3px #3A0F3A;
 }
 
 /* Grid preferences... */
@@ -216,7 +216,7 @@ body {
 
 .card {
   height: 120px;
-  background: white;
+  background: #F2E8CF;
   border-radius: 12px;
 }
 
@@ -228,7 +228,7 @@ body {
 .create-band-form {
   width: 100%;
   max-width: 900px;
-  background: white;
+  background: #F2E8CF;
   border-radius: 12px;
   padding: 16px;
   margin-top: 16px;
@@ -271,7 +271,7 @@ body {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.18);
-  color: white;
+  color: #F2E8CF;
   text-align: left;
   cursor: pointer;
   backdrop-filter: blur(2px);
@@ -296,7 +296,7 @@ body {
 /* Profile Popup Card... */
 
 .profile-popup {
-  background: white;
+  background: #F2E8CF;
   padding: 50px;
   border-radius: 18px;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
@@ -353,8 +353,8 @@ body {
   margin-top: 25px;
   border-radius: 10px;
   border: none;
-  background: #667eea;
-  color: white;
+  background: #2A9D8F;
+  color: #F2E8CF;
   font-size: 1.1rem;
   cursor: pointer;
 
@@ -364,7 +364,7 @@ body {
 }
 
 .primary-btn:hover {
-  background: #5a67d8;
+  background: #1a675e;
 }
 
 .secondary-btn {
@@ -372,14 +372,14 @@ body {
   width: 100%;
   padding: 10px;
   border-radius: 8px;
-  border: 1px solid #667eea;
-  background: white;
-  color: #667eea;
+  border: 1px solid #2A9D8F;
+  background: #F2E8CF;
+  color: #2A9D8F;
   cursor: pointer;
 }
 
 .secondary-btn:hover {
-  background: #eef2ff;
+  background: #1a675e;
 }
 
 /* Profile editing input styling... */
@@ -390,12 +390,12 @@ body {
   border-radius: 8px;
   border: 1px solid #ccc;
   font-size: 1rem;
-  background: white;
+  background: #F2E8CF;
 }
 
 .edit-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #2A9D8F;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
 }
 /* Genres Page */
@@ -408,12 +408,12 @@ body {
   margin-top: 30px;
 }
 #genres h2 {
-  color: white;
+  color: #F2E8CF;
 }
 
 .genre-box {
   padding: 20px;
-  background: white;
+  background: #F2E8CF;
   border-radius: 12px;
   text-align: center;
   cursor: pointer;
@@ -426,8 +426,8 @@ body {
 }
 
 .genre-box.selected {
-  background: #667eea;
-  color: white;
+  background: #2A9D8F;
+  color: #F2E8CF;
 }
 
 .map-container {
@@ -442,8 +442,8 @@ body {
   padding: 12px;
   border-radius: 8px;
   border: none;
-  background: #667eea;
-  color: white;
+  background: #2A9D8F;
+  color: #F2E8CF;
   font-size: 1rem;
   cursor: pointer;
 }
@@ -453,8 +453,8 @@ body {
   padding: 12px;
   border-radius: 10px;
   border: none;
-  background: linear-gradient(135deg, #667eea, #5a67d8);
-  color: white;
+  background: linear-gradient(135deg, #5A0F2E, #3A0F3A);
+  color: #F2E8CF;
   font-weight: 600;
   cursor: pointer;
   transition: 0.2s;
@@ -471,10 +471,10 @@ body {
 input[type="range"] {
   width: 100%;
   margin-bottom: 15px;
-  accent-color: #667eea;
+  accent-color: #2A9D8F;
 }
 .location-card {
-  background: rgba(255, 255, 255, 0.2);
+  background: #F2E8CF;
   backdrop-filter: blur(10px);
   padding: 25px;
   border-radius: 16px;
@@ -491,18 +491,18 @@ input[type="range"] {
   border: none;
   margin-bottom: 15px;
   font-weight: bold;
-  background: #f1f1f1;
+  background: #F2E8CF;
 }
 
 .radius-label {
   margin: 10px 0;
   font-size: 1rem;
-  color: white;
+  color: #F2E8CF;
   margin: 10px 0;
 }
 
 .location-title {
-  color: white;
+  color: #F2E8CF;
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 15px;

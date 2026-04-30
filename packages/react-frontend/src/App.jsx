@@ -7,7 +7,7 @@ import {
   Route,
   Link,
 } from "react-router-dom";
-import logoG from '/.assets/giggly_g_logo-removebg-preview.png';
+import logoG from './assets/giggly_g_logo-removebg-preview.png';
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/Location.jsx";

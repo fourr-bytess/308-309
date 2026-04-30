@@ -12,6 +12,7 @@ import { updateBand } from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/Location.jsx";
+import BandsPage from "./components/Bands.jsx";
 
 const API_BASE_URL = "http://localhost:3001";
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -26,6 +27,10 @@ const DEFAULT_PLACEHOLDER_IMAGE =
 
 function ProtectedRoute({ isLoggedIn, children }) {
   const location = useLocation();
+  const locationState = location.state || {};
+  const userCoords = locationState.coords;
+  const userRadius = locationState.radius;
+  const userZip = locationState.zip;
 
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
@@ -813,7 +818,7 @@ export default function App() {
                   type="button"
                   id="hireBandBtn"
                   onClick={() => {
-                    requireLogin("/bands", "Venue");
+                    requireLogin("/location", "Venue");
                   }}
                 >
                   Hire a Band
@@ -823,12 +828,11 @@ export default function App() {
                   type="button"
                   id="findGigBtn"
                   onClick={() => {
-                    requireLogin("/gigs", "Artist");
+                    requireLogin("/location", "Artist");
                   }}
                 >
                   Find a Gig
                 </button>
-                <button onClick={() => navigate("/location")}>Open Map</button>
               </div>
             </section>
           }
@@ -846,41 +850,13 @@ export default function App() {
           path="/bands"
           element={
             <ProtectedRoute isLoggedIn={isLoggedIn}>
-              <section id="bands" className="page active">
-                <h2>Featured Bands</h2>
-
-                <div className="search-row">
-                  <input
-                    type="text"
-                    placeholder="Search for bands near you..."
-                  />
-
-                  <select>
-                    <option>Filter by</option>
-                    <option>Genre</option>
-                    <option>Price</option>
-                    <option>Distance</option>
-                  </select>
-                </div>
-
-                <div className="card-grid">
-                  {bands.map((band, index) => (
-                    <div key={index} className="card band-card">
-                      <h3>{band.name}</h3>
-
-                      <p>{band.location}</p>
-
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => navigate(`/bands/${band._id}`)}
-                      >
-                        Open Profile
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <BandsPage
+                bands={bands}
+                navigate={navigate}
+                locationCoords={location.state?.coords}
+                userZip={location.state?.zip}
+                userRadius={location.state?.radius}
+              />
             </ProtectedRoute>
           }
         />

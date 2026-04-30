@@ -340,6 +340,7 @@ app.delete("/bands/:id/videos/:videoId", requireAuth(async (req, res) => {
 }));
 
 //GET /venues
+
 app.get("/venues", async (req, res) => {
   try {
     const { name, city, state, zip } = req.query;
@@ -370,6 +371,7 @@ app.get("/venues", async (req, res) => {
 
 // POST /venues
 app.post("/venues", requireAuth(async (req, res) => {
+
   try {
     const created = await venueServices.addVenue(req.body);
     res.status(201).json({ data: created });
@@ -378,7 +380,8 @@ app.post("/venues", requireAuth(async (req, res) => {
   }
 }));
 
-// GET /venues/:id
+// GET /venues/:id ...
+
 app.get("/venues/:id", async (req, res) => {
   try {
     const venue = await venueServices.findVenueById(req.params.id);
@@ -393,6 +396,7 @@ app.get("/venues/:id", async (req, res) => {
 
 // DELETE /venues/:id
 app.delete("/venues/:id", requireAuth(async (req, res) => {
+
   try {
     const deleted = await venueServices.findVenueByIdAndDelete(req.params.id);
     if (!deleted) {
@@ -404,7 +408,8 @@ app.delete("/venues/:id", requireAuth(async (req, res) => {
   }
 }));
 
-// GET /gigs
+// GET /gigs ...
+
 app.get("/gigs", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
@@ -434,7 +439,8 @@ app.get("/gigs", async (req, res) => {
   }
 });
 
-// GET /gigs/:id
+// GET /gigs/:id ...
+
 app.get("/gigs/:id", async (req, res) => {
   try {
     const gig = await gigServices.findGigById(req.params.id);
@@ -449,6 +455,7 @@ app.get("/gigs/:id", async (req, res) => {
 
 // POST /gigs
 app.post("/gigs", requireAuth(async (req, res) => {
+
   try {
     const created = await gigServices.addGig(req.body);
     res.status(201).json({ data: created });
@@ -459,6 +466,7 @@ app.post("/gigs", requireAuth(async (req, res) => {
 
 // DELETE /gigs/:id
 app.delete("/gigs/:id", requireAuth(async (req, res) => {
+
   try {
     const deleted = await gigServices.findGigByIdAndDelete(req.params.id);
     if (!deleted) {
@@ -470,7 +478,8 @@ app.delete("/gigs/:id", requireAuth(async (req, res) => {
   }
 }));
 
-// GET /musicians
+// GET /musicians ...
+
 app.get("/musicians", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
@@ -496,7 +505,8 @@ app.get("/musicians", async (req, res) => {
   }
 });
 
-// GET /musicians/:id
+// GET /musicians/:id ...
+
 app.get("/musicians/:id", async (req, res) => {
   try {
     const musician = await musicianServices.findMusicianById(req.params.id);
@@ -511,6 +521,7 @@ app.get("/musicians/:id", async (req, res) => {
 
 // POST /musicians
 app.post("/musicians", requireAuth(async (req, res) => {
+
   try {
     const created = await musicianServices.addMusician(req.body);
     res.status(201).json({ data: created });
@@ -521,6 +532,7 @@ app.post("/musicians", requireAuth(async (req, res) => {
 
 // DELETE /musicians/:id
 app.delete("/musicians/:id", requireAuth(async (req, res) => {
+
   try {
     const deleted = await musicianServices.findMusicianByIdAndDelete(req.params.id);
     if (!deleted) {
@@ -569,7 +581,8 @@ app.delete("/musicians/:id/videos/:videoId", requireAuth(async (req, res) => {
   }
 }));
 
-// GET /musicians/:id/reviews
+// GET /musicians/:id/reviews ...
+
 app.get("/musicians/:id/reviews", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
@@ -586,7 +599,8 @@ app.get("/musicians/:id/reviews", async (req, res) => {
   }
 });
 
-// GET /reviews
+// GET /reviews ...
+
 app.get("/reviews", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
@@ -612,6 +626,7 @@ app.get("/reviews", async (req, res) => {
 
 // POST /reviews
 app.post("/reviews", requireAuth(async (req, res) => {
+
   try {
     const { reviewer, reviewee, revieweeType, rating, header, body } = req.body;
     if (reviewer == null || reviewee == null || revieweeType == null || rating == null) {
@@ -655,6 +670,9 @@ app.use((err, _req, res, next) => {
   return next(err);
 });
 
+app.get("/", (req, res) => {
+  res.send("Giggly API is running !!");
+});
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

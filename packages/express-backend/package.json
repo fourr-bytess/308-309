@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "cors": "^2.8.6",
-    "dotenv": "^17.3.1",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.4.1",
+    "mongoose": "^9.6.1",
     "multer": "^2.1.1",
     "readable-stream": "^4.7.0"
   },

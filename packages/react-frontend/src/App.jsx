@@ -11,6 +11,15 @@ import logoG from './assets/giggly_g_logo-removebg-preview.png';
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/Location.jsx";
+import AvailabilityCalendar from "./components/AvailabilityCalendar.jsx";
+import {
+  createNotification,
+  deleteNotification,
+  getNotifications,
+  getUnreadNotificationCount,
+  markAllNotificationsAsRead,
+  markNotificationAsRead,
+} from "./api/api.js";
 
 const API_BASE_URL = "http://localhost:3001";
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -73,6 +82,15 @@ export default function App() {
     role: "Artist",
     profilePictureUrl: "",
   });
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationError, setNotificationError] = useState("");
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const currentUserId = profile.role === "Artist" ? musicianId : venueId;
+  const notificationList = Array.isArray(notifications) ? notifications : [];
+  const notificationPreview = notificationList.slice(0, 4);
 
   const [bands, setBands] = useState([]);
 
@@ -271,6 +289,11 @@ export default function App() {
     setIsLoggedIn(false);
     setMusicianId("");
     setVenueId("");
+    setNotifications([]);
+    setUnreadCount(0);
+    setNotificationError("");
+    setIsNotificationMenuOpen(false);
+    setIsNotificationModalOpen(false);
     setBandDetails(null);
     setBandDetailsError("");
     setCreateBandMessage("");
@@ -626,6 +649,20 @@ export default function App() {
     }
 
     setCreateGigMessage("Gig created.");
+    createNotification({
+      userId: venueId,
+      type: "booking_request",
+      title: "Gig posted",
+      body: "Your gig was posted successfully.",
+      relatedId: data.data._id,
+    })
+      .then((created) => {
+        setNotifications((prev) => [created, ...prev]);
+        setUnreadCount((count) => count + 1);
+      })
+      .catch((error) => {
+        console.error("Failed to create notification:", error);
+      });
     setGigs((prev) => [
       data.data,
       ...prev.filter((gig) => gig._id !== data.data._id),
@@ -639,6 +676,134 @@ export default function App() {
       maxPrice: "",
       date: "",
     });
+  }
+
+  async function handleMarkNotificationRead(id) {
+    try {
+      await markNotificationAsRead(id);
+      setNotifications((prev) =>
+        prev.map((notification) =>
+          notification._id === id
+            ? { ...notification, isRead: true }
+            : notification,
+        ),
+      );
+      setUnreadCount((count) => Math.max(count - 1, 0));
+    } catch (error) {
+      setNotificationError(error.message);
+    }
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    if (!currentUserId) return;
+
+    try {
+      await markAllNotificationsAsRead(currentUserId);
+      setNotifications((prev) =>
+        prev.map((notification) => ({ ...notification, isRead: true })),
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      setNotificationError(error.message);
+    }
+  }
+
+  async function handleDeleteNotification(id) {
+    try {
+      const removedNotification = notificationList.find(
+        (notification) => notification._id === id,
+      );
+      await deleteNotification(id);
+      setNotifications((prev) =>
+        prev.filter((notification) => notification._id !== id),
+      );
+      if (removedNotification && !removedNotification.isRead) {
+        setUnreadCount((count) => Math.max(count - 1, 0));
+      }
+    } catch (error) {
+      setNotificationError(error.message);
+    }
+  }
+
+  function openAllNotifications() {
+    setIsNotificationMenuOpen(false);
+    setIsNotificationModalOpen(true);
+  }
+
+  function renderNotificationItem(notification) {
+    return (
+      <div
+        key={notification._id}
+        className={`notification-item ${notification.isRead ? "" : "unread"}`}
+      >
+        <div className="notification-copy">
+          <h3>{notification.title}</h3>
+          <p>{notification.body}</p>
+          <span>{notification.isRead ? "Read" : "Unread"}</span>
+        </div>
+
+        <div className="notification-actions">
+          {!notification.isRead && (
+            <button
+              type="button"
+              onClick={() => handleMarkNotificationRead(notification._id)}
+            >
+              Mark read
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => handleDeleteNotification(notification._id)}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderNotificationMenu() {
+    return (
+      <div className="notification-menu">
+        <button
+          type="button"
+          onClick={() => setIsNotificationMenuOpen((isOpen) => !isOpen)}
+        >
+          Notifications {unreadCount > 0 ? `(${unreadCount})` : ""}
+        </button>
+
+        {isNotificationMenuOpen && (
+          <div className="notification-dropdown">
+            <div className="notification-dropdown-header">
+              <h2>Notifications</h2>
+              <button type="button" onClick={handleMarkAllNotificationsRead}>
+                Mark all read
+              </button>
+            </div>
+
+            {notificationError && (
+              <p className="notification-message">{notificationError}</p>
+            )}
+
+            {notificationPreview.length === 0 ? (
+              <p className="notification-message">No notifications yet.</p>
+            ) : (
+              <div className="notification-list compact">
+                {notificationPreview.map(renderNotificationItem)}
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="load-all-notifications"
+              onClick={openAllNotifications}
+            >
+              Load more
+            </button>
+          </div>
+        )}
+      </div>
+    );
   }
 
   useEffect(() => {
@@ -655,7 +820,7 @@ export default function App() {
       fetch(`${API_BASE_URL}/venues`)
         .then((res) => res.json())
         .then((data) => {
-          setVenues(data.data);
+          setVenues(data.data || []);
         })
         .catch((err) => console.error("Failed to load venues:", err));
     }
@@ -694,6 +859,28 @@ export default function App() {
         .then((data) => setMusicianDetails(data.data));
     }
   }, [location.pathname, pathMusicianId]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !currentUserId) {
+      return;
+    }
+
+    getNotifications(currentUserId)
+      .then((nextNotifications) => {
+        setNotificationError("");
+        setNotifications(
+          Array.isArray(nextNotifications) ? nextNotifications : [],
+        );
+      })
+      .catch((err) => {
+        setNotifications([]);
+        setNotificationError(err.message);
+      });
+
+    getUnreadNotificationCount(currentUserId)
+      .then(setUnreadCount)
+      .catch((err) => setNotificationError(err.message));
+  }, [isLoggedIn, currentUserId]);
 
   return (
     <>
@@ -735,12 +922,16 @@ export default function App() {
               <button type="button" onClick={() => navigate("/profile")}>
                 My Page
               </button>
+              <button type="button" onClick={() => navigate("/availability")}>
+                Availability
+              </button>
               <button
                 type="button"
                 onClick={() => navigate(`/musicians/${musicianId}`)}
               >
                 Profile
               </button>
+              {renderNotificationMenu()}
               <button type="button" onClick={handleLogout}>
                 Log Out
               </button>
@@ -755,6 +946,7 @@ export default function App() {
               <button type="button" onClick={() => navigate("/dashboard")}>
                 Dashboard
               </button>
+              {renderNotificationMenu()}
               <button type="button" onClick={handleLogout}>
                 Log Out
               </button>
@@ -762,6 +954,44 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {isNotificationModalOpen && (
+        <div
+          className="notification-modal-backdrop"
+          onClick={() => setIsNotificationModalOpen(false)}
+        >
+          <div
+            className="notification-modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="notification-modal-header">
+              <h2>All Notifications</h2>
+              <button
+                type="button"
+                onClick={() => setIsNotificationModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <button type="button" onClick={handleMarkAllNotificationsRead}>
+              Mark all read
+            </button>
+
+            {notificationError && (
+              <p className="notification-message">{notificationError}</p>
+            )}
+
+            {notificationList.length === 0 ? (
+              <p className="notification-message">No notifications yet.</p>
+            ) : (
+              <div className="notification-list modal-list">
+                {notificationList.map(renderNotificationItem)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <Routes>
         <Route
@@ -802,6 +1032,16 @@ export default function App() {
           element={
             <ProtectedRoute isLoggedIn={isLoggedIn}>
               <Location />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/availability"
+          element={
+            <ProtectedRoute isLoggedIn={isLoggedIn}>
+              <section id="availability" className="page active">
+                <AvailabilityCalendar />
+              </section>
             </ProtectedRoute>
           }
         />
@@ -1568,7 +1808,7 @@ export default function App() {
                   </form>
 
                   <div className="dashboard-grid">
-                    {venues.map((venue, index) => (
+                    {Array.isArray(venues) && venues.map((venue, index) => (
                       <div key={index} className="venue-gig-card">
                         <h3>{venue.name}</h3>
 

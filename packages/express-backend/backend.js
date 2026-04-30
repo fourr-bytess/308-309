@@ -13,6 +13,7 @@ import reviewServices from './review-services.js';
 import gigServices from "./gig-services.js";
 import authServices from "./auth-services.js";
 import { VALID_ROLES } from "./user.js";
+import notificationServices from "./notification-services.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -641,6 +642,70 @@ app.post("/reviews", requireAuth(async (req, res) => {
     res.status(400).json({ error: "Failed to create review" });
   }
 }));
+
+app.get("/notifications", async (req, res) => {
+  try {
+    const notifications = await notificationServices.getNotificationsByUser(
+      req.query.userId,
+    );
+    res.status(200).json({ data: notifications });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get("/notifications/unread-count", async (req, res) => {
+  try {
+    const unreadCount = await notificationServices.getUnreadCount(
+      req.query.userId,
+    );
+    res.status(200).json({ data: { unreadCount } });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post("/notifications", async (req, res) => {
+  try {
+    const created = await notificationServices.createNotification(req.body);
+    res.status(201).json({ data: created });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put("/notifications/:id/read", async (req, res) => {
+  try {
+    const updated = await notificationServices.markNotificationAsRead(
+      req.params.id,
+    );
+    res.status(200).json({ data: updated });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.put("/notifications/read-all", async (req, res) => {
+  try {
+    const result = await notificationServices.markAllNotificationsAsRead(
+      req.body.userId,
+    );
+    res.status(200).json({ data: result });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.delete("/notifications/:id", async (req, res) => {
+  try {
+    const deleted = await notificationServices.deleteNotification(
+      req.params.id,
+    );
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 app.use((err, _req, res, next) => {
   if (err instanceof multer.MulterError) {

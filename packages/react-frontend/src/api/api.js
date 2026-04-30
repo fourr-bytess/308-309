@@ -123,3 +123,81 @@ export async function deleteConversationById(id){
     method: "DELETE",
   });
 }
+
+/* ---------------- NOTIFICATIONS ---------------- */
+
+export async function getNotifications(userId) {
+  const res = await fetch(
+    `${API_URL}/notifications?userId=${encodeURIComponent(userId)}`,
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to load notifications");
+  }
+
+  return data.data;
+}
+
+export async function getUnreadNotificationCount(userId) {
+  const res = await fetch(
+    `${API_URL}/notifications/unread-count?userId=${encodeURIComponent(userId)}`,
+  );
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to load unread count");
+  }
+
+  return data.data.unreadCount;
+}
+
+export async function createNotification(notification) {
+  const res = await fetch(`${API_URL}/notifications`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(notification),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to create notification");
+  }
+
+  return data.data;
+}
+
+export async function markNotificationAsRead(id) {
+  const res = await fetch(`${API_URL}/notifications/${id}/read`, {
+    method: "PUT",
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to mark notification as read");
+  }
+
+  return data.data;
+}
+
+export async function markAllNotificationsAsRead(userId) {
+  const res = await fetch(`${API_URL}/notifications/read-all`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to mark notifications as read");
+  }
+
+  return data.data;
+}
+
+export async function deleteNotification(id) {
+  const res = await fetch(`${API_URL}/notifications/${id}`, {
+    method: "DELETE",
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "Failed to delete notification");
+  }
+
+  return data.data;
+}

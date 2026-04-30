@@ -41,7 +41,7 @@ export default function Location() {
               <Marker position={[locationCoords.lat, locationCoords.lng]} />
               <Circle
                 center={[locationCoords.lat, locationCoords.lng]}
-                radius={radius * 1609}
+                radius={radius * 1.609}
               />
             </MapContainer>
           )}

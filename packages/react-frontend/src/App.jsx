@@ -7,7 +7,8 @@ import {
   Route,
   Link,
 } from "react-router-dom";
-import logoG from "./assets/giggly_g_logo-removebg-preview.png";
+import logoG from './assets/giggly_g_logo-removebg-preview.png';
+import { updateBand } from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/Location.jsx";
@@ -87,6 +88,8 @@ export default function App() {
 
   const [bandDetails, setBandDetails] = useState(null);
   const [bandDetailsError, setBandDetailsError] = useState("");
+  const[editingBio, setEditingBio] = useState(false);
+  const [tempBio, setTempBio] = useState("");
   const [createBandMessage, setCreateBandMessage] = useState("");
   const [createBandForm, setCreateBandForm] = useState({
     name: "",
@@ -94,6 +97,7 @@ export default function App() {
     location: "",
     minPrice: "",
     maxPrice: "",
+    bio: ""
   });
 
   const [musicianUploadMessage, setMusicianUploadMessage] = useState("");
@@ -482,16 +486,32 @@ export default function App() {
 
   const [bandVideoLink, setBandVideoLink] = useState("");
   async function addBandVideo() {
-    const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoUrl: bandVideoLink }),
-    });
-    const payload = await response.json();
-    if (response.ok) {
-      setBandDetails(payload.data);
-      setBandVideoLink("");
-    }
+    try {
+
+        const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json" 
+          },
+          body: JSON.stringify({ videoUrl: bandVideoLink }),
+          credentials: "include", 
+        });
+
+        if (response.status === 401) {
+          setBandUploadMessage("Session expired. Please log out and back in.");
+          return;
+        }
+
+        const payload = await response.json();
+
+        if (response.ok) {
+          setBandDetails(payload.data); 
+          setBandVideoLink(""); 
+          setBandUploadMessage("Video added!");
+        }
+      } catch (error) {
+        console.error("Error:", error);
+      }
   }
 
   async function removeBandVideo(videoId) {
@@ -543,6 +563,7 @@ export default function App() {
         ? [createBandForm.location.trim().toLowerCase()]
         : [],
       price_range: [minPrice, maxPrice],
+      bio: createBandForm.bio
     };
 
     const response = await fetch(`${API_BASE_URL}/bands`, {
@@ -700,6 +721,21 @@ export default function App() {
     }
   }, [location.pathname, pathMusicianId]);
 
+  const saveBio = async () => {
+  try {
+    const result = await updateBand(bandDetails._id, { bio: tempBio });
+
+    if (result) {
+      setBandDetails({ ...bandDetails, bio: tempBio });
+      setEditingBio(false);
+      setBandUploadMessage("Bio updated successfully!");
+    }
+  } catch (err) {
+    console.error("Update failed:", err);
+    setBandUploadMessage("Update failed.");
+  }
+};
+
   return (
     <>
       <header className="navbar">
@@ -856,6 +892,13 @@ export default function App() {
                         <div key={band._id} className="card band-card">
                           <h3>{band.name}</h3>
                           <p>{band.locations?.[0] || "No location yet"}</p>
+                          <div className="band-card-buttons">
+                            <Link
+                            to={`/band/${band._id}/public`}
+                            className="view-public-btn"
+                          >
+                            View Public Page
+                            </Link>
                           <button
                             type="button"
                             className="secondary-btn"
@@ -864,10 +907,11 @@ export default function App() {
                             Manage Band
                           </button>
                         </div>
-                      ))}
                   </div>
+                      ))}
+                      </div>
                 </section>
-              )}
+                )}
             </ProtectedRoute>
           }
         />
@@ -944,6 +988,12 @@ export default function App() {
                             }))
                           }
                         />
+                        <input
+                        type="text"
+                        placeholder="Add a bio for your band"
+                        value={createBandForm.bio}
+                        className="create-band-textarea"
+                        onChange={(event) => setCreateBandForm((prev) => ({...prev, bio: event.target.value}))}/>
                       </div>
                       <button
                         type="submit"
@@ -1009,6 +1059,32 @@ export default function App() {
                             }
                           }}
                         />
+                      </div>
+
+                      <div className="profile-section">
+                        <h3>Band Bio</h3>
+                        {editingBio ? (
+                          <>
+                          <textarea
+                          className="create-band-textarea"
+                          value={tempBio}
+                          onChange={(e) => setTempBio(e.target.value)}/>
+                          <div className="button-group">
+                            <button className="primary-btn" onClick={saveBio}>Save Bio</button>
+                            <button className="secondary-btn" onClick={() => setEditingBio(false)}>Cancel</button>
+                        </div>
+                        </>
+                        ) : (
+                          <>
+                          <p className="current-bio">{bandDetails.bio || "No bio added yet."}</p>
+                          <button className="secondary-btn" onClick={() => {
+                            setTempBio(bandDetails.bio || "");
+                            setEditingBio(true);
+                        }}>
+                        Edit Bio
+                        </button>
+                        </>
+                      )}
                       </div>
 
                       <div className="profile-row upload-row">
@@ -1105,7 +1181,7 @@ export default function App() {
           }
         />
 
-        <Route path="/bands/:id/public" element={<BandPublicProfile />} />
+        <Route path="/band/:id/public" element={<BandPublicProfile />} />
 
         <Route
           path="/musicians/:id"

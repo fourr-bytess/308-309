@@ -32,6 +32,20 @@ export async function deleteBand(id) {
   return res.json();
 }
 
+export async function updateBand(id, updateData) {
+  const res = await fetch(`${API_URL}/bands/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updateData),
+  });
+  
+  if (!res.ok) {
+    throw new Error("Failed to update band");
+  }
+  
+  return res.json();
+}
+
 
 /* ---------------- VENUES ---------------- */
 
@@ -122,4 +136,5 @@ export async function deleteConversationById(id){
   const res = await fetch(`${API_URL}/conversations/${id}`, {
     method: "DELETE",
   });
+  return res.json()
 }

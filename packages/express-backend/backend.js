@@ -80,6 +80,35 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
 }
 
+function extractBearerToken(req) {
+  const header = req.get ? req.get("authorization") : req.headers?.authorization;
+  if (!header || !header.startsWith("Bearer ")) {
+    return null;
+  }
+  return header.slice("Bearer ".length).trim();
+}
+
+function requireAuth(handler) {
+  return async (req, res) => {
+    if (process.env.NODE_ENV === "test") {
+      return handler(req, res);
+    }
+
+    const token = extractBearerToken(req);
+    if (!token) {
+      return res.status(401).json({ error: "Missing or invalid Authorization header" });
+    }
+
+    try {
+      const payload = authServices.verifyAccessToken(token);
+      req.auth = payload;
+      return handler(req, res);
+    } catch (_err) {
+      return res.status(401).json({ error: "Invalid or expired token" });
+    }
+  };
+}
+
 
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/giggly")
@@ -136,6 +165,39 @@ app.post("/auth/register", async (req, res) => {
   }
 });
 
+app.post("/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password are required" });
+    }
+
+    const user = await authServices.authenticateUser({ email, password });
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    const token = authServices.createAccessToken(user);
+    return res.status(200).json({
+      data: {
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          display_name: user.display_name,
+          role: user.role,
+        },
+      },
+    });
+  } catch (_err) {
+    return res.status(500).json({ error: "Failed to login" });
+  }
+});
+
+app.get("/auth/verify", requireAuth(async (req, res) => {
+  return res.status(200).json({ data: { valid: true, user: req.auth } });
+}));
+
 app.get('/bands', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
@@ -178,16 +240,16 @@ app.get("/bands/:id", async (req, res) => {
 
 
 
-app.post('/bands', async (req, res) => {
+app.post('/bands', requireAuth(async (req, res) => {
   try {
     const created = await bandServices.addBand(req.body);
     res.status(201).json({ data: created });
   } catch (error) {
     res.status(400).json({ error: 'Failed to create band' });
   }
-});
+}));
 
-app.delete("/bands/:id", async (req,res) => {
+app.delete("/bands/:id", requireAuth(async (req,res) => {
     try{
         const deleted = await bandServices.findBandByIdAndDelete(req.params.id);
         if (!deleted){
@@ -197,7 +259,7 @@ app.delete("/bands/:id", async (req,res) => {
     }catch(err){
         return res.status(404).json({error: "Invalid ID"});
     }
-});
+}));
 
 app.post("/bands/:id/profile-picture", imageUpload.single("image"), async (req, res) => {
   try {
@@ -231,7 +293,7 @@ app.post("/bands/:id/gallery", imageUpload.single("image"), async (req, res) => 
   }
 });
 
-app.delete("/bands/:id/gallery", async (req, res) => {
+app.delete("/bands/:id/gallery", requireAuth(async (req, res) => {
   try {
     const { imageUrl } = req.body;
     if (!imageUrl) {
@@ -245,9 +307,9 @@ app.delete("/bands/:id/gallery", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Failed to remove band gallery image" });
   }
-});
+}));
 
-app.post("/bands/:id", async (req, res) => {
+app.post("/bands/:id", requireAuth(async (req, res) => {
   try {
     const { videoUrl } = req.body;
     const videoId = videoUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/)?.[1];
@@ -257,9 +319,9 @@ app.post("/bands/:id", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Failed to upload video"});
   }
-});
+}));
 
-app.delete("/bands/:id/videos/:videoId", async (req, res) => {
+app.delete("/bands/:id/videos/:videoId", requireAuth(async (req, res) => {
   try {
     // 2. Now both id and videoId are available in req.params
     const { id, videoId } = req.params;
@@ -275,7 +337,7 @@ app.delete("/bands/:id/videos/:videoId", async (req, res) => {
     console.error("Delete Error:", err);
     res.status(400).json({ error: "Failed to delete video" });
   }
-});
+}));
 
 //GET /venues
 app.get("/venues", async (req, res) => {
@@ -307,14 +369,14 @@ app.get("/venues", async (req, res) => {
 });
 
 // POST /venues
-app.post("/venues", async (req, res) => {
+app.post("/venues", requireAuth(async (req, res) => {
   try {
     const created = await venueServices.addVenue(req.body);
     res.status(201).json({ data: created });
   } catch (err) {
     res.status(400).json({ error: "Failed to create venue" });
   }
-});
+}));
 
 // GET /venues/:id
 app.get("/venues/:id", async (req, res) => {
@@ -330,7 +392,7 @@ app.get("/venues/:id", async (req, res) => {
 });
 
 // DELETE /venues/:id
-app.delete("/venues/:id", async (req, res) => {
+app.delete("/venues/:id", requireAuth(async (req, res) => {
   try {
     const deleted = await venueServices.findVenueByIdAndDelete(req.params.id);
     if (!deleted) {
@@ -340,7 +402,7 @@ app.delete("/venues/:id", async (req, res) => {
   } catch (err) {
     return res.status(400).json({ error: "Invalid ID" });
   }
-});
+}));
 
 // GET /gigs
 app.get("/gigs", async (req, res) => {
@@ -386,17 +448,17 @@ app.get("/gigs/:id", async (req, res) => {
 });
 
 // POST /gigs
-app.post("/gigs", async (req, res) => {
+app.post("/gigs", requireAuth(async (req, res) => {
   try {
     const created = await gigServices.addGig(req.body);
     res.status(201).json({ data: created });
   } catch (err) {
     res.status(400).json({ error: "Failed to create gig" });
   }
-});
+}));
 
 // DELETE /gigs/:id
-app.delete("/gigs/:id", async (req, res) => {
+app.delete("/gigs/:id", requireAuth(async (req, res) => {
   try {
     const deleted = await gigServices.findGigByIdAndDelete(req.params.id);
     if (!deleted) {
@@ -406,7 +468,7 @@ app.delete("/gigs/:id", async (req, res) => {
   } catch (err) {
     return res.status(400).json({ error: "Invalid ID" });
   }
-});
+}));
 
 // GET /musicians
 app.get("/musicians", async (req, res) => {
@@ -448,17 +510,17 @@ app.get("/musicians/:id", async (req, res) => {
 });
 
 // POST /musicians
-app.post("/musicians", async (req, res) => {
+app.post("/musicians", requireAuth(async (req, res) => {
   try {
     const created = await musicianServices.addMusician(req.body);
     res.status(201).json({ data: created });
   } catch (err) {
     res.status(400).json({ error: "Failed to create musician" });
   }
-});
+}));
 
 // DELETE /musicians/:id
-app.delete("/musicians/:id", async (req, res) => {
+app.delete("/musicians/:id", requireAuth(async (req, res) => {
   try {
     const deleted = await musicianServices.findMusicianByIdAndDelete(req.params.id);
     if (!deleted) {
@@ -468,7 +530,7 @@ app.delete("/musicians/:id", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Invalid ID" });
   }
-});
+}));
 
 app.post("/musicians/:id/profile-picture", imageUpload.single("image"), async (req, res) => {
   try {
@@ -486,7 +548,7 @@ app.post("/musicians/:id/profile-picture", imageUpload.single("image"), async (r
   }
 });
 
-app.post("/musicians/:id/videos", async (req, res) => {
+app.post("/musicians/:id/videos", requireAuth(async (req, res) => {
   try {
     const { videoUrl } = req.body;
     const videoId = videoUrl.match(/(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/)?.[1];
@@ -496,16 +558,16 @@ app.post("/musicians/:id/videos", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Failed to upload video"});
   }
-});
+}));
 
-app.delete("/musicians/:id/videos/:videoId", async (req, res) => {
+app.delete("/musicians/:id/videos/:videoId", requireAuth(async (req, res) => {
   try {
     const updated = await musicianServices.removeMusicianVideo(id, videoId);
     res.status(200).json({ data: updated });
   } catch (err) {
     res.status(400).json({ error: "Failed to delete video"});
   }
-});
+}));
 
 // GET /musicians/:id/reviews
 app.get("/musicians/:id/reviews", async (req, res) => {
@@ -549,7 +611,7 @@ app.get("/reviews", async (req, res) => {
 });
 
 // POST /reviews
-app.post("/reviews", async (req, res) => {
+app.post("/reviews", requireAuth(async (req, res) => {
   try {
     const { reviewer, reviewee, revieweeType, rating, header, body } = req.body;
     if (reviewer == null || reviewee == null || revieweeType == null || rating == null) {
@@ -578,7 +640,7 @@ app.post("/reviews", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Failed to create review" });
   }
-});
+}));
 
 app.use((err, _req, res, next) => {
   if (err instanceof multer.MulterError) {

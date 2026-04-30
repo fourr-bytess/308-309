@@ -7,6 +7,7 @@ import {
   Route,
   Link,
 } from "react-router-dom";
+import logoG from './assets/giggly_g_logo-removebg-preview.png';
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/Location.jsx";
@@ -697,8 +698,9 @@ export default function App() {
   return (
     <>
       <header className="navbar">
-        <Link to="/" className="logo" id="homeLogo">
-          ?? Giggly ??
+        <Link to="/" className="logo-brand" id="homeLogo">
+          <img src={logoG} alt="G" className="logo-img" />
+          <span className="logo-text">iggly</span>
         </Link>
 
         <div className="nav-buttons">

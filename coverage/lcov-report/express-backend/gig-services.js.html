@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">91.66% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>38/38</span>
+                <span class='fraction'>33/36</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">86.95% </span>
+                <span class="strong">73.91% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>20/23</span>
+                <span class='fraction'>17/23</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>11/11</span>
+                <span class='fraction'>9/9</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">100% </span>
+                <span class="strong">91.17% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>34/34</span>
+                <span class='fraction'>31/34</span>
             </div>
         
             
@@ -165,36 +165,36 @@
 <span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -232,7 +232,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import mongoose from "mongoose";
 import gigModel from "./gig.js";
 &nbsp;
-const GIG_SELECT = 'name description genres locations price_range date time host booked bands_hired';
+const GIG_SELECT = "name description genres location price_range date time host booked bands_hired";
 &nbsp;
 function buildGigsQuery(filters = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
     const query = {};
@@ -245,17 +245,17 @@ function buildGigsQuery(filters = <span class="branch-0 cbranch-no" title="branc
     if (filters.genres?.length) {
         query.genres = { $in: filters.genres.map(g =&gt; g.toLowerCase()) };
     }
-    if (filters.locations?.length) {
-        query.locations = { $in: filters.locations.map(l =&gt; l.toLowerCase()) };
+    if (filters.location) {
+        query.location = filters.location.toLowerCase();
     }
     if (filters.price_range?.length === 2) {
-        query.price = {
+        query.price_range = {
             $gte: filters.price_range[0],
             $lte: filters.price_range[1]
         };
     }
     if (filters.date) {
-        query.date = filters.date();
+        query.date = filters.date;
     }
     if (filters.time?.length === 2) {
         query.time = {
@@ -263,20 +263,20 @@ function buildGigsQuery(filters = <span class="branch-0 cbranch-no" title="branc
             $lte: filters.time[1]
         };
     }
-    if (filters.host) {
-        query.host = filters.host.toLowerCase();
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (filters.host) {
+<span class="cstat-no" title="statement not covered" >        query.host = filters.host;</span>
     }
-    if (filters.booked) {
-        query.booked = filters.booked();
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof filters.booked === "boolean") {
+<span class="cstat-no" title="statement not covered" >        query.booked = filters.booked;</span>
     }
-    if (filters.bands_hired?.length) {
-        query.bands_hired = { $in: filters.bands_hired.map(g =&gt; g.toLowerCase()) };
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (filters.bands_hired?.length) {
+<span class="cstat-no" title="statement not covered" >        query.bands_hired = { $in: filters.bands_hired };</span>
     }
     return query;
 }
 &nbsp;
-function getGigs(name, description, genres, locations, price_range, date, time, host, booked, bands_hired) {
-    const query = buildGigsQuery({ name, description, genres, locations, price_range, date, time, host, booked, bands_hired });
+function getGigs(name, description, genres, location, price_range, date, time, host, booked, bands_hired) {
+    const query = buildGigsQuery({ name, description, genres, location, price_range, date, time, host, booked, bands_hired });
     return gigModel.find(query).select(GIG_SELECT);
 }
 &nbsp;
@@ -319,7 +319,7 @@ export default {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-03-14T04:07:55.247Z
+                at 2026-04-28T22:20:17.772Z
             </div>
         <script src="../prettify.js"></script>
         <script>

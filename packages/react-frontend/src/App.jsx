@@ -777,7 +777,7 @@ export default function App() {
                   type="button"
                   id="hireBandBtn"
                   onClick={() => {
-                    requireLogin("/bands", "Venue");
+                    requireLogin("/location", "Venue");
                   }}
                 >
                   Hire a Band
@@ -787,12 +787,11 @@ export default function App() {
                   type="button"
                   id="findGigBtn"
                   onClick={() => {
-                    requireLogin("/gigs", "Artist");
+                    requireLogin("/location", "Artist");
                   }}
                 >
                   Find a Gig
                 </button>
-                <button onClick={() => navigate("/location")}>Open Map</button>
               </div>
             </section>
           }

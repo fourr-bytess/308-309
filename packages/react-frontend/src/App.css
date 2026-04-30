@@ -35,6 +35,28 @@ body {
   opacity: 0.8;
 }
 
+.logo-brand {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  gap: 2px;
+}
+
+.logo-img {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
+.logo-text {
+  font-family: 'LimeLight', serif;
+  font-size: 2.5rem;
+  color: #ffd447;
+  display: inline-block;
+  line-height: 1;
+  margin-left: -5px;
+}
+
 .nav-buttons button {
   margin-left: 10px;
   padding: 8px 16px;

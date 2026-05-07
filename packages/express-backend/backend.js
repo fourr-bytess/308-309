@@ -261,7 +261,14 @@ app.delete("/bands/:id", requireAuth(async (req,res) => {
     }
 }));
 
-app.post("/bands/:id/profile-picture", imageUpload.single("image"), async (req, res) => {
+app.post("/bands/:id/profile-picture", requireAuth(async (req, res) => {
+  imageUpload.single("image")(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      if (uploadErr instanceof multer.MulterError && uploadErr.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "Image must be 5MB or smaller" });
+      }
+      return res.status(400).json({ error: uploadErr.message || "Upload failed" });
+    }
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Image file is required" });
@@ -275,9 +282,17 @@ app.post("/bands/:id/profile-picture", imageUpload.single("image"), async (req, 
   } catch (err) {
     res.status(400).json({ error: "Failed to upload band profile picture" });
   }
-});
+  });
+}));
 
-app.post("/bands/:id/gallery", imageUpload.single("image"), async (req, res) => {
+app.post("/bands/:id/gallery", requireAuth(async (req, res) => {
+  imageUpload.single("image")(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      if (uploadErr instanceof multer.MulterError && uploadErr.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "Image must be 5MB or smaller" });
+      }
+      return res.status(400).json({ error: uploadErr.message || "Upload failed" });
+    }
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Image file is required" });
@@ -291,7 +306,8 @@ app.post("/bands/:id/gallery", imageUpload.single("image"), async (req, res) => 
   } catch (err) {
     res.status(400).json({ error: "Failed to upload band gallery image" });
   }
-});
+  });
+}));
 
 app.delete("/bands/:id/gallery", requireAuth(async (req, res) => {
   try {
@@ -544,7 +560,14 @@ app.delete("/musicians/:id", requireAuth(async (req, res) => {
   }
 }));
 
-app.post("/musicians/:id/profile-picture", imageUpload.single("image"), async (req, res) => {
+app.post("/musicians/:id/profile-picture", requireAuth(async (req, res) => {
+  imageUpload.single("image")(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      if (uploadErr instanceof multer.MulterError && uploadErr.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ error: "Image must be 5MB or smaller" });
+      }
+      return res.status(400).json({ error: uploadErr.message || "Upload failed" });
+    }
   try {
     if (!req.file) {
       return res.status(400).json({ error: "Image file is required" });
@@ -558,7 +581,8 @@ app.post("/musicians/:id/profile-picture", imageUpload.single("image"), async (r
   } catch (err) {
     res.status(400).json({ error: "Failed to upload musician profile picture" });
   }
-});
+  });
+}));
 
 app.post("/musicians/:id/videos", requireAuth(async (req, res) => {
   try {
@@ -574,7 +598,11 @@ app.post("/musicians/:id/videos", requireAuth(async (req, res) => {
 
 app.delete("/musicians/:id/videos/:videoId", requireAuth(async (req, res) => {
   try {
+    const { id, videoId } = req.params;
     const updated = await musicianServices.removeMusicianVideo(id, videoId);
+    if (!updated) {
+      return res.status(404).json({ error: "Musician not found" });
+    }
     res.status(200).json({ data: updated });
   } catch (err) {
     res.status(400).json({ error: "Failed to delete video"});

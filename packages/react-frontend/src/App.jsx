@@ -8,7 +8,15 @@ import {
   Link,
 } from "react-router-dom";
 import logoG from './assets/giggly_g_logo-removebg-preview.png';
-import { updateBand } from "./api/api.js";
+import {
+  authFetch,
+  clearAuthToken,
+  getAuthToken,
+  login as apiLogin,
+  register as apiRegister,
+  verifyAuth as apiVerifyAuth,
+  updateBand,
+} from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/Location.jsx";
@@ -62,11 +70,15 @@ export default function App() {
   const location = useLocation();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authTokenChecked, setAuthTokenChecked] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   const [isEditing, setIsEditing] = useState(false);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [loginDisplayName, setLoginDisplayName] = useState("");
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   const [musicianId, setMusicianId] = useState("");
   const [venueId, setVenueId] = useState("");
@@ -85,6 +97,12 @@ export default function App() {
   const [venues, setVenues] = useState([]);
 
   const [gigs, setGigs] = useState([]);
+
+  const [searchArea, setSearchArea] = useState({
+    coords: null,
+    radius: null,
+    zip: "",
+  });
 
   const [bandDetails, setBandDetails] = useState(null);
   const [bandDetailsError, setBandDetailsError] = useState("");
@@ -163,6 +181,17 @@ export default function App() {
     return null;
   }
 
+  function toFrontendRole(role) {
+    if (role === "musician" || role === "band") return "Artist";
+    if (role === "venue") return "Venue";
+    return "Artist";
+  }
+
+  function toBackendRole(frontendRole) {
+    if (frontendRole === "Venue") return "venue";
+    return "musician";
+  }
+
   async function createOrLoadMusicianProfile(email) {
     const normalizedName = (email.split("@")[0] || "artist")
       .trim()
@@ -176,7 +205,7 @@ export default function App() {
       return lookupPayload.data[0];
     }
 
-    const createResponse = await fetch(`${API_BASE_URL}/musicians`, {
+    const createResponse = await authFetch(`/musicians`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -206,7 +235,7 @@ export default function App() {
       return lookupPayload.data[0];
     }
 
-    const createResponse = await fetch(`${API_BASE_URL}/venues`, {
+    const createResponse = await authFetch(`/venues`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -227,53 +256,66 @@ export default function App() {
     return createPayload.data;
   }
 
-  async function handleBandLogin() {
-    setProfile({
-      ...profile,
-      email: loginEmail,
-      password: loginPassword,
-      role: "Artist",
-    });
-
-    setIsLoggedIn(true);
-
-    try {
-      const musicianRecord = await createOrLoadMusicianProfile(loginEmail);
-      setMusicianId(musicianRecord._id);
-      setProfile((prev) => ({
-        ...prev,
-        profilePictureUrl: musicianRecord.profile_picture_url || "",
-      }));
-    } catch (error) {
-      console.error("Failed to initialize musician profile:", error);
+  async function handleAuthSubmit(desiredFrontendRole) {
+    setAuthError("");
+    const email = String(loginEmail || "").trim().toLowerCase();
+    const password = String(loginPassword || "");
+    if (!email || !password) {
+      setAuthError("Please enter an email and password.");
+      return;
     }
 
-    const from = location.state?.from?.pathname;
+    try {
+      if (isSigningUp) {
+        const displayName = String(loginDisplayName || "").trim();
+        if (!displayName) {
+          setAuthError("Please enter a display name to sign up.");
+          return;
+        }
+        await apiRegister({
+          email,
+          password,
+          display_name: displayName,
+          role: toBackendRole(desiredFrontendRole),
+        });
+      }
 
-    navigate(from || "/gigs", { replace: true });
-  }
+      const data = await apiLogin({ email, password });
+      const backendRole = data?.user?.role;
+      const frontendRole = toFrontendRole(backendRole);
 
-  function handleVenueLogin() {
-    setProfile({
-      ...profile,
-      email: loginEmail,
-      password: loginPassword,
-      role: "Venue",
-    });
+      setProfile((prev) => ({
+        ...prev,
+        email,
+        password,
+        role: frontendRole,
+      }));
+      setIsLoggedIn(true);
 
-    setIsLoggedIn(true);
-
-    createOrLoadVenueProfile(loginEmail)
-      .then((venueRecord) => {
+      if (frontendRole === "Artist") {
+        const musicianRecord = await createOrLoadMusicianProfile(email);
+        setMusicianId(musicianRecord._id);
+        setProfile((prev) => ({
+          ...prev,
+          profilePictureUrl: musicianRecord.profile_picture_url || "",
+        }));
+      } else {
+        const venueRecord = await createOrLoadVenueProfile(email);
         setVenueId(venueRecord._id || "");
-      })
-      .catch((error) => {
-        console.error("Failed to initialize venue profile:", error);
-      });
+      }
 
-    const from = location.state?.from?.pathname;
-
-    navigate(from || "/dashboard", { replace: true });
+      const from = location.state?.from?.pathname;
+      navigate(
+        from ||
+          (frontendRole === "Venue" ? "/dashboard" : "/gigs"),
+        { replace: true },
+      );
+    } catch (err) {
+      setIsLoggedIn(false);
+      setMusicianId("");
+      setVenueId("");
+      setAuthError(err?.message || "Authentication failed.");
+    }
   }
 
   function handleLogout() {
@@ -285,6 +327,8 @@ export default function App() {
     setCreateBandMessage("");
     setMusicianUploadMessage("");
     setBandUploadMessage("");
+    setAuthError("");
+    clearAuthToken();
     navigate("/", { replace: true });
   }
 
@@ -311,12 +355,9 @@ export default function App() {
     const body = new FormData();
     body.append("image", file);
 
-    const response = await fetch(
-      `${API_BASE_URL}/musicians/${musicianId}/profile-picture`,
-      {
-        method: "POST",
-        body,
-      },
+    const response = await authFetch(
+      `/musicians/${musicianId}/profile-picture`,
+      { method: "POST", body },
     );
     const payload = await response.json();
 
@@ -347,13 +388,10 @@ export default function App() {
     const body = new FormData();
     body.append("image", file);
 
-    const response = await fetch(
-      `${API_BASE_URL}/musicians/${pathMusicianId}/gallery`,
-      {
-        method: "POST",
-        body,
-      },
-    );
+    const response = await authFetch(`/musicians/${pathMusicianId}/gallery`, {
+      method: "POST",
+      body,
+    });
     const payload = await response.json();
     if (!response.ok) {
       setMusicianUploadMessage(payload.error || "Failed to upload photos");
@@ -365,14 +403,11 @@ export default function App() {
 
   const [musicianVideoLink, setMusicianVideoLink] = useState("");
   async function addMusicianVideo() {
-    const response = await fetch(
-      `${API_BASE_URL}/musicians/${musicianId}/videos`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ musicianVideoUrl: musicianVideoLink }),
-      },
-    );
+    const response = await authFetch(`/musicians/${musicianId}/videos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ musicianVideoUrl: musicianVideoLink }),
+    });
     const payload = await response.json();
     if (response.ok) {
       setProfile((prev) => ({ ...prev, video_urls: payload.data.video_urls }));
@@ -381,12 +416,9 @@ export default function App() {
   }
 
   async function removeMusicianVideo(videoId) {
-    const response = await fetch(
-      `${API_BASE_URL}/musicians/${musicianId}/videos/${videoId}`,
-      {
-        method: "DELETE",
-      },
-    );
+    const response = await authFetch(`/musicians/${musicianId}/videos/${videoId}`, {
+      method: "DELETE",
+    });
     const payload = await response.json();
     if (response.ok)
       setProfile((prev) => ({ ...prev, video_urls: payload.data.video_urls }));
@@ -407,13 +439,10 @@ export default function App() {
     const body = new FormData();
     body.append("image", file);
 
-    const response = await fetch(
-      `${API_BASE_URL}/bands/${bandDetails._id}/profile-picture`,
-      {
-        method: "POST",
-        body,
-      },
-    );
+    const response = await authFetch(`/bands/${bandDetails._id}/profile-picture`, {
+      method: "POST",
+      body,
+    });
     const payload = await response.json();
 
     if (!response.ok) {
@@ -442,13 +471,10 @@ export default function App() {
     const body = new FormData();
     body.append("image", file);
 
-    const response = await fetch(
-      `${API_BASE_URL}/bands/${bandDetails._id}/gallery`,
-      {
-        method: "POST",
-        body,
-      },
-    );
+    const response = await authFetch(`/bands/${bandDetails._id}/gallery`, {
+      method: "POST",
+      body,
+    });
     const payload = await response.json();
 
     if (!response.ok) {
@@ -465,14 +491,11 @@ export default function App() {
       return;
     }
 
-    const response = await fetch(
-      `${API_BASE_URL}/bands/${bandDetails._id}/gallery`,
-      {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl }),
-      },
-    );
+    const response = await authFetch(`/bands/${bandDetails._id}/gallery`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl }),
+    });
     const payload = await response.json();
 
     if (!response.ok) {
@@ -487,14 +510,10 @@ export default function App() {
   const [bandVideoLink, setBandVideoLink] = useState("");
   async function addBandVideo() {
     try {
-
-        const response = await fetch(`${API_BASE_URL}/bands/${bandDetails._id}`, {
+        const response = await authFetch(`/bands/${bandDetails._id}`, {
           method: "POST",
-          headers: { 
-            "Content-Type": "application/json" 
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ videoUrl: bandVideoLink }),
-          credentials: "include", 
         });
 
         if (response.status === 401) {
@@ -515,12 +534,9 @@ export default function App() {
   }
 
   async function removeBandVideo(videoId) {
-    const response = await fetch(
-      `${API_BASE_URL}/bands/${bandDetails._id}/videos/${videoId}`,
-      {
-        method: "DELETE",
-      },
-    );
+    const response = await authFetch(`/bands/${bandDetails._id}/videos/${videoId}`, {
+      method: "DELETE",
+    });
     const payload = await response.json();
     if (response.ok) setBandDetails(payload.data);
   }
@@ -566,7 +582,7 @@ export default function App() {
       bio: createBandForm.bio
     };
 
-    const response = await fetch(`${API_BASE_URL}/bands`, {
+    const response = await authFetch(`/bands`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -640,7 +656,7 @@ export default function App() {
       bands_hired: [],
     };
 
-    const response = await fetch(`${API_BASE_URL}/gigs`, {
+    const response = await authFetch(`/gigs`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -666,6 +682,28 @@ export default function App() {
       date: "",
     });
   }
+
+  useEffect(() => {
+    if (authTokenChecked) return;
+    const token = getAuthToken();
+    if (!token) {
+      setAuthTokenChecked(true);
+      return;
+    }
+
+    apiVerifyAuth()
+      .then((data) => {
+        const backendRole = data?.user?.role;
+        const frontendRole = toFrontendRole(backendRole);
+        setProfile((prev) => ({ ...prev, role: frontendRole }));
+        setIsLoggedIn(true);
+      })
+      .catch(() => {
+        clearAuthToken();
+        setIsLoggedIn(false);
+      })
+      .finally(() => setAuthTokenChecked(true));
+  }, [authTokenChecked]);
 
   useEffect(() => {
     if (location.pathname === "/bands" || location.pathname === "/my-band") {
@@ -767,6 +805,16 @@ export default function App() {
 
           {isLoggedIn && profile.role === "Artist" && (
             <>
+              <button
+                type="button"
+                onClick={() =>
+                  searchArea?.coords
+                    ? navigate("/bands", { state: searchArea })
+                    : navigate("/location")
+                }
+              >
+                Browse Bands
+              </button>
               <button type="button" onClick={() => navigate("/gigs")}>
                 Find a Gig
               </button>
@@ -841,7 +889,10 @@ export default function App() {
           path="/location"
           element={
             <ProtectedRoute isLoggedIn={isLoggedIn}>
-              <Location />
+              <Location
+                initialSearchArea={searchArea}
+                onSetSearchArea={(area) => setSearchArea(area)}
+              />
             </ProtectedRoute>
           }
         />
@@ -853,9 +904,9 @@ export default function App() {
               <BandsPage
                 bands={bands}
                 navigate={navigate}
-                locationCoords={location.state?.coords}
-                userZip={location.state?.zip}
-                userRadius={location.state?.radius}
+                locationCoords={location.state?.coords || searchArea?.coords}
+                userZip={location.state?.zip || searchArea?.zip}
+                userRadius={location.state?.radius || searchArea?.radius}
               />
             </ProtectedRoute>
           }
@@ -1328,7 +1379,7 @@ export default function App() {
           element={
             <section id="login" className="page active">
               <div className="form-card">
-                <h2>Sign In</h2>
+                <h2>{isSigningUp ? "Sign Up" : "Sign In"}</h2>
 
                 <input
                   type="email"
@@ -1344,15 +1395,24 @@ export default function App() {
                   onChange={(e) => setLoginPassword(e.target.value)}
                 />
 
+                {isSigningUp && (
+                  <input
+                    type="text"
+                    placeholder="Display name"
+                    value={loginDisplayName}
+                    onChange={(e) => setLoginDisplayName(e.target.value)}
+                  />
+                )}
+
                 <div className="login-buttons">
                   {showMusicianLogin && (
                     <button
                       type="button"
                       id="loginBandBtn"
                       className={`login-role-btn ${preferredLoginRole === "Artist" ? "recommended-role" : ""}`}
-                      onClick={handleBandLogin}
+                      onClick={() => handleAuthSubmit("Artist")}
                     >
-                      Log In As Musician
+                      {isSigningUp ? "Sign Up as Musician" : "Log In As Musician"}
                     </button>
                   )}
 
@@ -1361,12 +1421,25 @@ export default function App() {
                       type="button"
                       id="loginVenueBtn"
                       className={`login-role-btn ${preferredLoginRole === "Venue" ? "recommended-role" : ""}`}
-                      onClick={handleVenueLogin}
+                      onClick={() => handleAuthSubmit("Venue")}
                     >
-                      Log In As Venue
+                      {isSigningUp ? "Sign Up as Venue" : "Log In As Venue"}
                     </button>
                   )}
                 </div>
+
+                {authError && <p className="upload-message error">{authError}</p>}
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={() => {
+                    setAuthError("");
+                    setIsSigningUp((prev) => !prev);
+                  }}
+                >
+                  {isSigningUp ? "Have an account? Sign in" : "New here? Create an account"}
+                </button>
               </div>
             </section>
           }

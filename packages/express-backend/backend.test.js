@@ -6,6 +6,7 @@ let mockBandServices;
 let mockVenueServices;
 let mockMusicianServices;
 let mockReviewServices;
+let mockGigServices;
 let mockAuthServices;
 let mockConnect;
 
@@ -45,12 +46,21 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     findBandById: jest.fn(),
     addBand: jest.fn(),
     findBandByIdAndDelete: jest.fn(),
+    updateBandProfilePicture: jest.fn(),
+    addBandGalleryImage: jest.fn(),
+    removeBandGalleryImage: jest.fn(),
+    addBandVideo: jest.fn(),
+    removeBandVideo: jest.fn(),
   };
 
   mockVenueServices = {
     getVenue: jest.fn(),
     addVenue: jest.fn(),
     findVenueById: jest.fn(),
+    findOwnedVenueByUserId: jest.fn(),
+    findVenueByContactEmail: jest.fn(),
+    findVenueByName: jest.fn(),
+    claimVenueOwnership: jest.fn(),
     findVenueByIdAndDelete: jest.fn(),
   };
 
@@ -58,8 +68,14 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     getMusiciansCount: jest.fn(),
     getMusiciansPaginated: jest.fn(),
     findMusicianById: jest.fn(),
+    findOwnedMusicianByUserId: jest.fn(),
+    findMusicianByName: jest.fn(),
+    claimMusicianOwnership: jest.fn(),
     addMusician: jest.fn(),
     findMusicianByIdAndDelete: jest.fn(),
+    updateMusicianProfilePicture: jest.fn(),
+    addMusicianVideo: jest.fn(),
+    removeMusicianVideo: jest.fn(),
   };
 
   mockReviewServices = {
@@ -68,8 +84,19 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     addReview: jest.fn(),
   };
 
+  mockGigServices = {
+    getGigsCount: jest.fn(),
+    getGigsPaginated: jest.fn(),
+    findGigById: jest.fn(),
+    addGig: jest.fn(),
+    findGigByIdAndDelete: jest.fn(),
+  };
+
   mockAuthServices = {
     registerUser: jest.fn(),
+    authenticateUser: jest.fn(),
+    createAccessToken: jest.fn(),
+    verifyAccessToken: jest.fn(),
   };
 
   mockApp = {
@@ -132,6 +159,10 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     default: mockReviewServices,
   }));
 
+  await jest.unstable_mockModule('./gig-services.js', () => ({
+    default: mockGigServices,
+  }));
+
   await jest.unstable_mockModule('./auth-services.js', () => ({
     default: mockAuthServices,
   }));
@@ -144,6 +175,27 @@ async function loadBackend({ connectShouldReject = false } = {}) {
   // Allow any pending promises (like mongoose.connect then/catch) to settle
   await Promise.resolve();
   return backend;
+}
+
+async function invokeAuthenticatedHandler(handler, req, authPayload) {
+  const originalNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = 'development';
+  mockAuthServices.verifyAccessToken.mockReturnValue(authPayload);
+
+  req.headers = {
+    authorization: 'Bearer test-token',
+    ...(req.headers || {}),
+  };
+  req.get = jest.fn((headerName) => req.headers?.[headerName]);
+
+  const res = createMockRes();
+
+  try {
+    await handler(req, res);
+    return res;
+  } finally {
+    process.env.NODE_ENV = originalNodeEnv;
+  }
 }
 
 describe('backend initialization', () => {
@@ -1035,6 +1087,92 @@ describe('auth routes', () => {
     await handler(req, res);
 
     expect(res.statusCode).toBe(409);
+  });
+});
+
+describe('role guards', () => {
+  beforeAll(async () => {
+    await loadBackend();
+  });
+
+  test('POST /bands injects owner and creator musician membership', async () => {
+    const handler = findRoute('post', '/bands');
+    const created = { id: 'b1' };
+    mockMusicianServices.findOwnedMusicianByUserId.mockResolvedValue({
+      _id: 'm-owner',
+    });
+    mockBandServices.addBand.mockResolvedValue(created);
+
+    const res = await invokeAuthenticatedHandler(
+      handler,
+      {
+        body: {
+          name: 'Band',
+          members: ['m-other'],
+        },
+      },
+      {
+        sub: 'u1',
+        email: 'artist@test.com',
+        role: 'musician',
+      },
+    );
+
+    expect(res.statusCode).toBe(201);
+    expect(mockBandServices.addBand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Band',
+        owner_user: 'u1',
+        members: expect.arrayContaining(['m-owner', 'm-other']),
+      }),
+    );
+  });
+
+  test('POST /gigs returns 403 for non-venue users', async () => {
+    const handler = findRoute('post', '/gigs');
+
+    const res = await invokeAuthenticatedHandler(
+      handler,
+      {
+        body: {
+          name: 'Gig',
+        },
+      },
+      {
+        sub: 'u1',
+        email: 'artist@test.com',
+        role: 'musician',
+      },
+    );
+
+    expect(res.statusCode).toBe(403);
+    expect(mockGigServices.addGig).not.toHaveBeenCalled();
+  });
+
+  test('DELETE /musicians/:id/videos/:videoId returns 403 for non-owners', async () => {
+    const handler = findRoute('delete', '/musicians/:id/videos/:videoId');
+    mockMusicianServices.findMusicianById.mockResolvedValue({
+      _id: 'm2',
+      owner_user: 'someone-else',
+    });
+
+    const res = await invokeAuthenticatedHandler(
+      handler,
+      {
+        params: {
+          id: 'm2',
+          videoId: 'vid1',
+        },
+      },
+      {
+        sub: 'u1',
+        email: 'artist@test.com',
+        role: 'musician',
+      },
+    );
+
+    expect(res.statusCode).toBe(403);
+    expect(mockMusicianServices.removeMusicianVideo).not.toHaveBeenCalled();
   });
 });
 

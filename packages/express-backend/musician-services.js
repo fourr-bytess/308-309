@@ -41,6 +41,22 @@ function findMusicianById(id) {
     return musicianModel.findById(id);
 }
 
+function findOwnedMusicianByUserId(ownerUserId) {
+    return musicianModel.findOne({ owner_user: ownerUserId });
+}
+
+function findMusicianByName(name) {
+    return musicianModel.findOne({ name: String(name || "").toLowerCase() });
+}
+
+function claimMusicianOwnership(id, ownerUserId) {
+    return musicianModel.findByIdAndUpdate(
+        id,
+        { owner_user: ownerUserId },
+        { new: true, runValidators: true }
+    );
+}
+
 function addMusician(musician) {
     const musicianToAdd = new musicianModel(musician);
     return musicianToAdd.save();
@@ -82,6 +98,9 @@ export default {
     getMusiciansCount,
     getMusiciansPaginated,
     findMusicianById,
+    findOwnedMusicianByUserId,
+    findMusicianByName,
+    claimMusicianOwnership,
     findMusicianByIdAndDelete,
     updateMusicianProfilePicture,
     addMusicianVideo,

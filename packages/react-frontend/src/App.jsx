@@ -33,15 +33,21 @@ const ALLOWED_MIME_TYPES = [
 const DEFAULT_PLACEHOLDER_IMAGE =
   "https://placehold.co/240x240/png?text=No+Photo";
 
-function ProtectedRoute({ isLoggedIn, children }) {
+function ProtectedRoute({
+  isLoggedIn,
+  userRole,
+  allowedRoles = [],
+  redirectTo = "/",
+  children,
+}) {
   const location = useLocation();
-  const locationState = location.state || {};
-  const userCoords = locationState.coords;
-  const userRadius = locationState.radius;
-  const userZip = locationState.zip;
 
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+    return <Navigate to={redirectTo} replace />;
   }
 
   return children;
@@ -72,6 +78,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authTokenChecked, setAuthTokenChecked] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [authUser, setAuthUser] = useState(null);
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -227,7 +234,7 @@ export default function App() {
   async function createOrLoadVenueProfile(email) {
     const venueName = (email.split("@")[0] || "venue").trim().toLowerCase();
     const lookupResponse = await fetch(
-      `${API_BASE_URL}/venues?name=${encodeURIComponent(venueName)}`,
+      `${API_BASE_URL}/venues?contact_email=${encodeURIComponent(email)}`,
     );
     const lookupPayload = await lookupResponse.json();
 
@@ -283,6 +290,11 @@ export default function App() {
       const data = await apiLogin({ email, password });
       const backendRole = data?.user?.role;
       const frontendRole = toFrontendRole(backendRole);
+      setAuthUser({
+        id: String(data?.user?.id || ""),
+        email: data?.user?.email || email,
+        displayName: data?.user?.display_name || "",
+      });
 
       setProfile((prev) => ({
         ...prev,
@@ -320,6 +332,7 @@ export default function App() {
 
   function handleLogout() {
     setIsLoggedIn(false);
+    setAuthUser(null);
     setMusicianId("");
     setVenueId("");
     setBandDetails(null);
@@ -339,11 +352,38 @@ export default function App() {
 
   const [musicianDetails, setMusicianDetails] = useState(null);
   const pathMusicianId = location.pathname.match(/^\/musicians\/([^/]+)$/)?.[1];
+  const currentUserId = authUser?.id || "";
+  const canManageCurrentBand = Boolean(
+    isLoggedIn &&
+      profile.role === "Artist" &&
+      bandDetails &&
+      (
+        String(bandDetails.owner_user || "") === currentUserId ||
+        (musicianId &&
+          (bandDetails.members || []).some(
+            (memberId) => String(memberId) === String(musicianId),
+          ))
+      ),
+  );
+  const canManageCurrentMusicianPage = Boolean(
+    isLoggedIn &&
+      profile.role === "Artist" &&
+      musicianDetails &&
+      (
+        String(musicianDetails.owner_user || "") === currentUserId ||
+        (musicianId && musicianId === pathMusicianId)
+      ),
+  );
 
   async function uploadMusicianProfilePicture(file) {
     const validationMessage = validateImageFile(file);
     if (validationMessage) {
       setMusicianUploadMessage(validationMessage);
+      return;
+    }
+
+    if (profile.role !== "Artist") {
+      setMusicianUploadMessage("Only artist accounts can edit musician profiles.");
       return;
     }
 
@@ -385,6 +425,10 @@ export default function App() {
       setMusicianUploadMessage("No musician selected");
       return;
     }
+    if (!canManageCurrentMusicianPage) {
+      setMusicianUploadMessage("You can only manage your own musician page.");
+      return;
+    }
     const body = new FormData();
     body.append("image", file);
 
@@ -403,25 +447,46 @@ export default function App() {
 
   const [musicianVideoLink, setMusicianVideoLink] = useState("");
   async function addMusicianVideo() {
-    const response = await authFetch(`/musicians/${musicianId}/videos`, {
+    if (!canManageCurrentMusicianPage || !pathMusicianId) {
+      setMusicianUploadMessage("You can only manage your own musician page.");
+      return;
+    }
+
+    const response = await authFetch(`/musicians/${pathMusicianId}/videos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ musicianVideoUrl: musicianVideoLink }),
+      body: JSON.stringify({ videoUrl: musicianVideoLink }),
     });
     const payload = await response.json();
+    if (!response.ok) {
+      setMusicianUploadMessage(payload.error || "Failed to add video.");
+      return;
+    }
+
     if (response.ok) {
-      setProfile((prev) => ({ ...prev, video_urls: payload.data.video_urls }));
+      setMusicianDetails(payload.data);
       setMusicianVideoLink("");
     }
   }
 
   async function removeMusicianVideo(videoId) {
-    const response = await authFetch(`/musicians/${musicianId}/videos/${videoId}`, {
+    if (!canManageCurrentMusicianPage || !pathMusicianId) {
+      setMusicianUploadMessage("You can only manage your own musician page.");
+      return;
+    }
+
+    const response = await authFetch(`/musicians/${pathMusicianId}/videos/${videoId}`, {
       method: "DELETE",
     });
     const payload = await response.json();
-    if (response.ok)
-      setProfile((prev) => ({ ...prev, video_urls: payload.data.video_urls }));
+    if (!response.ok) {
+      setMusicianUploadMessage(payload.error || "Failed to remove video.");
+      return;
+    }
+
+    if (response.ok) {
+      setMusicianDetails(payload.data);
+    }
   }
 
   async function uploadBandProfilePicture(file) {
@@ -433,6 +498,10 @@ export default function App() {
 
     if (!bandDetails?._id) {
       setBandUploadMessage("No band selected.");
+      return;
+    }
+    if (!canManageCurrentBand) {
+      setBandUploadMessage("You can only manage bands you belong to.");
       return;
     }
 
@@ -467,6 +536,10 @@ export default function App() {
       setBandUploadMessage("No band selected.");
       return;
     }
+    if (!canManageCurrentBand) {
+      setBandUploadMessage("You can only manage bands you belong to.");
+      return;
+    }
 
     const body = new FormData();
     body.append("image", file);
@@ -490,6 +563,10 @@ export default function App() {
     if (!bandDetails?._id) {
       return;
     }
+    if (!canManageCurrentBand) {
+      setBandUploadMessage("You can only manage bands you belong to.");
+      return;
+    }
 
     const response = await authFetch(`/bands/${bandDetails._id}/gallery`, {
       method: "DELETE",
@@ -509,6 +586,11 @@ export default function App() {
 
   const [bandVideoLink, setBandVideoLink] = useState("");
   async function addBandVideo() {
+    if (!bandDetails?._id || !canManageCurrentBand) {
+      setBandUploadMessage("You can only manage bands you belong to.");
+      return;
+    }
+
     try {
         const response = await authFetch(`/bands/${bandDetails._id}`, {
           method: "POST",
@@ -534,6 +616,11 @@ export default function App() {
   }
 
   async function removeBandVideo(videoId) {
+    if (!bandDetails?._id || !canManageCurrentBand) {
+      setBandUploadMessage("You can only manage bands you belong to.");
+      return;
+    }
+
     const response = await authFetch(`/bands/${bandDetails._id}/videos/${videoId}`, {
       method: "DELETE",
     });
@@ -544,6 +631,11 @@ export default function App() {
   async function createBandFromForm(event) {
     event.preventDefault();
     setCreateBandMessage("");
+
+    if (profile.role !== "Artist") {
+      setCreateBandMessage("Only artist accounts can create bands.");
+      return;
+    }
 
     if (!createBandForm.name.trim()) {
       setCreateBandMessage("Band name is required.");
@@ -617,6 +709,11 @@ export default function App() {
   async function createGigFromForm(event) {
     event.preventDefault();
     setCreateGigMessage("");
+
+    if (profile.role !== "Venue") {
+      setCreateGigMessage("Only venue accounts can create gigs.");
+      return;
+    }
 
     if (!createGigForm.name.trim()) {
       setCreateGigMessage("Gig title is required.");
@@ -692,15 +789,42 @@ export default function App() {
     }
 
     apiVerifyAuth()
-      .then((data) => {
-        const backendRole = data?.user?.role;
+      .then(async (data) => {
+        const verifiedUser = data?.user || {};
+        const backendRole = verifiedUser.role;
         const frontendRole = toFrontendRole(backendRole);
-        setProfile((prev) => ({ ...prev, role: frontendRole }));
+        setAuthUser({
+          id: String(verifiedUser.id || ""),
+          email: verifiedUser.email || "",
+          displayName: verifiedUser.display_name || "",
+        });
+        setProfile((prev) => ({
+          ...prev,
+          email: verifiedUser.email || prev.email,
+          role: frontendRole,
+        }));
         setIsLoggedIn(true);
+
+        if (frontendRole === "Artist" && verifiedUser.email) {
+          const musicianRecord = await createOrLoadMusicianProfile(verifiedUser.email);
+          setMusicianId(data?.profiles?.musicianId || musicianRecord._id || "");
+          setVenueId("");
+          setProfile((prev) => ({
+            ...prev,
+            profilePictureUrl: musicianRecord.profile_picture_url || "",
+          }));
+        }
+
+        if (frontendRole === "Venue" && verifiedUser.email) {
+          const venueRecord = await createOrLoadVenueProfile(verifiedUser.email);
+          setVenueId(data?.profiles?.venueId || venueRecord._id || "");
+          setMusicianId("");
+        }
       })
       .catch(() => {
         clearAuthToken();
         setIsLoggedIn(false);
+        setAuthUser(null);
       })
       .finally(() => setAuthTokenChecked(true));
   }, [authTokenChecked]);
@@ -888,7 +1012,7 @@ export default function App() {
         <Route
           path="/location"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
+            <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
               <Location
                 initialSearchArea={searchArea}
                 onSetSearchArea={(area) => setSearchArea(area)}
@@ -900,7 +1024,7 @@ export default function App() {
         <Route
           path="/bands"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
+            <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
               <BandsPage
                 bands={bands}
                 navigate={navigate}
@@ -915,11 +1039,13 @@ export default function App() {
         <Route
           path="/my-band"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
-              {profile.role !== "Artist" ? (
-                <Navigate to="/bands" replace />
-              ) : (
-                <section id="bands" className="page active">
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              allowedRoles={["Artist"]}
+              redirectTo="/bands"
+            >
+              <section id="bands" className="page active">
                   <h2>My Band</h2>
 
                   <button
@@ -962,7 +1088,6 @@ export default function App() {
                       ))}
                       </div>
                 </section>
-                )}
             </ProtectedRoute>
           }
         />
@@ -970,11 +1095,13 @@ export default function App() {
         <Route
           path="/bands/create"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
-              {profile.role !== "Artist" ? (
-                <Navigate to="/bands" replace />
-              ) : (
-                <section id="bands" className="page active">
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              allowedRoles={["Artist"]}
+              redirectTo="/bands"
+            >
+              <section id="bands" className="page active">
                   <div className="create-band-form-page">
                     <form
                       className="create-band-form"
@@ -1065,7 +1192,6 @@ export default function App() {
                     </form>
                   </div>
                 </section>
-              )}
             </ProtectedRoute>
           }
         />
@@ -1073,7 +1199,12 @@ export default function App() {
         <Route
           path="/bands/:id"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              allowedRoles={["Artist"]}
+              redirectTo="/bands"
+            >
               <section id="bands" className="page active">
                 <div className="profile-popup band-profile-popup">
                   {bandDetailsError && (
@@ -1084,7 +1215,11 @@ export default function App() {
                     <p>Loading band profile...</p>
                   )}
 
-                  {bandDetails && (
+                  {bandDetails && !canManageCurrentBand && (
+                    <Navigate to={`/band/${bandDetails._id}/public`} replace />
+                  )}
+
+                  {bandDetails && canManageCurrentBand && (
                     <>
                       <h2>{bandDetails.name}</h2>
 
@@ -1237,7 +1372,6 @@ export default function App() {
         <Route
           path="/musicians/:id"
           element={
-            // <ProtectedRoute isLoggedIn={isLoggedIn}>
             <section id="profile" className="page active">
               <div className="profile-popup band-profile-popup">
                 {musicianDetails && (
@@ -1254,45 +1388,44 @@ export default function App() {
                       {musicianDetails.bio || "No bio yet."}
                     </p>
 
-                    {/* editing tools to be shown only if logged in as ownder*/}
-                    {/* {musicianId === pathMusicianId && ( */}
-                    <div
-                      className="management-box"
-                      style={{
-                        border: "1px dashed #667eea",
-                        padding: "15px",
-                        borderRadius: "8px",
-                        marginBottom: "20px",
-                      }}
-                    >
-                      <h4 style={{ marginBottom: "10px" }}>Manage your page</h4>
-                      <div className="profile-row upload-row">
-                        <span className="label">Upload YouTube Video</span>
-                        <input
-                          className="edit-input"
-                          placeholder="Paste YouTube link here"
-                          value={musicianVideoLink}
-                          onChange={(e) => setMusicianVideoLink(e.target.value)}
-                        />
-                        <button
-                          className="secondary-btn"
-                          onClick={addMusicianVideo}
-                        >
-                          Add
-                        </button>
+                    {canManageCurrentMusicianPage && (
+                      <div
+                        className="management-box"
+                        style={{
+                          border: "1px dashed #667eea",
+                          padding: "15px",
+                          borderRadius: "8px",
+                          marginBottom: "20px",
+                        }}
+                      >
+                        <h4 style={{ marginBottom: "10px" }}>Manage your page</h4>
+                        <div className="profile-row upload-row">
+                          <span className="label">Upload YouTube Video</span>
+                          <input
+                            className="edit-input"
+                            placeholder="Paste YouTube link here"
+                            value={musicianVideoLink}
+                            onChange={(e) => setMusicianVideoLink(e.target.value)}
+                          />
+                          <button
+                            className="secondary-btn"
+                            onClick={addMusicianVideo}
+                          >
+                            Add
+                          </button>
+                        </div>
+                        <div className="profile-row upload-row">
+                          <span className="label">Add photo</span>
+                          <input
+                            className="edit-input"
+                            type="file"
+                            onChange={(e) =>
+                              handleMusicianGalleryUpload(e.target.files[0])
+                            }
+                          />
+                        </div>
                       </div>
-                      <div className="profile-row upload-row">
-                        <span className="label">Add photo</span>
-                        <input
-                          className="edit-input"
-                          type="file"
-                          onChange={(e) =>
-                            handleMusicianGalleryUpload(e.target.files[0])
-                          }
-                        />
-                      </div>
-                    </div>
-                    {/* )} */}
+                    )}
 
                     <h3>Videos</h3>
                     <div className="video-grid">
@@ -1327,14 +1460,18 @@ export default function App() {
                 )}
               </div>
             </section>
-            // </ProtectedRoute>
           }
         />
 
         <Route
           path="/gigs"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              allowedRoles={["Artist"]}
+              redirectTo="/dashboard"
+            >
               <section id="gigs" className="page active">
                 <h2>Available Gigs</h2>
 
@@ -1448,7 +1585,12 @@ export default function App() {
         <Route
           path="/profile"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              allowedRoles={["Artist"]}
+              redirectTo="/dashboard"
+            >
               <section id="profile" className="page active">
                 <div className="profile-popup">
                   <h2>User Profile</h2>
@@ -1589,7 +1731,12 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              allowedRoles={["Venue"]}
+              redirectTo="/gigs"
+            >
               <section id="dashboard" className="page active">
                 <div className="dashboard-card">
                   <h2>Venue Dashboard</h2>

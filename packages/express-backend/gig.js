@@ -4,6 +4,11 @@ import venueModel from "./venue.js";
 
 const GigSchema = new mongoose.Schema(
     {
+        owner_user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            default: null
+        },
         name: {
             type: String,
             required: true,

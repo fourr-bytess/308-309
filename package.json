@@ -14,13 +14,19 @@
   "author": "",
   "type": "module",
   "main": "index.js",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run dev -w react-frontend",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
   },
-  "workspaces": [
-    "packages/*"
-  ],
+  "dependencies": {
+    "leaflet": "^1.9.4",
+    "mongoose": "^9.1.6",
+    "multer": "^2.1.1",
+    "react-leaflet": "^5.0.0"
+  },
   "devDependencies": {
     "@babel/core": "^7.29.0",
     "@babel/preset-env": "^7.29.0",
@@ -29,11 +35,5 @@
     "jest-environment-jsdom": "^30.3.0",
     "nodemon": "^3.1.11",
     "supertest": "^7.2.2"
-  },
-  "dependencies": {
-    "leaflet": "^1.9.4",
-    "mongoose": "^9.1.6",
-    "multer": "^2.1.1",
-    "react-leaflet": "^5.0.0"
   }
 }

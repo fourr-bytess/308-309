@@ -17,7 +17,7 @@ function ChangeMapView({ coords, zoom }) {
   return null;
 }
 
-export default function Location() {
+export default function Location({ userRole, onSetSearchArea }) {
   const navigate = useNavigate();
   const [locationCoords, setLocationCoords] = useState(null);
   const [zipCode, setZip] = useState("");
@@ -106,15 +106,19 @@ export default function Location() {
         />
         <button
           className="primary-btn"
-          onClick={() =>
-            navigate("/bands", {
-              state: {
-                coords: locationCoords,
-                radius: radius,
-                zip: zipCode,
-              },
-            })
-          }
+          onClick={() => {
+            const area = {
+              coords: locationCoords,
+              radius: radius,
+              zip: zipCode,
+            };
+
+            onSetSearchArea?.(area);
+
+            const targetPath = userRole === "Artist" ? "/gigs" : "/bands";
+
+            navigate(targetPath, { state: area });
+          }}
         >
           Enter
         </button>

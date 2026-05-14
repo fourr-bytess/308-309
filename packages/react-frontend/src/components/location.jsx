@@ -9,10 +9,10 @@ function ChangeMapView({ coords, zoom }) {
   const map = useMap();
 
   useEffect(() => {
-    if (coords) {
+    if (map) {
       map.setView([coords.lat, coords.lng], zoom);
     }
-  }, [coords, zoom]);
+  }, [map, zoom]);
 
   return null;
 }

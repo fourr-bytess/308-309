@@ -5,7 +5,7 @@ const TOKEN_STORAGE_KEY = "giggly_access_token";
 export function getAuthToken() {
   try {
     return localStorage.getItem(TOKEN_STORAGE_KEY);
-  } catch (_err) {
+  } catch {
     return null;
   }
 }
@@ -14,7 +14,7 @@ export function setAuthToken(token) {
   try {
     if (!token) return;
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } catch (_err) {
+  } catch {
     // ignore storage failures (private mode, etc.)
   }
 }
@@ -22,7 +22,7 @@ export function setAuthToken(token) {
 export function clearAuthToken() {
   try {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
-  } catch (_err) {
+  } catch {
     // ignore
   }
 }

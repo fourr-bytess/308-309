@@ -781,12 +781,12 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (authTokenChecked) return;
     const token = getAuthToken();
     if (!token) {
-      setAuthTokenChecked(true);
+      setAuthTokenChecked(prev => (prev === false ? true : prev));
       return;
     }
+  }, []);
 
     apiVerifyAuth()
       .then(async (data) => {

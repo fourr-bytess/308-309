@@ -1,5 +1,81 @@
 const API_URL = "http://localhost:3001";
 
+const TOKEN_STORAGE_KEY = "giggly_access_token";
+
+export function getAuthToken() {
+  try {
+    return localStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setAuthToken(token) {
+  try {
+    if (!token) return;
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  } catch {
+    // ignore storage failures (private mode, etc.)
+  }
+}
+
+export function clearAuthToken() {
+  try {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export async function authFetch(path, options = {}) {
+  const token = getAuthToken();
+  const headers = new Headers(options.headers || {});
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return fetch(`${API_URL}${path}`, { ...options, headers });
+}
+
+export async function login({ email, password }) {
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = payload?.error || "Login failed";
+    throw new Error(message);
+  }
+  const token = payload?.data?.token;
+  if (token) setAuthToken(token);
+  return payload?.data;
+}
+
+export async function register({ email, password, display_name, role }) {
+  const res = await fetch(`${API_URL}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, display_name, role }),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = payload?.error || "Registration failed";
+    throw new Error(message);
+  }
+  return payload?.data;
+}
+
+export async function verifyAuth() {
+  const res = await authFetch("/auth/verify");
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = payload?.error || "Token invalid";
+    throw new Error(message);
+  }
+  return payload?.data;
+}
+
 /* ---------------- BANDS ---------------- */
 
 export async function getBands() {
@@ -15,7 +91,7 @@ export async function getBandById(id) {
 }
 
 export async function createBand(band) {
-  const res = await fetch(`${API_URL}/bands`, {
+  const res = await authFetch(`/bands`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(band),
@@ -25,10 +101,24 @@ export async function createBand(band) {
 }
 
 export async function deleteBand(id) {
-  const res = await fetch(`${API_URL}/bands/${id}`, {
+  const res = await authFetch(`/bands/${id}`, {
     method: "DELETE",
   });
 
+  return res.json();
+}
+
+export async function updateBand(id, updateData) {
+  const res = await authFetch(`/bands/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updateData),
+  });
+  
+  if (!res.ok) {
+    throw new Error("Failed to update band");
+  }
+  
   return res.json();
 }
 
@@ -42,7 +132,7 @@ export async function getVenues() {
 }
 
 export async function createVenue(venue) {
-  const res = await fetch(`${API_URL}/venues`, {
+  const res = await authFetch(`/venues`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(venue),
@@ -52,7 +142,7 @@ export async function createVenue(venue) {
 }
 
 export async function deleteVenue(id) {
-  const res = await fetch(`${API_URL}/venues/${id}`, {
+  const res = await authFetch(`/venues/${id}`, {
     method: "DELETE",
   });
 
@@ -69,7 +159,7 @@ export async function getMusicians() {
 }
 
 export async function createMusician(musician) {
-  const res = await fetch(`${API_URL}/musicians`, {
+  const res = await authFetch(`/musicians`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(musician),
@@ -88,7 +178,7 @@ export async function getReviews() {
 }
 
 export async function createReview(review) {
-  const res = await fetch(`${API_URL}/reviews`, {
+  const res = await authFetch(`/reviews`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(review),
@@ -110,7 +200,7 @@ export async function getConversationsById(id){
 }
 
 export async function createConversation(message){
-  const res = await fetch(`${API_URL}/conversations`,{
+  const res = await authFetch(`/conversations`,{
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(message),
@@ -119,9 +209,11 @@ export async function createConversation(message){
 }
 
 export async function deleteConversationById(id){
-  const res = await fetch(`${API_URL}/conversations/${id}`, {
+  const res = await authFetch(`/conversations/${id}`, {
     method: "DELETE",
   });
+    return res.json()
+}
 }
 
 /* ---------------- NOTIFICATIONS ---------------- */
@@ -201,3 +293,4 @@ export async function deleteNotification(id) {
 
   return data.data;
 }
+

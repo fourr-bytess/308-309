@@ -23,23 +23,24 @@ const BandPublicProfile = () => {
   if (!band) return <div className="error">Band not found.</div>;
 
   return (
-    <div className="band-profile-container" style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
-      <header style={{ borderBottom: "2px solid #eee", marginBottom: "30px" }}>
-        <h1>{band.name}</h1>
-        <p style={{ fontSize: "1.2rem", fontStyle: "italic", color: "#666" }}>{band.genre}</p>
-      </header>
+    <div className="band-profile-page">
+      {/* 1. Band Name & Genre (Top Left, under the main logo) */}
+      <div className="band-header">
+        <h1 className="band-title">{band.name}</h1>
+        <p className="band-genre">{band.genre}</p>
+      </div>
 
-      <section className="bio-section" style={{ marginBottom: "40px" }}>
+      <section className="band-section">
         <h3>About the Band</h3>
-        <p style={{ lineHeight: "1.6", whiteSpace: "pre-wrap" }}>{band.bio || "No bio available yet."}</p>
+        <p className="band-bio">{band.bio || "No bio available yet."}</p>
       </section>
 
-      <section className="gallery-section" style={{ marginBottom: "40px" }}>
+      <section className="band-section">
         <h3>Gallery</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "15px" }}>
+        <div className="horizontal-scroll-container">
           {band.gallery_images?.length > 0 ? (
             band.gallery_images.map((img, index) => (
-              <img key={index} src={img} alt={`${band.name} gallery ${index}`} style={{ width: "100%", borderRadius: "8px", objectFit: "cover", height: "200px" }} />
+              <img key={index} src={img} alt="Gallery" className="scroll-img" />
             ))
           ) : (
             <p>No photos uploaded yet.</p>
@@ -47,24 +48,19 @@ const BandPublicProfile = () => {
         </div>
       </section>
 
-      <section className="video-section">
+      <section className="band-section">
         <h3>Videos</h3>
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+        <div className="horizontal-scroll-container">
           {band.video_urls?.length > 0 ? (
             band.video_urls.map((videoUrl, index) => {
-              // Extract YouTube ID (works for full URLs or just IDs)
               const videoId = videoUrl.includes("v=") ? videoUrl.split("v=")[1].split("&")[0] : videoUrl;
               return (
-                <div key={index} className="video-responsive">
+              <div key={index} className="scroll-video">
                   <iframe
-                    width="100%"
-                    height="450"
                     src={`https://www.youtube.com/embed/${videoId}`}
                     title="YouTube video player"
                     frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
-                    style={{ borderRadius: "12px" }}
                   ></iframe>
                 </div>
               );

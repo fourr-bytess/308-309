@@ -18,8 +18,8 @@
     "packages/*"
   ],
   "scripts": {
-    "backend": "cd express-backend && npm run dev",
-    "frontend": "cd react-frontend && npm run dev",
+    "backend": "cd packages/express-backend && npm run dev",
+    "frontend": "cd packages/react-frontend && npm run dev",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "build": "node build/build.mjs 18.19.0",

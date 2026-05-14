@@ -13,7 +13,7 @@ describe("Gig Model and Functions Test Suite", () => {
   });
 
   describe("getGigs and buildGigsQuery", () => {
-    test("Testing filters -- success", async () => {
+    test("Testing filters -- pass", async () => {
       const mockSelect = jest.fn().mockResolvedValue([]);
       gigModel.find.mockReturnValue({ select: mockSelect });
 
@@ -43,7 +43,7 @@ describe("Gig Model and Functions Test Suite", () => {
       );
     });
 
-    test("Testing filters -- success", async () => {
+    test("Testing filters -- pass", async () => {
       const mockDate = new Date("2026-02-02T00:00:00.000Z");
       const timeRange = [new Date(), new Date()];
 
@@ -65,7 +65,7 @@ describe("Gig Model and Functions Test Suite", () => {
       );
     });
 
-    test("Testing empty ranges -- success", async () => {
+    test("Testing empty ranges -- pass", async () => {
       const mockSelect = jest.fn().mockResolvedValue([]);
       gigModel.find.mockReturnValue({ select: mockSelect });
       await gigServices.getGigs(null, null, null, null, [50], null, [
@@ -76,7 +76,7 @@ describe("Gig Model and Functions Test Suite", () => {
   });
 
   describe("getGigsPaginated", () => {
-    test("Testing return gigs and count -- success", async () => {
+    test("Testing return gigs and count -- pass", async () => {
       const mockGigs = [{ name: "Gig 1" }];
       const mockTotal = 1;
       const mockSelect = jest.fn().mockResolvedValue(mockGigs);
@@ -92,7 +92,7 @@ describe("Gig Model and Functions Test Suite", () => {
   });
 
   describe("CRUD operations", () => {
-    test("Testing addGig -- success", async () => {
+    test("Testing addGig -- pass", async () => {
       const gigData = { name: "New Gig" };
       gigModel.prototype.save = jest.fn().mockResolvedValue(gigData);
       const result = await gigServices.addGig(gigData);
@@ -100,13 +100,13 @@ describe("Gig Model and Functions Test Suite", () => {
       expect(gigModel.prototype.save).toHaveBeenCalled();
     });
 
-    test("Testing findGigById -- success", async () => {
+    test("Testing findGigById -- pass", async () => {
       gigModel.findById.mockResolvedValue({ name: "True" });
       await gigServices.findGigById("111");
       expect(gigModel.findById).toHaveBeenCalledWith("111");
     });
 
-    test("Testing findGigByIdAndDelete -- success", async () => {
+    test("Testing findGigByIdAndDelete -- pass", async () => {
       gigModel.findByIdAndDelete.mockResolvedValue({ success: true });
       await gigServices.findGigByIdAndDelete("111");
       expect(gigModel.findByIdAndDelete).toHaveBeenCalledWith("111");

@@ -99,15 +99,23 @@ async function loadBackend({ connectShouldReject = false } = {}) {
 
   mockApp = {
     use: jest.fn(),
+  
     get: jest.fn((path, handler) => {
       routes.push({ method: "get", path, handler });
     }),
+  
     post: jest.fn((path, handler) => {
       routes.push({ method: "post", path, handler });
     }),
+  
+    put: jest.fn((path, handler) => {
+      routes.push({ method: "put", path, handler });
+    }),
+  
     delete: jest.fn((path, handler) => {
       routes.push({ method: "delete", path, handler });
     }),
+  
     listen: jest.fn(),
   };
 
@@ -119,7 +127,6 @@ async function loadBackend({ connectShouldReject = false } = {}) {
 
   await jest.unstable_mockModule("express", () => {
     const expressFn = () => mockApp;
-    // Provide a json middleware function so app.use(express.json()) works
     expressFn.json = jest.fn(() => jest.fn());
     expressFn.static = jest.fn(() => jest.fn());
     return { default: expressFn };
@@ -170,7 +177,6 @@ async function loadBackend({ connectShouldReject = false } = {}) {
   }));
 
   const backend = await import("./backend.js");
-  // Allow any pending promises (like mongoose.connect then/catch) to settle
   await Promise.resolve();
   return backend;
 }

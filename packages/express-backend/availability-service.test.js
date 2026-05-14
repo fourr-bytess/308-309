@@ -27,7 +27,7 @@ describe("Availability Functions Test Suite", () => {
       expect(Availability.create).not.toHaveBeenCalled();
     });
 
-    test("Testing when no conflict is found -- success", async () => {
+    test("Testing when no conflict is found -- pass", async () => {
       Availability.findOne.mockResolvedValue(null);
       Availability.create.mockResolvedValue({ ...mockData, status: "open" });
       const result = await availabilityService.createAvailability(mockData);
@@ -37,7 +37,7 @@ describe("Availability Functions Test Suite", () => {
   });
 
   describe("getSlots", () => {
-    test("Testing query with start and end times -- success", async () => {
+    test("Testing query with start and end times -- pass", async () => {
       const mockSort = jest.fn().mockResolvedValue([{ id: 1 }]);
       Availability.find.mockReturnValue({ sort: mockSort });
       const params = {
@@ -58,7 +58,7 @@ describe("Availability Functions Test Suite", () => {
       expect(mockSort).toHaveBeenCalledWith({ start: 1 });
     });
 
-    test("Testing query without times -- success", async () => {
+    test("Testing query without times -- pass", async () => {
       const mockSort = jest.fn().mockResolvedValue([]);
       Availability.find.mockReturnValue({ sort: mockSort });
       await availabilityService.getSlots({ bandId: "23456" });

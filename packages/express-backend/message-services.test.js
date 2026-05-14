@@ -3,39 +3,53 @@ import messageModel from "./messages.js";
 import messageServices from "./message-services.js";
 
 describe("Message Services Test Suite", () => {
+
   beforeEach(() => {
     jest.clearAllMocks();
+
     messageModel.find = jest.fn();
     messageModel.countDocuments = jest.fn();
     messageModel.findById = jest.fn();
     messageModel.findByIdAndDelete = jest.fn();
+
     jest.spyOn(messageModel.prototype, "save").mockReturnThis();
   });
 
-  describe("getMessages", () => {
-    test("should call find with correct conversationId", async () => {
+  describe("Conversation Message Retrieval", () => {
+
+    test("Testing retrieval of messages for a specific booking conversation -- success", async () => {
+
       messageModel.find.mockResolvedValue([]);
 
-      await messageServices.getMessages("123");
+      await messageServices.getMessages("conversation_123");
 
       expect(messageModel.find).toHaveBeenCalledWith({
-        conversationId: "123",
+        conversationId: "conversation_123",
       });
     });
+
   });
 
-  describe("Pagination and Count", () => {
-    test("getMessagesCount -- success", async () => {
+  describe("Message Pagination and Count", () => {
+
+    test("Testing total message count retrieval -- pass", async () => {
+
       messageModel.countDocuments.mockResolvedValue(7);
 
       const result = await messageServices.getMessagesCount({});
 
       expect(result).toBe(7);
+
       expect(messageModel.countDocuments).toHaveBeenCalledWith({});
     });
 
-    test("getMessagesPaginated -- success", async () => {
-      const mockMessages = [{ text: "hello" }];
+    test("Testing paginated conversation message retrieval -- pass", async () => {
+
+      const mockMessages = [
+        {
+          text: "We'd love to book your band for next Saturday night.",
+        },
+      ];
 
       messageModel.find.mockReturnValue({
         skip: jest.fn().mockReturnValue({
@@ -43,39 +57,64 @@ describe("Message Services Test Suite", () => {
         }),
       });
 
-      const result = await messageServices.getMessagesPaginated(10, 5, {});
+      const result = await messageServices.getMessagesPaginated(
+        10,
+        5,
+        {}
+      );
 
       expect(messageModel.find).toHaveBeenCalledWith({});
+
       expect(result).toEqual(mockMessages);
     });
+
   });
 
-  describe("CRUD operations", () => {
-    test("addMessage -- success", async () => {
-      const messageData = { text: "Hello" };
+  describe("Message CRUD Operations", () => {
 
-      messageModel.prototype.save = jest.fn().mockResolvedValue(messageData);
+    test("Testing successful message creation between venue and band -- pass", async () => {
+
+      const messageData = {
+        text: "Can your band provide sound equipment for the performance?",
+      };
+
+      messageModel.prototype.save = jest
+        .fn()
+        .mockResolvedValue(messageData);
 
       const result = await messageServices.addMessage(messageData);
 
       expect(result).toEqual(messageData);
+
       expect(messageModel.prototype.save).toHaveBeenCalled();
     });
 
-    test("findMessageById -- success", async () => {
-      messageModel.findById.mockResolvedValue({ text: "Hi" });
+    test("Testing findMessageById -- pass", async () => {
 
-      await messageServices.findMessageById("111");
+      messageModel.findById.mockResolvedValue({
+        text: "Looking forward to performing at your venue!",
+      });
 
-      expect(messageModel.findById).toHaveBeenCalledWith("111");
+      await messageServices.findMessageById("message_111");
+
+      expect(messageModel.findById).toHaveBeenCalledWith(
+        "message_111"
+      );
     });
 
-    test("findMessageByIdAndDelete -- success", async () => {
-      messageModel.findByIdAndDelete.mockResolvedValue({ success: true });
+    test("Testing successful message deletion -- pass", async () => {
 
-      await messageServices.findMessageByIdAndDelete("111");
+      messageModel.findByIdAndDelete.mockResolvedValue({
+        success: true,
+      });
 
-      expect(messageModel.findByIdAndDelete).toHaveBeenCalledWith("111");
+      await messageServices.findMessageByIdAndDelete("message_111");
+
+      expect(messageModel.findByIdAndDelete).toHaveBeenCalledWith(
+        "message_111"
+      );
     });
+
   });
+
 });

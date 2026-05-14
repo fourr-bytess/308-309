@@ -2,96 +2,184 @@ import { jest } from "@jest/globals";
 import bandModel from "./band.js";
 import bandServices from "./band-services.js";
 
-describe("Band Model and Functions Test Suite", () => {
+describe("Band Services Test Suite", () => {
+
   beforeEach(() => {
+
     jest.clearAllMocks();
+
     bandModel.find = jest.fn();
     bandModel.countDocuments = jest.fn();
     bandModel.findById = jest.fn();
     bandModel.findByIdAndDelete = jest.fn();
+
     jest.spyOn(bandModel.prototype, "save").mockReturnThis();
   });
 
-  describe("getBands and buildBandsQuery", () => {
-    test("Testing filters -- success", async () => {
+  describe("Band Search and Filtering", () => {
+
+    test("Testing filtered local band search results -- pass", async () => {
+
       const mockSelect = jest.fn().mockResolvedValue([]);
-      bandModel.find.mockReturnValue({ select: mockSelect });
+
+      bandModel.find.mockReturnValue({
+        select: mockSelect,
+      });
 
       await bandServices.getBands(
-        "Under the Radar",
-        ["Amy"],
-        ["Rock"],
+        "Midnight Echo",
+        ["Cristian Stewart"],
+        ["Indie Rock"],
         ["San Luis Obispo"],
-        [100, 450]
+        [300, 1200]
       );
 
       expect(bandModel.find).toHaveBeenCalledWith(
         expect.objectContaining({
-          name: "under the radar",
-          members: { $in: ["amy"] },
-          genres: { $in: ["rock"] },
+          name: "midnight echo",
+          members: { $in: ["cristian stewart"] },
+          genres: { $in: ["indie rock"] },
           locations: { $in: ["san luis obispo"] },
-          price_range: { $gte: 100, $lte: 450 },
+          price_range: { $gte: 300, $lte: 1200 },
         })
       );
     });
 
-    test("Testing handling empty filters -- success", async () => {
+    test("Testing band retrieval with no filters applied -- pass", async () => {
+
       const mockSelect = jest.fn().mockResolvedValue([]);
-      bandModel.find.mockReturnValue({ select: mockSelect });
+
+      bandModel.find.mockReturnValue({
+        select: mockSelect,
+      });
+
       await bandServices.getBands();
+
       expect(bandModel.find).toHaveBeenCalledWith({});
     });
 
-    test("Testing only one price to treat as empty -- success", async () => {
+    test("Testing incomplete price range filter handling -- pass", async () => {
+
       const mockSelect = jest.fn().mockResolvedValue([]);
-      bandModel.find.mockReturnValue({ select: mockSelect });
-      await bandServices.getBands(null, null, null, null, [100]);
+
+      bandModel.find.mockReturnValue({
+        select: mockSelect,
+      });
+
+      await bandServices.getBands(
+        null,
+        null,
+        null,
+        null,
+        [300]
+      );
+
       expect(bandModel.find).toHaveBeenCalledWith({});
     });
+
   });
 
-  describe("getBandsPaginated", () => {
-    test("Testing return bands and count -- success", async () => {
-      const mockBands = [{ name: "Band 1" }];
+  describe("Band Pagination and Count", () => {
+
+    test("Testing paginated band search results and total count -- pass", async () => {
+
+      const mockBands = [
+        {
+          name: "Late Night Rhythm",
+        },
+      ];
+
       const mockTotal = 1;
+
       const mockSelect = jest.fn().mockResolvedValue(mockBands);
-      const mockLimit = jest.fn().mockReturnValue({ select: mockSelect });
-      const mockSkip = jest.fn().mockReturnValue({ limit: mockLimit });
-      bandModel.find.mockReturnValue({ skip: mockSkip });
+
+      const mockLimit = jest.fn().mockReturnValue({
+        select: mockSelect,
+      });
+
+      const mockSkip = jest.fn().mockReturnValue({
+        limit: mockLimit,
+      });
+
+      bandModel.find.mockReturnValue({
+        skip: mockSkip,
+      });
+
       bandModel.countDocuments.mockResolvedValue(mockTotal);
 
-      const result = await bandServices.getBandsPaginated(10, 0, {});
-      expect(result).toEqual({ bands: mockBands, total: mockTotal });
+      const result = await bandServices.getBandsPaginated(
+        10,
+        0,
+        {}
+      );
+
+      expect(result).toEqual({
+        bands: mockBands,
+        total: mockTotal,
+      });
+
       expect(bandModel.countDocuments).toHaveBeenCalled();
     });
+
   });
 
-  describe("CRUD operations", () => {
-    test("Testing addBand -- success", async () => {
-      const bandData = { name: "New Band", members: ["id1"] };
-      bandModel.prototype.save = jest.fn().mockResolvedValue(bandData);
+  describe("Band CRUD Operations", () => {
+
+    test("Testing successful band profile creation -- pass", async () => {
+
+      const bandData = {
+        name: "Pacific Avenue",
+        members: ["member_001"],
+      };
+
+      bandModel.prototype.save = jest
+        .fn()
+        .mockResolvedValue(bandData);
+
       const result = await bandServices.addBand(bandData);
+
       expect(result).toEqual(bandData);
+
       expect(bandModel.prototype.save).toHaveBeenCalled();
     });
 
-    test("Testing getBandsCount -- success", async () => {
+    test("Testing total band count retrieval -- pass", async () => {
+
       bandModel.countDocuments.mockResolvedValue(5);
-      const count = await bandServices.getBandsCount({ name: "Test" });
+
+      const count = await bandServices.getBandsCount({
+        name: "Midnight Echo",
+      });
+
       expect(count).toBe(5);
     });
 
-    test("Testing findBandById -- success", async () => {
-      bandModel.findById.mockResolvedValue({ name: "True" });
-      await bandServices.findBandById("111");
-      expect(bandModel.findById).toHaveBeenCalledWith("111");
+    test("Testing findBandById -- pass", async () => {
+
+      bandModel.findById.mockResolvedValue({
+        name: "Golden Hour",
+      });
+
+      await bandServices.findBandById("band_111");
+
+      expect(bandModel.findById).toHaveBeenCalledWith(
+        "band_111"
+      );
     });
 
-    test("Testing findBandByIdAndDelete -- success", async () => {
-      bandModel.findByIdAndDelete.mockResolvedValue({ success: true });
-      await bandServices.findBandByIdAndDelete("111");
-      expect(bandModel.findByIdAndDelete).toHaveBeenCalledWith("111");
+    test("Testing successful band deletion -- pass", async () => {
+
+      bandModel.findByIdAndDelete.mockResolvedValue({
+        success: true,
+      });
+
+      await bandServices.findBandByIdAndDelete("band_111");
+
+      expect(
+        bandModel.findByIdAndDelete
+      ).toHaveBeenCalledWith("band_111");
     });
+
   });
+
 });

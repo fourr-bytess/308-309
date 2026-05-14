@@ -16,7 +16,7 @@ function buildGigsQuery(filters = {}) {
     query.genres = { $in: filters.genres.map((g) => g.toLowerCase()) };
   }
   if (typeof filters.location == 'string') {
-    query.location = filters.location.toLowerCase();
+    query.location = { $in: [filters.location.toLowerCase()] };
   }
   if (filters.price_range?.length === 2) {
     query.price_range = {

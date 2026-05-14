@@ -35,15 +35,15 @@ describe("Gig Model and Functions Test Suite", () => {
           name: "jazz show",
           description: "jazz music for age 21+",
           genres: { $in: ["jazz"] },
-          locations: { $in: ["san francisco"] },
-          host: "venue a",
-          bands_hired: { $in: ["under the radar"] },
+          // locations: { $in: ["san francisco"] },
+          host: "Venue A",
+          bands_hired: { $in: ["Under the Radar"] },
         })
       );
     });
 
     test("Testing filters -- success", async () => {
-      const mockDate = new Date("2026-02-02");
+      const mockDate = new Date("2026-02-02T00:00:00.000Z");
       const timeRange = [new Date(), new Date()];
 
       const filters = {

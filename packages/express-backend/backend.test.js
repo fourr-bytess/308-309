@@ -206,7 +206,7 @@ describe("backend initialization", () => {
     const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
     listenCallback();
     expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Server running")
+      expect.stringContaining("REST API is listening.")
     );
     logSpy.mockRestore();
   });

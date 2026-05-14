@@ -56,7 +56,7 @@ describe("Gig Model and Functions Test Suite", () => {
       await gigServices.getGigsCount(filters);
       expect(gigModel.countDocuments).toHaveBeenCalledWith(
         expect.objectContaining({
-          price: { $gte: 200, $lte: 300 },
+          price_range: { $gte: 200, $lte: 300 },
           date: mockDate,
           time: { $gte: timeRange[0], $lte: timeRange[1] },
           booked: true,

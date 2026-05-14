@@ -18,6 +18,7 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "node packages/express-backend/backend.js",
     "backend": "cd packages/express-backend && npm run dev",
     "frontend": "cd packages/react-frontend && npm run dev",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",

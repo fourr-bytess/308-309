@@ -1,6 +1,6 @@
 {
     "env": {
-        "broswer": true,
+        "browser": true,
         "es2021": true,
         "node": true
     },
@@ -10,6 +10,6 @@
         "sourceType": "module"
     },
     "rules": {
-        
+
     }
 }

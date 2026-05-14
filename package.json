@@ -19,7 +19,9 @@
   ],
   "scripts": {
     "dev": "npm run dev -w react-frontend",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "build": "node build/build.mjs 18.19.0",
+    "lint": "npx eslint . && npx prettier --check ."
   },
   "dependencies": {
     "leaflet": "^1.9.4",

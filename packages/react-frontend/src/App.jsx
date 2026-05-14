@@ -21,6 +21,11 @@ import {
   markNotificationAsRead,
   markAllNotificationsAsRead,
   deleteNotification,
+  getConversations,
+  createConversation,
+  getConversationMessages,
+  sendConversationMessage,
+  markConversationAsRead,
 } from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
@@ -90,6 +95,13 @@ export default function App() {
   const [notificationError, setNotificationError] = useState("");
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+
+  const [conversations, setConversations] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [messageText, setMessageText] = useState("");
+  const [messageError, setMessageError] = useState("");
+
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -908,6 +920,121 @@ export default function App() {
     });
   }
 
+  useEffect(() => {
+  if (!currentUserId) {
+    setConversations([]);
+    setActiveConversation(null);
+    setMessages([]);
+    return;
+  }
+
+  async function loadConversations() {
+    try {
+      setMessageError("");
+      const items = await getConversations(currentUserId);
+      setConversations(items || []);
+    } catch (err) {
+      setMessageError(err?.message || "Failed to load conversations.");
+    }
+  }
+
+  loadConversations();
+}, [currentUserId]);
+
+async function handleOpenConversation(conversation) {
+  try {
+    setMessageError("");
+    setActiveConversation(conversation);
+
+    const items = await getConversationMessages(conversation._id);
+    setMessages(items || []);
+
+    await markConversationAsRead(conversation._id, currentUserId);
+  } catch (err) {
+    setMessageError(err?.message || "Failed to open conversation.");
+  }
+}
+
+async function handleStartBandConversation(band) {
+  if (!currentUserId || !venueId || !band?._id) {
+    setMessageError("Please log in as a venue to message this band.");
+    return;
+  }
+
+  const bandUserId = band.owner_user || band.ownerUserId;
+
+  if (!bandUserId) {
+    setMessageError("This band does not have an owner to message yet.");
+    return;
+  }
+
+  try {
+    setMessageError("");
+
+    const conversation = await createConversation({
+      bandId: band._id,
+      venueId,
+      bandUserId: String(bandUserId),
+      venueUserId: currentUserId,
+    });
+
+    setActiveConversation(conversation);
+
+const items = await getConversationMessages(conversation._id);
+setMessages(items || []);
+
+setConversations((prev) => [
+  conversation,
+  ...prev.filter((item) => item._id !== conversation._id),
+]);
+
+navigate("/messages");
+
+  } catch (err) {
+    setMessageError(err?.message || "Failed to start conversation.");
+  }
+}
+
+async function handleSendMessage(event) {
+  event.preventDefault();
+
+  if (!activeConversation || !currentUserId || !messageText.trim()) {
+    return;
+  }
+
+  try {
+    setMessageError("");
+
+    const senderRole =
+      String(activeConversation.bandUserId) === String(currentUserId)
+        ? "band"
+        : "venue";
+
+    const created = await sendConversationMessage(activeConversation._id, {
+      senderUserId: currentUserId,
+      senderRole,
+      text: messageText.trim(),
+    });
+
+    setMessages((prev) => [...prev, created]);
+    setMessageText("");
+
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation._id === activeConversation._id
+          ? {
+              ...conversation,
+              lastMessage: created.text,
+              lastMessageTime: created.createdAt,
+            }
+          : conversation
+      )
+    );
+  } catch (err) {
+    setMessageError(err?.message || "Failed to send message.");
+  }
+}
+
 
   useEffect(() => {
     if (location.pathname === "/bands" || location.pathname === "/my-band") {
@@ -920,12 +1047,16 @@ export default function App() {
     }
 
     if (location.pathname === "/dashboard") {
-      fetch(`${API_BASE_URL}/venues`)
-        .then((res) => res.json())
-        .then((data) => {
-          setVenues(data.data);
-        })
-        .catch((err) => console.error("Failed to load venues:", err));
+if (venueId) {
+    fetch(`${API_BASE_URL}/venues/${venueId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setVenues(data.data ? [data.data] : []);
+      })
+      .catch((err) => console.error("Failed to load venue:", err));
+  } else {
+    setVenues([]);
+  }
     }
 
     if (location.pathname === "/gigs") {
@@ -961,7 +1092,7 @@ export default function App() {
         .then((res) => res.json())
         .then((data) => setMusicianDetails(data.data));
     }
-  }, [location.pathname, pathMusicianId]);
+  }, [location.pathname, pathMusicianId, venueId]);
 
   const saveBio = async () => {
   try {
@@ -1042,6 +1173,11 @@ if (!authTokenChecked) {
               >
                 Profile
               </button>
+              
+              <button type="button" onClick={() => navigate("/messages")}>
+  Messages
+</button>
+
               
                 <div className="notification-menu">
   <button
@@ -1142,6 +1278,10 @@ if (!authTokenChecked) {
               <button type="button" onClick={() => navigate("/dashboard")}>
                 Dashboard
               </button>
+
+              <button type="button" onClick={() => navigate("/messages")}>
+  Messages
+</button>
 
               <div className="notification-menu">
   <button
@@ -1627,7 +1767,17 @@ if (!authTokenChecked) {
           }
         />
 
-        <Route path="/band/:id/public" element={<BandPublicProfile />} />
+        <Route
+  path="/band/:id/public"
+  element={
+    <BandPublicProfile
+      isLoggedIn={isLoggedIn}
+      userRole={profile.role}
+      venueId={venueId}
+      onStartConversation={handleStartBandConversation}
+    />
+  }
+/>
 
         <Route
           path="/musicians/:id"
@@ -2119,6 +2269,79 @@ if (!authTokenChecked) {
             </ProtectedRoute>
           }
         />
+
+          <Route
+  path="/messages"
+  element={
+    <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
+      <section id="messages" className="page active">
+        <div className="messages-shell">
+          <aside className="conversation-list">
+            <h2>Messages</h2>
+
+            {messageError && <p className="upload-message error">{messageError}</p>}
+
+            {conversations.length === 0 ? (
+              <p className="list-empty-message">No conversations yet.</p>
+            ) : (
+              conversations.map((conversation) => (
+                <button
+                  type="button"
+                  key={conversation._id}
+                  className={`conversation-item ${
+                    activeConversation?._id === conversation._id ? "active" : ""
+                  }`}
+                  onClick={() => handleOpenConversation(conversation)}
+                >
+                  <strong>{conversation.lastMessage || "New conversation"}</strong>
+                  {conversation.lastMessageTime && (
+                    <span>
+                      {new Date(conversation.lastMessageTime).toLocaleString()}
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </aside>
+
+          <main className="message-panel">
+            {activeConversation ? (
+              <>
+                <div className="message-list">
+                  {messages.map((message) => (
+                    <div
+                      key={message._id}
+                      className={`message-bubble ${
+                        String(message.senderUserId) === String(currentUserId)
+                          ? "mine"
+                          : "theirs"
+                      }`}
+                    >
+                      <p>{message.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <form className="message-form" onSubmit={handleSendMessage}>
+                  <input
+                    type="text"
+                    value={messageText}
+                    onChange={(event) => setMessageText(event.target.value)}
+                    placeholder="Write a message..."
+                  />
+                  <button type="submit">Send</button>
+                </form>
+              </>
+            ) : (
+              <p className="message-placeholder">Select a conversation.</p>
+            )}
+          </main>
+        </div>
+      </section>
+    </ProtectedRoute>
+  }
+/>
+
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

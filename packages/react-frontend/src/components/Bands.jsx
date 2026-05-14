@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Circle } from "react-leaflet";
 
 export default function BandsPage({ bands, navigate, locationCoords, userZip, userRadius }) {
   const [selectedGenre, setSelectedGenre] = useState("All");
-  const [priceRange, setPriceRange] = useState([100, 4000]);
+  const [priceRange, setPriceRange] = useState([0, 5000]);
   const [distance, setDistance] = useState(25);
 
   const filteredBands = bands.filter((band) => {
@@ -42,7 +42,7 @@ export default function BandsPage({ bands, navigate, locationCoords, userZip, us
           </label>
           <input
             type="range"
-            min="100"
+            min="000"
             max="5000"
             step="100"
             value={priceRange[1]}
@@ -98,7 +98,7 @@ export default function BandsPage({ bands, navigate, locationCoords, userZip, us
 
                   <button
                     className="secondary-btn"
-                    onClick={() => navigate(`/bands/${band._id}`)}
+                    onClick={() => navigate(`/band/${band._id}/public`)}
                   >
                     Open Profile
                   </button>

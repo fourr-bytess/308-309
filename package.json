@@ -18,7 +18,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev -w react-frontend",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "build": "node build/build.mjs 18.19.0",
     "lint": "npx eslint .",

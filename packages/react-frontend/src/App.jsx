@@ -7,7 +7,8 @@ import {
   Route,
   Link,
 } from "react-router-dom";
-import logoG from './assets/giggly_g_logo-removebg-preview.png';
+import Gigs from "./components/Gigs.jsx";
+import logoG from "./assets/giggly_g_logo-removebg-preview.png";
 import {
   authFetch,
   clearAuthToken,
@@ -136,16 +137,15 @@ export default function App() {
 
   const [bandDetails, setBandDetails] = useState(null);
   const [bandDetailsError, setBandDetailsError] = useState("");
-  const[editingBio, setEditingBio] = useState(false);
+  const [editingBio, setEditingBio] = useState(false);
   const [tempBio, setTempBio] = useState("");
   const [createBandMessage, setCreateBandMessage] = useState("");
   const [createBandForm, setCreateBandForm] = useState({
     name: "",
     genre: "",
     location: "",
-    minPrice: "",
-    maxPrice: "",
-    bio: ""
+    rate: "",
+    bio: "",
   });
 
   const [musicianUploadMessage, setMusicianUploadMessage] = useState("");
@@ -155,10 +155,14 @@ export default function App() {
     name: "",
     description: "",
     genre: "",
-    location: "",
+    zip: "",
+    address: "",
+    capacity: "",
     minPrice: "",
     maxPrice: "",
     date: "",
+    startTime: "",
+    endTime: "",
   });
 
   function requireLogin(targetPath, expectedRole) {
@@ -288,7 +292,9 @@ export default function App() {
 
   async function handleAuthSubmit(desiredFrontendRole) {
     setAuthError("");
-    const email = String(loginEmail || "").trim().toLowerCase();
+    const email = String(loginEmail || "")
+      .trim()
+      .toLowerCase();
     const password = String(loginPassword || "");
     if (!email || !password) {
       setAuthError("Please enter an email and password.");
@@ -343,11 +349,11 @@ export default function App() {
       }
 
       const from = location.state?.from?.pathname;
-      navigate(
-        from ||
-          (frontendRole === "Venue" ? "/dashboard" : "/gigs"),
-        { replace: true },
-      );
+      if (frontendRole === "Venue") {
+        navigate(from || "/dashboard", { replace: true });
+      } else {
+        navigate("/gigs", { replace: true });
+      }
     } catch (err) {
       setIsLoggedIn(false);
       setMusicianId("");
@@ -386,24 +392,20 @@ export default function App() {
   const currentUserId = authUser?.id || "";
   const canManageCurrentBand = Boolean(
     isLoggedIn &&
-      profile.role === "Artist" &&
-      bandDetails &&
-      (
-        String(bandDetails.owner_user || "") === currentUserId ||
-        (musicianId &&
-          (bandDetails.members || []).some(
-            (memberId) => String(memberId) === String(musicianId),
-          ))
-      ),
+    profile.role === "Artist" &&
+    bandDetails &&
+    (String(bandDetails.owner_user || "") === currentUserId ||
+      (musicianId &&
+        (bandDetails.members || []).some(
+          (memberId) => String(memberId) === String(musicianId),
+        ))),
   );
   const canManageCurrentMusicianPage = Boolean(
     isLoggedIn &&
-      profile.role === "Artist" &&
-      musicianDetails &&
-      (
-        String(musicianDetails.owner_user || "") === currentUserId ||
-        (musicianId && musicianId === pathMusicianId)
-      ),
+    profile.role === "Artist" &&
+    musicianDetails &&
+    (String(musicianDetails.owner_user || "") === currentUserId ||
+      (musicianId && musicianId === pathMusicianId)),
   );
 
   async function uploadMusicianProfilePicture(file) {
@@ -414,7 +416,9 @@ export default function App() {
     }
 
     if (profile.role !== "Artist") {
-      setMusicianUploadMessage("Only artist accounts can edit musician profiles.");
+      setMusicianUploadMessage(
+        "Only artist accounts can edit musician profiles.",
+      );
       return;
     }
 
@@ -506,9 +510,12 @@ export default function App() {
       return;
     }
 
-    const response = await authFetch(`/musicians/${pathMusicianId}/videos/${videoId}`, {
-      method: "DELETE",
-    });
+    const response = await authFetch(
+      `/musicians/${pathMusicianId}/videos/${videoId}`,
+      {
+        method: "DELETE",
+      },
+    );
     const payload = await response.json();
     if (!response.ok) {
       setMusicianUploadMessage(payload.error || "Failed to remove video.");
@@ -539,10 +546,13 @@ export default function App() {
     const body = new FormData();
     body.append("image", file);
 
-    const response = await authFetch(`/bands/${bandDetails._id}/profile-picture`, {
-      method: "POST",
-      body,
-    });
+    const response = await authFetch(
+      `/bands/${bandDetails._id}/profile-picture`,
+      {
+        method: "POST",
+        body,
+      },
+    );
     const payload = await response.json();
 
     if (!response.ok) {
@@ -623,27 +633,27 @@ export default function App() {
     }
 
     try {
-        const response = await authFetch(`/bands/${bandDetails._id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ videoUrl: bandVideoLink }),
-        });
+      const response = await authFetch(`/bands/${bandDetails._id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl: bandVideoLink }),
+      });
 
-        if (response.status === 401) {
-          setBandUploadMessage("Session expired. Please log out and back in.");
-          return;
-        }
-
-        const payload = await response.json();
-
-        if (response.ok) {
-          setBandDetails(payload.data); 
-          setBandVideoLink(""); 
-          setBandUploadMessage("Video added!");
-        }
-      } catch (error) {
-        console.error("Error:", error);
+      if (response.status === 401) {
+        setBandUploadMessage("Session expired. Please log out and back in.");
+        return;
       }
+
+      const payload = await response.json();
+
+      if (response.ok) {
+        setBandDetails(payload.data);
+        setBandVideoLink("");
+        setBandUploadMessage("Video added!");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
   }
 
   async function removeBandVideo(videoId) {
@@ -652,9 +662,12 @@ export default function App() {
       return;
     }
 
-    const response = await authFetch(`/bands/${bandDetails._id}/videos/${videoId}`, {
-      method: "DELETE",
-    });
+    const response = await authFetch(
+      `/bands/${bandDetails._id}/videos/${videoId}`,
+      {
+        method: "DELETE",
+      },
+    );
     const payload = await response.json();
     if (response.ok) setBandDetails(payload.data);
   }
@@ -672,6 +685,10 @@ export default function App() {
       setCreateBandMessage("Band name is required.");
       return;
     }
+    if (!/^\d{5}$/.test(createBandForm.location.trim())) {
+      setCreateBandMessage("Enter a valid 5-digit ZIP code.");
+      return;
+    }
 
     if (!musicianId) {
       setCreateBandMessage(
@@ -680,15 +697,10 @@ export default function App() {
       return;
     }
 
-    const minPrice = Number(createBandForm.minPrice || 0);
-    const maxPrice = Number(createBandForm.maxPrice || 0);
-    if (
-      Number.isNaN(minPrice) ||
-      Number.isNaN(maxPrice) ||
-      minPrice < 0 ||
-      maxPrice < minPrice
-    ) {
-      setCreateBandMessage("Enter a valid price range.");
+    const rate = Number(createBandForm.rate || 0);
+
+    if (Number.isNaN(rate) || rate < 0) {
+      setCreateBandMessage("Enter a valid band rate.");
       return;
     }
 
@@ -699,10 +711,10 @@ export default function App() {
         ? [createBandForm.genre.trim().toLowerCase()]
         : [],
       locations: createBandForm.location.trim()
-        ? [createBandForm.location.trim().toLowerCase()]
+        ? [createBandForm.location.trim()]
         : [],
-      price_range: [minPrice, maxPrice],
-      bio: createBandForm.bio
+      price_range: [rate, rate],
+      bio: createBandForm.bio,
     };
 
     const response = await authFetch(`/bands`, {
@@ -731,8 +743,8 @@ export default function App() {
       name: "",
       genre: "",
       location: "",
-      minPrice: "",
-      maxPrice: "",
+      rate: "",
+      bio: "",
     });
     navigate("/my-band");
   }
@@ -755,15 +767,39 @@ export default function App() {
       return;
     }
 
+    if (!/^\d{5}$/.test(createGigForm.zip.trim())) {
+      setCreateGigMessage("Enter a valid 5-digit ZIP code.");
+      return;
+    }
+
+    const capacity = Number(createGigForm.capacity || 0);
+
+    if (Number.isNaN(capacity) || capacity <= 0) {
+      setCreateGigMessage("Enter a valid venue capacity.");
+      return;
+    }
+
     const minPrice = Number(createGigForm.minPrice || 0);
     const maxPrice = Number(createGigForm.maxPrice || 0);
+
     if (
       Number.isNaN(minPrice) ||
       Number.isNaN(maxPrice) ||
-      minPrice < 0 ||
+      minPrice <= 0 ||
+      maxPrice <= 0 ||
       maxPrice < minPrice
     ) {
-      setCreateGigMessage("Enter a valid price range.");
+      setCreateGigMessage("Enter a valid pay range.");
+      return;
+    }
+
+    if (!createGigForm.startTime || !createGigForm.endTime) {
+      setCreateGigMessage("Enter a start and finish time.");
+      return;
+    }
+
+    if (createGigForm.endTime <= createGigForm.startTime) {
+      setCreateGigMessage("Finish time must be after start time.");
       return;
     }
 
@@ -773,12 +809,14 @@ export default function App() {
       genres: createGigForm.genre.trim()
         ? [createGigForm.genre.trim().toLowerCase()]
         : [],
-      location: createGigForm.location.trim().toLowerCase(),
+      location: createGigForm.zip.trim(),
+      address: createGigForm.address.trim(),
+      capacity,
       price_range: [minPrice, maxPrice],
       date: createGigForm.date
         ? new Date(createGigForm.date).toISOString()
         : new Date().toISOString(),
-      time: [],
+      time: [createGigForm.startTime, createGigForm.endTime],
       host: venueId,
       booked: false,
       bands_hired: [],
@@ -790,6 +828,7 @@ export default function App() {
       body: JSON.stringify(payload),
     });
     const data = await response.json();
+    
     if (!response.ok || !data.data?._id) {
       setCreateGigMessage(data.error || "Failed to create gig.");
       return;
@@ -804,10 +843,14 @@ export default function App() {
       name: "",
       description: "",
       genre: "",
-      location: "",
+      zip: "",
+      address: "",
+      capacity: "",
       minPrice: "",
       maxPrice: "",
       date: "",
+      startTime: "",
+      endTime: "",
     });
   }
 
@@ -836,7 +879,9 @@ export default function App() {
         setIsLoggedIn(true);
 
         if (frontendRole === "Artist" && verifiedUser.email) {
-          const musicianRecord = await createOrLoadMusicianProfile(verifiedUser.email);
+          const musicianRecord = await createOrLoadMusicianProfile(
+            verifiedUser.email,
+          );
           setMusicianId(data?.profiles?.musicianId || musicianRecord._id || "");
           setVenueId("");
           setProfile((prev) => ({
@@ -846,7 +891,9 @@ export default function App() {
         }
 
         if (frontendRole === "Venue" && verifiedUser.email) {
-          const venueRecord = await createOrLoadVenueProfile(verifiedUser.email);
+          const venueRecord = await createOrLoadVenueProfile(
+            verifiedUser.email,
+          );
           setVenueId(data?.profiles?.venueId || venueRecord._id || "");
           setMusicianId("");
         }
@@ -1095,19 +1142,19 @@ if (venueId) {
   }, [location.pathname, pathMusicianId, venueId]);
 
   const saveBio = async () => {
-  try {
-    const result = await updateBand(bandDetails._id, { bio: tempBio });
+    try {
+      const result = await updateBand(bandDetails._id, { bio: tempBio });
 
-    if (result) {
-      setBandDetails({ ...bandDetails, bio: tempBio });
-      setEditingBio(false);
-      setBandUploadMessage("Bio updated successfully!");
+      if (result) {
+        setBandDetails({ ...bandDetails, bio: tempBio });
+        setEditingBio(false);
+        setBandUploadMessage("Bio updated successfully!");
+      }
+    } catch (err) {
+      console.error("Update failed:", err);
+      setBandUploadMessage("Update failed.");
     }
-  } catch (err) {
-    console.error("Update failed:", err);
-    setBandUploadMessage("Update failed.");
-  }
-};
+  };
 
 if (!authTokenChecked) {
       return (
@@ -1400,7 +1447,7 @@ if (!authTokenChecked) {
                   type="button"
                   id="findGigBtn"
                   onClick={() => {
-                    requireLogin("/location", "Artist");
+                    requireLogin("/gigs", "Artist");
                   }}
                 >
                   Find a Gig
@@ -1414,6 +1461,7 @@ if (!authTokenChecked) {
           element={
             <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
               <Location
+                userRole={profile.role}
                 initialSearchArea={searchArea}
                 onSetSearchArea={(area) => setSearchArea(area)}
               />
@@ -1446,36 +1494,34 @@ if (!authTokenChecked) {
               redirectTo="/bands"
             >
               <section id="bands" className="page active">
-                  <h2>My Band</h2>
+                <h2>My Band</h2>
 
-                  <button
-                    type="button"
-                    className="create-band-tile"
-                    onClick={() => navigate("/bands/create")}
-                  >
-                    <span className="create-band-tile-title">Create Band</span>
-                    <span className="create-band-tile-subtitle">
-                      Create your band profile, then add photos in its profile
-                      page
-                    </span>
-                  </button>
+                <button
+                  type="button"
+                  className="create-band-tile"
+                  onClick={() => navigate("/bands/create")}
+                >
+                  <span className="create-band-tile-title">Create Band</span>
+                  <span className="create-band-tile-subtitle">
+                    Create your band profile, then add photos in its profile
+                    page
+                  </span>
+                </button>
 
-                  <div className="card-grid">
-                    {bands
-                      .filter((band) =>
-                        (band.members || []).includes(musicianId),
-                      )
-                      .map((band) => (
-                        <div key={band._id} className="card band-card">
-                          <h3>{band.name}</h3>
-                          <p>{band.locations?.[0] || "No location yet"}</p>
-                          <div className="band-card-buttons">
-                            <Link
+                <div className="card-grid">
+                  {bands
+                    .filter((band) => (band.members || []).includes(musicianId))
+                    .map((band) => (
+                      <div key={band._id} className="card band-card">
+                        <h3>{band.name}</h3>
+                        <p>{band.locations?.[0] || "No location yet"}</p>
+                        <div className="band-card-buttons">
+                          <Link
                             to={`/band/${band._id}/public`}
                             className="view-public-btn"
                           >
                             View Public Page
-                            </Link>
+                          </Link>
                           <button
                             type="button"
                             className="secondary-btn"
@@ -1484,10 +1530,10 @@ if (!authTokenChecked) {
                             Manage Band
                           </button>
                         </div>
-                  </div>
-                      ))}
                       </div>
-                </section>
+                    ))}
+                </div>
+              </section>
             </ProtectedRoute>
           }
         />
@@ -1502,96 +1548,99 @@ if (!authTokenChecked) {
               redirectTo="/bands"
             >
               <section id="bands" className="page active">
-                  <div className="create-band-form-page">
-                    <form
-                      className="create-band-form"
-                      onSubmit={createBandFromForm}
-                    >
-                      <h3>Create Band</h3>
+                <div className="create-band-form-page">
+                  <form
+                    className="create-band-form"
+                    onSubmit={createBandFromForm}
+                  >
+                    <h3>Create Band</h3>
+                    <input
+                      type="text"
+                      placeholder="Band name"
+                      value={createBandForm.name}
+                      onChange={(event) =>
+                        setCreateBandForm((prev) => ({
+                          ...prev,
+                          name: event.target.value,
+                        }))
+                      }
+                    />
+                    <input
+                      type="text"
+                      placeholder="Genre (optional)"
+                      value={createBandForm.genre}
+                      onChange={(event) =>
+                        setCreateBandForm((prev) => ({
+                          ...prev,
+                          genre: event.target.value,
+                        }))
+                      }
+                    />
+                    <input
+                      type="text"
+                      placeholder="ZIP Code, ex: 93401"
+                      value={createBandForm.location}
+                      maxLength={5}
+                      required
+                      inputMode="numeric"
+                      pattern="[0-9]{5}"
+                      onChange={(event) => {
+                        const onlyNumbers = event.target.value.replace(
+                          /\D/g,
+                          "",
+                        );
+
+                        setCreateBandForm((prev) => ({
+                          ...prev,
+                          location: onlyNumbers.slice(0, 5),
+                        }));
+                      }}
+                    />
+                    <div className="create-band-price-row">
                       <input
-                        type="text"
-                        placeholder="Band name"
-                        value={createBandForm.name}
+                        type="number"
+                        min="0"
+                        placeholder="Fixed rate, ex: 400"
+                        value={createBandForm.rate}
                         onChange={(event) =>
                           setCreateBandForm((prev) => ({
                             ...prev,
-                            name: event.target.value,
+                            rate: event.target.value,
                           }))
                         }
                       />
                       <input
-                        type="text"
-                        placeholder="Genre (optional)"
-                        value={createBandForm.genre}
-                        onChange={(event) =>
-                          setCreateBandForm((prev) => ({
-                            ...prev,
-                            genre: event.target.value,
-                          }))
-                        }
-                      />
-                      <input
-                        type="text"
-                        placeholder="Location (optional)"
-                        value={createBandForm.location}
-                        onChange={(event) =>
-                          setCreateBandForm((prev) => ({
-                            ...prev,
-                            location: event.target.value,
-                          }))
-                        }
-                      />
-                      <div className="create-band-price-row">
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="Min price"
-                          value={createBandForm.minPrice}
-                          onChange={(event) =>
-                            setCreateBandForm((prev) => ({
-                              ...prev,
-                              minPrice: event.target.value,
-                            }))
-                          }
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="Max price"
-                          value={createBandForm.maxPrice}
-                          onChange={(event) =>
-                            setCreateBandForm((prev) => ({
-                              ...prev,
-                              maxPrice: event.target.value,
-                            }))
-                          }
-                        />
-                        <input
                         type="text"
                         placeholder="Add a bio for your band"
                         value={createBandForm.bio}
                         className="create-band-textarea"
-                        onChange={(event) => setCreateBandForm((prev) => ({...prev, bio: event.target.value}))}/>
-                      </div>
-                      <button
-                        type="submit"
-                        className="primary-btn create-band-btn"
-                      >
-                        Create Band
-                      </button>
-                      {createBandMessage && (
-                        <p className="upload-message">{createBandMessage}</p>
-                      )}
-                      <button
-                        type="button"
-                        className="secondary-btn"
-                        onClick={() => navigate("/my-band")}
-                      >
-                        Back to My Band
-                      </button>
-                    </form>
-                  </div>
-                </section>
+                        onChange={(event) =>
+                          setCreateBandForm((prev) => ({
+                            ...prev,
+                            bio: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="primary-btn create-band-btn"
+                    >
+                      Create Band
+                    </button>
+                    {createBandMessage && (
+                      <p className="upload-message">{createBandMessage}</p>
+                    )}
+                    <button
+                      type="button"
+                      className="secondary-btn"
+                      onClick={() => navigate("/my-band")}
+                    >
+                      Back to My Band
+                    </button>
+                  </form>
+                </div>
+              </section>
             </ProtectedRoute>
           }
         />
@@ -1651,26 +1700,39 @@ if (!authTokenChecked) {
                         <h3>Band Bio</h3>
                         {editingBio ? (
                           <>
-                          <textarea
-                          className="create-band-textarea"
-                          value={tempBio}
-                          onChange={(e) => setTempBio(e.target.value)}/>
-                          <div className="button-group">
-                            <button className="primary-btn" onClick={saveBio}>Save Bio</button>
-                            <button className="secondary-btn" onClick={() => setEditingBio(false)}>Cancel</button>
-                        </div>
-                        </>
+                            <textarea
+                              className="create-band-textarea"
+                              value={tempBio}
+                              onChange={(e) => setTempBio(e.target.value)}
+                            />
+                            <div className="button-group">
+                              <button className="primary-btn" onClick={saveBio}>
+                                Save Bio
+                              </button>
+                              <button
+                                className="secondary-btn"
+                                onClick={() => setEditingBio(false)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </>
                         ) : (
                           <>
-                          <p className="current-bio">{bandDetails.bio || "No bio added yet."}</p>
-                          <button className="secondary-btn" onClick={() => {
-                            setTempBio(bandDetails.bio || "");
-                            setEditingBio(true);
-                        }}>
-                        Edit Bio
-                        </button>
-                        </>
-                      )}
+                            <p className="current-bio">
+                              {bandDetails.bio || "No bio added yet."}
+                            </p>
+                            <button
+                              className="secondary-btn"
+                              onClick={() => {
+                                setTempBio(bandDetails.bio || "");
+                                setEditingBio(true);
+                              }}
+                            >
+                              Edit Bio
+                            </button>
+                          </>
+                        )}
                       </div>
 
                       <div className="profile-row upload-row">
@@ -1808,14 +1870,18 @@ if (!authTokenChecked) {
                           marginBottom: "20px",
                         }}
                       >
-                        <h4 style={{ marginBottom: "10px" }}>Manage your page</h4>
+                        <h4 style={{ marginBottom: "10px" }}>
+                          Manage your page
+                        </h4>
                         <div className="profile-row upload-row">
                           <span className="label">Upload YouTube Video</span>
                           <input
                             className="edit-input"
                             placeholder="Paste YouTube link here"
                             value={musicianVideoLink}
-                            onChange={(e) => setMusicianVideoLink(e.target.value)}
+                            onChange={(e) =>
+                              setMusicianVideoLink(e.target.value)
+                            }
                           />
                           <button
                             className="secondary-btn"
@@ -1879,44 +1945,10 @@ if (!authTokenChecked) {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
-              allowedRoles={["Artist"]}
+              allowedRoles={["Artist", "Venue"]}
               redirectTo="/dashboard"
             >
-              <section id="gigs" className="page active">
-                <h2>Available Gigs</h2>
-
-                <div className="search-row">
-                  <input
-                    type="text"
-                    placeholder="Search for gigs near you..."
-                  />
-
-                  <select>
-                    <option>Filter by</option>
-                    <option>Genre</option>
-                    <option>Pay</option>
-                    <option>Distance</option>
-                  </select>
-                </div>
-
-                <div className="card-grid">
-                  {gigs.length === 0 ? (
-                    <p style={{ color: "white" }}>No gigs available yet.</p>
-                  ) : (
-                    gigs.map((gig, index) => (
-                      <div key={index} className="card">
-                        <h3>{gig.name}</h3>
-                        <p>{gig.description}</p>
-                        <p>{gig.location}</p>
-                        <p>
-                          ${gig.price_range?.[0] ?? 0} - $
-                          {gig.price_range?.[1] ?? 0}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section>
+              <Gigs gigs={gigs} />
             </ProtectedRoute>
           }
         />
@@ -1959,7 +1991,9 @@ if (!authTokenChecked) {
                       className={`login-role-btn ${preferredLoginRole === "Artist" ? "recommended-role" : ""}`}
                       onClick={() => handleAuthSubmit("Artist")}
                     >
-                      {isSigningUp ? "Sign Up as Musician" : "Log In As Musician"}
+                      {isSigningUp
+                        ? "Sign Up as Musician"
+                        : "Log In As Musician"}
                     </button>
                   )}
 
@@ -1975,7 +2009,9 @@ if (!authTokenChecked) {
                   )}
                 </div>
 
-                {authError && <p className="upload-message error">{authError}</p>}
+                {authError && (
+                  <p className="upload-message error">{authError}</p>
+                )}
 
                 <button
                   type="button"
@@ -1985,7 +2021,9 @@ if (!authTokenChecked) {
                     setIsSigningUp((prev) => !prev);
                   }}
                 >
-                  {isSigningUp ? "Have an account? Sign in" : "New here? Create an account"}
+                  {isSigningUp
+                    ? "Have an account? Sign in"
+                    : "New here? Create an account"}
                 </button>
               </div>
             </section>
@@ -2193,18 +2231,54 @@ if (!authTokenChecked) {
                     />
                     <input
                       type="text"
-                      placeholder="Location"
-                      value={createGigForm.location}
+                      placeholder="ZIP Code, ex: 93401"
+                      value={createGigForm.zip}
+                      maxLength={5}
+                      required
+                      inputMode="numeric"
+                      pattern="[0-9]{5}"
+                      onChange={(event) => {
+                        const onlyNumbers = event.target.value.replace(
+                          /\D/g,
+                          "",
+                        );
+
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          zip: onlyNumbers.slice(0, 5),
+                        }));
+                      }}
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Address optional, ex: 123 Main St"
+                      value={createGigForm.address}
                       onChange={(event) =>
                         setCreateGigForm((prev) => ({
                           ...prev,
-                          location: event.target.value,
+                          address: event.target.value,
+                        }))
+                      }
+                    />
+
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Capacity, ex: 150"
+                      value={createGigForm.capacity}
+                      required
+                      onChange={(event) =>
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          capacity: event.target.value,
                         }))
                       }
                     />
                     <input
                       type="date"
                       value={createGigForm.date}
+                      required
                       onChange={(event) =>
                         setCreateGigForm((prev) => ({
                           ...prev,
@@ -2212,31 +2286,62 @@ if (!authTokenChecked) {
                         }))
                       }
                     />
+
                     <div className="create-band-price-row">
                       <input
-                        type="number"
-                        min="0"
-                        placeholder="Min price"
-                        value={createGigForm.minPrice}
+                        type="time"
+                        value={createGigForm.startTime}
+                        required
                         onChange={(event) =>
                           setCreateGigForm((prev) => ({
                             ...prev,
-                            minPrice: event.target.value,
+                            startTime: event.target.value,
                           }))
                         }
                       />
+
                       <input
-                        type="number"
-                        min="0"
-                        placeholder="Max price"
-                        value={createGigForm.maxPrice}
+                        type="time"
+                        value={createGigForm.endTime}
+                        required
                         onChange={(event) =>
                           setCreateGigForm((prev) => ({
                             ...prev,
-                            maxPrice: event.target.value,
+                            endTime: event.target.value,
                           }))
                         }
                       />
+                    </div>
+                    <div className="create-band-price-row">
+                      <div className="create-band-price-row">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Min price"
+                          value={createGigForm.minPrice}
+                          required
+                          onChange={(event) =>
+                            setCreateGigForm((prev) => ({
+                              ...prev,
+                              minPrice: event.target.value,
+                            }))
+                          }
+                        />
+
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Max price"
+                          value={createGigForm.maxPrice}
+                          required
+                          onChange={(event) =>
+                            setCreateGigForm((prev) => ({
+                              ...prev,
+                              maxPrice: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
                     </div>
                     <button
                       type="submit"

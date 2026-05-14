@@ -22,10 +22,62 @@ const GigSchema = new mongoose.Schema(
       maxLength: 1000,
     },
     genres: [String],
-    location: String,
-    price_range: [Number],
-    date: Date,
-    time: [Date],
+
+    location: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    address: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    capacity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    price_range: {
+      type: [Number],
+      required: true,
+      validate: {
+        validator(value) {
+          return (
+            Array.isArray(value) &&
+            value.length === 2 &&
+            value.every((price) => Number.isFinite(price) && price > 0) &&
+            value[1] >= value[0]
+          );
+        },
+        message: "price_range must be [min, max] and max must be >= min",
+      },
+    },
+
+    date: {
+      type: Date,
+      required: true,
+    },
+
+    time: {
+      type: [String],
+      required: true,
+      validate: {
+        validator(value) {
+          return (
+            Array.isArray(value) &&
+            value.length === 2 &&
+            value[0] &&
+            value[1] &&
+            value[1] > value[0]
+          );
+        },
+        message: "time must be [startTime, endTime]",
+      },
+    },
     host: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Venue",

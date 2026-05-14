@@ -911,9 +911,10 @@ app.post(
       });
       res.status(201).json({ data: created });
     } catch (err) {
-      res.status(400).json({ error: "Failed to create gig" });
+      console.error("Failed to create gig:", err);
+      res.status(400).json({ error: err.message || "Failed to create gig" });
     }
-  })
+  }),
 );
 
 // DELETE /gigs/:id
@@ -953,7 +954,7 @@ app.get("/musicians", async (req, res) => {
     const { musicians } = await musicianServices.getMusiciansPaginated(
       cappedLimit,
       offset,
-      filters
+      filters,
     );
 
     res
@@ -1490,7 +1491,7 @@ app.get("/", (req, res) => {
   res.send("Giggly API is running !!");
 });
 
-const port = process.env.PORT || 3001;
-app.listen(process.env.PORT || port, () => {
-  console.log("REST API is listening.");
-});
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () =>
+  console.log(`Server running on http://localhost:${PORT}`),
+);

@@ -12,7 +12,7 @@ function ChangeMapView({ coords, zoom }) {
     if (map) {
       map.setView([coords.lat, coords.lng], zoom);
     }
-  }, [map, zoom]);
+  }, [map, coords.lat, coords.lng, zoom]);
 
   return null;
 }

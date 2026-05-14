@@ -503,10 +503,15 @@ input[type="range"] {
 }
 
 .radius-label {
-  margin: 10px 0;
-  font-size: 1rem;
-  color: #f2e8cf;
-  margin: 10px 0;
+  color: #3a0f3a;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 18px 0 8px;
+  text-align: center;
+}
+
+.radius-label strong {
+  color: #5a0f2e;
 }
 .location-card label {
   color: #3A0F3A;  
@@ -735,3 +740,4 @@ input[type="range"] {
   margin-bottom: 15px;
   resize: vertical;
 }
+

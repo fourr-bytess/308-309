@@ -14,6 +14,8 @@ import gigServices from "./gig-services.js";
 import authServices from "./auth-services.js";
 import { VALID_ROLES } from "./user.js";
 import notificationServices from "./notification-services.js";
+import conversationServices from "./conversation-services.js";
+import messageServices from "./message-services.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1324,6 +1326,149 @@ app.delete("/notifications/:id", async (req, res) => {
     res.status(200).json({ data: deleted });
   } catch (err) {
     res.status(400).json({ error: "Failed to delete notification" });
+  }
+});
+
+app.get("/conversations", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const conversations =
+      await conversationServices.getConversationsByUser(String(userId));
+
+    res.status(200).json({ data: conversations });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch conversations" });
+  }
+});
+
+app.post("/conversations", async (req, res) => {
+  try {
+    const { bandId, venueId, bandUserId, venueUserId } = req.body;
+
+    if (!bandId || !venueId || !bandUserId || !venueUserId) {
+      return res.status(400).json({
+        error: "bandId, venueId, bandUserId, and venueUserId are required",
+      });
+    }
+
+    const existing =
+      await conversationServices.findConversationByParticipants({
+        bandId,
+        venueId,
+        bandUserId: String(bandUserId),
+        venueUserId: String(venueUserId),
+      });
+
+    if (existing) {
+      return res.status(200).json({ data: existing });
+    }
+
+    const conversation = await conversationServices.addConversation({
+      bandId,
+      venueId,
+      bandUserId: String(bandUserId),
+      venueUserId: String(venueUserId),
+    });
+
+    res.status(201).json({ data: conversation });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create conversation" });
+  }
+});
+
+app.get("/conversations/:id/messages", async (req, res) => {
+  try {
+    const messages = await messageServices.getMessages(req.params.id);
+    res.status(200).json({ data: messages });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+app.post("/conversations/:id/messages", async (req, res) => {
+  try {
+    const { senderUserId, senderRole, text } = req.body;
+
+    if (!senderUserId || !senderRole || !text) {
+      return res.status(400).json({
+        error: "senderUserId, senderRole, and text are required",
+      });
+    }
+
+    const conversation = await conversationServices.findConversationById(
+      req.params.id
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    const message = await messageServices.addMessage({
+      conversationId: req.params.id,
+      senderUserId: String(senderUserId),
+      senderRole,
+      text,
+      readByUserIds: [String(senderUserId)],
+    });
+
+    await conversationServices.updateConversationLastMessage(
+      req.params.id,
+      text
+    );
+
+    const receiverUserId =
+      String(senderUserId) === String(conversation.bandUserId)
+        ? String(conversation.venueUserId)
+        : String(conversation.bandUserId);
+
+    await notificationServices.createNotification({
+      userId: receiverUserId,
+      type: "message",
+      title: "New message",
+      body: "You have a new message.",
+      relatedId: String(conversation._id),
+    });
+
+    res.status(201).json({ data: message });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to send message" });
+  }
+});
+
+app.put("/conversations/:id/read", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    await messageServices.markMessagesRead(req.params.id, String(userId));
+
+    res.status(200).json({ data: { success: true } });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to mark conversation as read" });
+  }
+});
+
+app.delete("/conversations/:id", async (req, res) => {
+  try {
+    const deleted = await conversationServices.findConversationByIdAndDelete(
+      req.params.id
+    );
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete conversation" });
   }
 });
 

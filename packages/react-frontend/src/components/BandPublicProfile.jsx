@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
-const BandPublicProfile = () => {
+const BandPublicProfile = ({
+  isLoggedIn,
+  userRole,
+  venueId,
+  onStartConversation,
+}) => {
   const { id } = useParams();
   const [band, setBand] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +33,15 @@ const BandPublicProfile = () => {
       <div className="band-header">
         <h1 className="band-title">{band.name}</h1>
         <p className="band-genre">{band.genre}</p>
+         {isLoggedIn && userRole === "Venue" && venueId && (
+    <button
+      type="button"
+      className="primary-btn"
+      onClick={() => onStartConversation(band)}
+    >
+      Message Band
+    </button>
+  )}
       </div>
 
       <section className="band-section">

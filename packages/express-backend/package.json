@@ -1,6 +1,7 @@
 {
   "name": "express-backend",
   "version": "4.7.0",
+  "type": "module",
   "description": "Node.js Streams, a user-land copy of the stream library from Node.js",
   "homepage": "https://github.com/nodejs/readable-stream",
   "license": "MIT",
@@ -46,13 +47,22 @@
     "test:format": "prettier -c src lib test",
     "lint": "npx eslint .",
     "test": "npx jest",
-    "dev": "nodemon backend_with_db.js",
-    "start": "node backend_with_db.js"
+    "dev": "nodemon --exec \"node backend.js\"",
+    "start": "node backend.js"
   },
   "dependencies": {
     "abort-controller": "^3.0.0",
+    "bcrypt": "^6.0.0",
     "buffer": "^6.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "events": "^3.3.0",
+    "express": "^5.2.1",
+    "fs": "^0.0.1-security",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.6.2",
+    "multer": "^2.1.1",
+    "path": "^0.12.7",
     "process": "^0.11.10",
     "string_decoder": "^1.3.0"
   },

@@ -19,7 +19,7 @@ import {
 } from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
-import Location from "./components/Location.jsx";
+import Location from "./components/location.jsx";
 import BandsPage from "./components/Bands.jsx";
 
 const API_BASE_URL = "http://localhost:3001";

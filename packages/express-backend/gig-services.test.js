@@ -21,7 +21,7 @@ describe("Gig Model and Functions Test Suite", () => {
         "Jazz Show",
         "Jazz music for age 21+",
         ["Jazz"],
-        ["San Francisco"],
+        "San Francisco",
         null,
         null,
         null,
@@ -51,7 +51,7 @@ describe("Gig Model and Functions Test Suite", () => {
         price_range: [200, 300],
         date: mockDate,
         time: timeRange,
-        booked: () => true,
+        booked: true,
       };
       gigModel.countDocuments.mockResolvedValue(5);
       await gigServices.getGigsCount(filters);

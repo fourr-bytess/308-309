@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-const {Schema} = mongoose;
+const { Schema } = mongoose;
 
 const conversationSchema = new Schema({
   bandId: {
@@ -43,7 +43,7 @@ conversationSchema.index(
   },
   {
     unique: true,
-  },
+  }
 );
 
 const Conversation = mongoose.model("Conversation", conversationSchema);

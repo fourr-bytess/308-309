@@ -9,9 +9,7 @@ function getMessagesCount(filters) {
 }
 
 function getMessagesPaginated(limit, offset, filters) {
-  return Message.find(filters)
-    .skip(offset)
-    .limit(limit);
+  return Message.find(filters).skip(offset).limit(limit);
 }
 
 function addMessage(message) {

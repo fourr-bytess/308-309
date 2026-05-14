@@ -14,9 +14,7 @@ function getConversationsCount(filters) {
 }
 
 function getConversationsPaginated(limit, offset, filters) {
-  return Conversation.find(filters)
-    .skip(offset)
-    .limit(limit);
+  return Conversation.find(filters).skip(offset).limit(limit);
 }
 
 function addConversation(data) {

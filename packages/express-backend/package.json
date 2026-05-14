@@ -41,9 +41,10 @@
     "test:bundlers": "node test/browser/runner-node.mjs",
     "test:readable-stream-only": "node readable-stream-test/runner-prepare.mjs",
     "coverage": "c8 -c ./c8.json tap --rcfile=./tap.yml test/parallel/test-*.js test/ours/test-*.js",
-    "format": "prettier -w src lib test",
+    "format": "prettier --write .",
+    "format:check": "npx prettier --check .",
     "test:format": "prettier -c src lib test",
-    "lint": "npx eslint . && npx prettier --check .",
+    "lint": "npx eslint .",
     "test": "npx jest",
     "dev": "nodemon backend_with_db.js",
     "start": "node backend_with_db.js"

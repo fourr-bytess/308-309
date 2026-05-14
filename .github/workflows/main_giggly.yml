@@ -64,6 +64,6 @@ jobs:
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
         with:
-          app-name: "giggly"
-          slot-name: "giggly-bmdtgwaafaf0hwa4"
+          app-name: "giggly-bmdtgwaafaf0hwa4"
+          slot-name: "Production"
           package: .

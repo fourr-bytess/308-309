@@ -1,6 +1,41 @@
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Circle } from "react-leaflet";
 
+function getDistanceInMiles(lat1, lng1, lat2, lng2) {
+  const earthRadiusMiles = 3958.8;
+
+  const latDifference = ((lat2 - lat1) * Math.PI) / 180;
+  const lngDifference = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(latDifference / 2) * Math.sin(latDifference / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(lngDifference / 2) *
+      Math.sin(lngDifference / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusMiles * c;
+}
+
+async function getCoordsFromZip(zipCode) {
+  if (!zipCode) return null;
+
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zipCode}&country=USA`,
+  );
+
+  const data = await res.json();
+
+  if (!data.length) return null;
+
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+  };
+}
+
 export default function BandsPage({
   bands,
   navigate,
@@ -14,6 +49,7 @@ export default function BandsPage({
   const [searchText, setSearchText] = useState("");
   const [zipCode, setZipCode] = useState(userZip || "");
   const [coords, setCoords] = useState(locationCoords || null);
+  const [bandCoords, setBandCoords] = useState({});
 
   useEffect(() => {
     setZipCode(userZip || "");
@@ -28,6 +64,30 @@ export default function BandsPage({
       setDistance(userRadius);
     }
   }, [userRadius]);
+  useEffect(() => {
+    async function loadBandCoordinates() {
+      const coordsByBandId = {};
+
+      for (const band of bands) {
+        const bandZip = band.locations?.[0] || band.location;
+
+        if (!bandZip) continue;
+
+        const coordinates = await getCoordsFromZip(bandZip);
+
+        if (coordinates) {
+          coordsByBandId[band._id] = coordinates;
+        }
+      }
+
+      setBandCoords(coordsByBandId);
+    }
+
+    if (bands.length > 0) {
+      loadBandCoordinates();
+    }
+  }, [bands]);
+
   const zoomLevel =
     distance <= 5 ? 10 : distance <= 10 ? 9.5 : distance <= 15 ? 9 : 8;
 
@@ -57,7 +117,9 @@ export default function BandsPage({
 
   const filteredBands = bands.filter((band) => {
     const search = searchText.toLowerCase();
+
     const bandName = band.name?.toLowerCase() || "";
+
     const bandLocation =
       band.locations?.[0]?.toLowerCase() || band.location?.toLowerCase() || "";
 
@@ -76,9 +138,22 @@ export default function BandsPage({
       return false;
     }
 
-    const minBandPrice = band.price_range?.[0] ?? 0;
-    if (minBandPrice > maxPrice) {
+    const bandRate = band.price_range?.[1] ?? band.price_range?.[0] ?? 0;
+
+    if (bandRate > maxPrice) {
       return false;
+    }
+    if (coords && bandCoords[band._id]) {
+      const milesAway = getDistanceInMiles(
+        coords.lat,
+        coords.lng,
+        bandCoords[band._id].lat,
+        bandCoords[band._id].lng,
+      );
+
+      if (milesAway > distance) {
+        return false;
+      }
     }
 
     return true;
@@ -136,7 +211,7 @@ export default function BandsPage({
             value={selectedGenre}
             onChange={(e) => setSelectedGenre(e.target.value)}
           >
-            <option>All Genres</option>
+            <option value="All">All Genres</option>
             <option>Rock</option>
             <option>Jazz</option>
             <option>Pop</option>
@@ -179,13 +254,16 @@ export default function BandsPage({
               filteredBands.map((band) => (
                 <div key={band._id} className="card band-card">
                   <h3>{band.name}</h3>
+
                   <p>{band.locations?.[0] || band.location || "No location"}</p>
+
                   <p>
                     {band.genres?.length ? band.genres.join(", ") : "No genre"}
                   </p>
+
                   <p>
-                    ${band.price_range?.[0] ?? 0} - $
-                    {band.price_range?.[1] ?? 0}
+                    Fixed Rate: $
+                    {band.price_range?.[1] ?? band.price_range?.[0] ?? 0}
                   </p>
 
                   <button

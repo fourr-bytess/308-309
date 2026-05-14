@@ -121,8 +121,7 @@ export default function App() {
     name: "",
     genre: "",
     location: "",
-    minPrice: "",
-    maxPrice: "",
+    rate: "",
     bio: "",
   });
 
@@ -133,10 +132,14 @@ export default function App() {
     name: "",
     description: "",
     genre: "",
-    location: "",
+    zip: "",
+    address: "",
+    capacity: "",
     minPrice: "",
     maxPrice: "",
     date: "",
+    startTime: "",
+    endTime: "",
   });
 
   function requireLogin(targetPath, expectedRole) {
@@ -651,6 +654,10 @@ export default function App() {
       setCreateBandMessage("Band name is required.");
       return;
     }
+    if (!/^\d{5}$/.test(createBandForm.location.trim())) {
+      setCreateBandMessage("Enter a valid 5-digit ZIP code.");
+      return;
+    }
 
     if (!musicianId) {
       setCreateBandMessage(
@@ -659,15 +666,10 @@ export default function App() {
       return;
     }
 
-    const minPrice = Number(createBandForm.minPrice || 0);
-    const maxPrice = Number(createBandForm.maxPrice || 0);
-    if (
-      Number.isNaN(minPrice) ||
-      Number.isNaN(maxPrice) ||
-      minPrice < 0 ||
-      maxPrice < minPrice
-    ) {
-      setCreateBandMessage("Enter a valid price range.");
+    const rate = Number(createBandForm.rate || 0);
+
+    if (Number.isNaN(rate) || rate < 0) {
+      setCreateBandMessage("Enter a valid band rate.");
       return;
     }
 
@@ -678,9 +680,9 @@ export default function App() {
         ? [createBandForm.genre.trim().toLowerCase()]
         : [],
       locations: createBandForm.location.trim()
-        ? [createBandForm.location.trim().toLowerCase()]
+        ? [createBandForm.location.trim()]
         : [],
-      price_range: [minPrice, maxPrice],
+      price_range: [rate, rate],
       bio: createBandForm.bio,
     };
 
@@ -710,8 +712,8 @@ export default function App() {
       name: "",
       genre: "",
       location: "",
-      minPrice: "",
-      maxPrice: "",
+      rate: "",
+      bio: "",
     });
     navigate("/my-band");
   }
@@ -734,15 +736,39 @@ export default function App() {
       return;
     }
 
+    if (!/^\d{5}$/.test(createGigForm.zip.trim())) {
+      setCreateGigMessage("Enter a valid 5-digit ZIP code.");
+      return;
+    }
+
+    const capacity = Number(createGigForm.capacity || 0);
+
+    if (Number.isNaN(capacity) || capacity <= 0) {
+      setCreateGigMessage("Enter a valid venue capacity.");
+      return;
+    }
+
     const minPrice = Number(createGigForm.minPrice || 0);
     const maxPrice = Number(createGigForm.maxPrice || 0);
+
     if (
       Number.isNaN(minPrice) ||
       Number.isNaN(maxPrice) ||
-      minPrice < 0 ||
+      minPrice <= 0 ||
+      maxPrice <= 0 ||
       maxPrice < minPrice
     ) {
-      setCreateGigMessage("Enter a valid price range.");
+      setCreateGigMessage("Enter a valid pay range.");
+      return;
+    }
+
+    if (!createGigForm.startTime || !createGigForm.endTime) {
+      setCreateGigMessage("Enter a start and finish time.");
+      return;
+    }
+
+    if (createGigForm.endTime <= createGigForm.startTime) {
+      setCreateGigMessage("Finish time must be after start time.");
       return;
     }
 
@@ -752,12 +778,14 @@ export default function App() {
       genres: createGigForm.genre.trim()
         ? [createGigForm.genre.trim().toLowerCase()]
         : [],
-      location: createGigForm.location.trim().toLowerCase(),
+      location: createGigForm.zip.trim(),
+      address: createGigForm.address.trim(),
+      capacity,
       price_range: [minPrice, maxPrice],
       date: createGigForm.date
         ? new Date(createGigForm.date).toISOString()
         : new Date().toISOString(),
-      time: [],
+      time: [createGigForm.startTime, createGigForm.endTime],
       host: venueId,
       booked: false,
       bands_hired: [],
@@ -769,6 +797,7 @@ export default function App() {
       body: JSON.stringify(payload),
     });
     const data = await response.json();
+    
     if (!response.ok || !data.data?._id) {
       setCreateGigMessage(data.error || "Failed to create gig.");
       return;
@@ -783,10 +812,14 @@ export default function App() {
       name: "",
       description: "",
       genre: "",
-      location: "",
+      zip: "",
+      address: "",
+      capacity: "",
       minPrice: "",
       maxPrice: "",
       date: "",
+      startTime: "",
+      endTime: "",
     });
   }
 
@@ -1145,37 +1178,34 @@ export default function App() {
                     />
                     <input
                       type="text"
-                      placeholder="Location (optional)"
+                      placeholder="ZIP Code, ex: 93401"
                       value={createBandForm.location}
-                      onChange={(event) =>
+                      maxLength={5}
+                      required
+                      inputMode="numeric"
+                      pattern="[0-9]{5}"
+                      onChange={(event) => {
+                        const onlyNumbers = event.target.value.replace(
+                          /\D/g,
+                          "",
+                        );
+
                         setCreateBandForm((prev) => ({
                           ...prev,
-                          location: event.target.value,
-                        }))
-                      }
+                          location: onlyNumbers.slice(0, 5),
+                        }));
+                      }}
                     />
                     <div className="create-band-price-row">
                       <input
                         type="number"
                         min="0"
-                        placeholder="Min price"
-                        value={createBandForm.minPrice}
+                        placeholder="Fixed rate, ex: 400"
+                        value={createBandForm.rate}
                         onChange={(event) =>
                           setCreateBandForm((prev) => ({
                             ...prev,
-                            minPrice: event.target.value,
-                          }))
-                        }
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        placeholder="Max price"
-                        value={createBandForm.maxPrice}
-                        onChange={(event) =>
-                          setCreateBandForm((prev) => ({
-                            ...prev,
-                            maxPrice: event.target.value,
+                            rate: event.target.value,
                           }))
                         }
                       />
@@ -1791,18 +1821,54 @@ export default function App() {
                     />
                     <input
                       type="text"
-                      placeholder="Location"
-                      value={createGigForm.location}
+                      placeholder="ZIP Code, ex: 93401"
+                      value={createGigForm.zip}
+                      maxLength={5}
+                      required
+                      inputMode="numeric"
+                      pattern="[0-9]{5}"
+                      onChange={(event) => {
+                        const onlyNumbers = event.target.value.replace(
+                          /\D/g,
+                          "",
+                        );
+
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          zip: onlyNumbers.slice(0, 5),
+                        }));
+                      }}
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Address optional, ex: 123 Main St"
+                      value={createGigForm.address}
                       onChange={(event) =>
                         setCreateGigForm((prev) => ({
                           ...prev,
-                          location: event.target.value,
+                          address: event.target.value,
+                        }))
+                      }
+                    />
+
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Capacity, ex: 150"
+                      value={createGigForm.capacity}
+                      required
+                      onChange={(event) =>
+                        setCreateGigForm((prev) => ({
+                          ...prev,
+                          capacity: event.target.value,
                         }))
                       }
                     />
                     <input
                       type="date"
                       value={createGigForm.date}
+                      required
                       onChange={(event) =>
                         setCreateGigForm((prev) => ({
                           ...prev,
@@ -1810,31 +1876,62 @@ export default function App() {
                         }))
                       }
                     />
+
                     <div className="create-band-price-row">
                       <input
-                        type="number"
-                        min="0"
-                        placeholder="Min price"
-                        value={createGigForm.minPrice}
+                        type="time"
+                        value={createGigForm.startTime}
+                        required
                         onChange={(event) =>
                           setCreateGigForm((prev) => ({
                             ...prev,
-                            minPrice: event.target.value,
+                            startTime: event.target.value,
                           }))
                         }
                       />
+
                       <input
-                        type="number"
-                        min="0"
-                        placeholder="Max price"
-                        value={createGigForm.maxPrice}
+                        type="time"
+                        value={createGigForm.endTime}
+                        required
                         onChange={(event) =>
                           setCreateGigForm((prev) => ({
                             ...prev,
-                            maxPrice: event.target.value,
+                            endTime: event.target.value,
                           }))
                         }
                       />
+                    </div>
+                    <div className="create-band-price-row">
+                      <div className="create-band-price-row">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Min price"
+                          value={createGigForm.minPrice}
+                          required
+                          onChange={(event) =>
+                            setCreateGigForm((prev) => ({
+                              ...prev,
+                              minPrice: event.target.value,
+                            }))
+                          }
+                        />
+
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Max price"
+                          value={createGigForm.maxPrice}
+                          required
+                          onChange={(event) =>
+                            setCreateGigForm((prev) => ({
+                              ...prev,
+                              maxPrice: event.target.value,
+                            }))
+                          }
+                        />
+                      </div>
                     </div>
                     <button
                       type="submit"

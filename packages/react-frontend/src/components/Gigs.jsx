@@ -1,6 +1,40 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+function getDistanceInMiles(lat1, lng1, lat2, lng2) {
+  const earthRadiusMiles = 3958.8;
+
+  const latDifference = ((lat2 - lat1) * Math.PI) / 180;
+  const lngDifference = ((lng2 - lng1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(latDifference / 2) * Math.sin(latDifference / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(lngDifference / 2) *
+      Math.sin(lngDifference / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadiusMiles * c;
+}
+
+async function getCoordsFromZip(zipCode) {
+  if (!zipCode) return null;
+
+  const res = await fetch(
+    `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zipCode}&country=USA`,
+  );
+
+  const data = await res.json();
+
+  if (!data.length) return null;
+
+  return {
+    lat: parseFloat(data[0].lat),
+    lng: parseFloat(data[0].lon),
+  };
+}
 
 function ChangeMapView({ coords, zoom }) {
   const map = useMap();
@@ -22,6 +56,7 @@ export default function Gigs({ gigs }) {
   const [locationCoords, setLocationCoords] = useState(null);
   const [zipCode, setZip] = useState("");
   const [radius, setRadius] = useState(5);
+  const [gigCoords, setGigCoords] = useState({});
 
   async function handleZipSearch() {
     if (!zipCode) return;
@@ -46,6 +81,29 @@ export default function Gigs({ gigs }) {
       alert("Error fetching location");
     }
   }
+  useEffect(() => {
+    async function loadGigCoordinates() {
+      const coordsByGigId = {};
+
+      for (const gig of gigs) {
+        const gigZip = gig.location;
+
+        if (!gigZip) continue;
+
+        const coordinates = await getCoordsFromZip(gigZip);
+
+        if (coordinates) {
+          coordsByGigId[gig._id] = coordinates;
+        }
+      }
+
+      setGigCoords(coordsByGigId);
+    }
+
+    if (gigs.length > 0) {
+      loadGigCoordinates();
+    }
+  }, [gigs]);
 
   useEffect(() => {
     navigator.geolocation.getCurrentPosition((position) => {
@@ -89,6 +147,18 @@ export default function Gigs({ gigs }) {
     if (minGigPay > maxPay) {
       return false;
     }
+    if (locationCoords && gigCoords[gig._id]) {
+      const milesAway = getDistanceInMiles(
+        locationCoords.lat,
+        locationCoords.lng,
+        gigCoords[gig._id].lat,
+        gigCoords[gig._id].lng,
+      );
+
+      if (milesAway > radius) {
+        return false;
+      }
+    }
 
     return true;
   });
@@ -114,6 +184,7 @@ export default function Gigs({ gigs }) {
           <div className="mini-map">
             {locationCoords && (
               <MapContainer
+                key={`${locationCoords.lat}-${locationCoords.lng}-${radius}`}
                 center={[locationCoords.lat, locationCoords.lng]}
                 zoom={zoomLevel}
                 style={{ height: "150px", width: "100%" }}
@@ -140,7 +211,6 @@ export default function Gigs({ gigs }) {
             value={radius}
             onChange={(e) => setRadius(Number(e.target.value))}
           />
-
 
           <p className="radius-label">
             Max Pay: <strong>${maxPay}</strong>
@@ -186,8 +256,7 @@ export default function Gigs({ gigs }) {
                       : "No date"}
                   </p>
                   <p>
-                    ${gig.price_range?.[0] ?? 0} - $
-                    {gig.price_range?.[1] ?? 0}
+                    ${gig.price_range?.[0] ?? 0} - ${gig.price_range?.[1] ?? 0}
                   </p>
                   <p>
                     {gig.genres?.length ? gig.genres.join(", ") : "No genre"}

@@ -17,3 +17,5 @@ https://docs.google.com/document/d/1Xtt1MT7StFop-lRBg0szp9H1J78By5OY3adYs6CLTwg/
 ** Could not do a time comparison before and after mock tests, because only ever had mock tests **
 
 Working Deployment: https://witty-mud-06aba3e10.7.azurestaticapps.net
+
+(Backend Deployment: giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net)

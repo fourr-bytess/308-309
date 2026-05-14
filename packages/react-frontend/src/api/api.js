@@ -214,3 +214,64 @@ export async function deleteConversationById(id){
   });
   return res.json()
 }
+export async function getNotifications(userId) {
+  const res = await authFetch(
+    `/notifications?userId=${encodeURIComponent(userId)}`
+  );
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to fetch notifications");
+  }
+
+  return payload.data;
+}
+
+export async function getUnreadNotificationCount(userId) {
+  const res = await authFetch(
+    `/notifications/unread-count?userId=${encodeURIComponent(userId)}`
+  );
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to fetch unread count");
+  }
+
+  return payload.data.count;
+}
+
+export async function createNotification(notification) {
+  const res = await authFetch("/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(notification),
+  });
+
+  return res.json();
+}
+
+export async function markNotificationAsRead(id) {
+  const res = await authFetch(`/notifications/${id}/read`, {
+    method: "PUT",
+  });
+
+  return res.json();
+}
+
+export async function markAllNotificationsAsRead(userId) {
+  const res = await authFetch("/notifications/read-all", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+
+  return res.json();
+}
+
+export async function deleteNotification(id) {
+  const res = await authFetch(`/notifications/${id}`, {
+    method: "DELETE",
+  });
+
+  return res.json();
+}

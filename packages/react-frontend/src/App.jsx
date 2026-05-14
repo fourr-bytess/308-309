@@ -16,6 +16,11 @@ import {
   register as apiRegister,
   verifyAuth as apiVerifyAuth,
   updateBand,
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
 } from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
@@ -79,6 +84,12 @@ export default function App() {
   const [authTokenChecked, setAuthTokenChecked] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authUser, setAuthUser] = useState(null);
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationError, setNotificationError] = useState("");
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -291,7 +302,7 @@ export default function App() {
       const backendRole = data?.user?.role;
       const frontendRole = toFrontendRole(backendRole);
       setAuthUser({
-        id: String(data?.user?.id || ""),
+        id: String(data?.user?.id || data?.user?._id || ""),
         email: data?.user?.email || email,
         displayName: data?.user?.display_name || "",
       });
@@ -302,6 +313,9 @@ export default function App() {
         password,
         role: frontendRole,
       }));
+
+      setIsNotificationMenuOpen(false);
+      setIsNotificationModalOpen(false);
       setIsLoggedIn(true);
 
       if (frontendRole === "Artist") {
@@ -333,6 +347,11 @@ export default function App() {
   function handleLogout() {
     setIsLoggedIn(false);
     setAuthUser(null);
+    setNotifications([]);
+    setUnreadCount(0);
+    setNotificationError("");
+    setIsNotificationMenuOpen(false);
+    setIsNotificationModalOpen(false);
     setMusicianId("");
     setVenueId("");
     setBandDetails(null);
@@ -793,7 +812,7 @@ export default function App() {
         const backendRole = verifiedUser.role;
         const frontendRole = toFrontendRole(backendRole);
         setAuthUser({
-          id: String(verifiedUser.id || ""),
+          id: String(verifiedUser.id || verifiedUser._id || ""),
           email: verifiedUser.email || "",
           displayName: verifiedUser.display_name || "",
         });
@@ -827,6 +846,68 @@ export default function App() {
       })
       .finally(() => setAuthTokenChecked(true));
   }, []);
+
+    useEffect(() => {
+    if (!currentUserId) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    async function loadNotifications() {
+      try {
+        setNotificationError("");
+
+        const items = await getNotifications(currentUserId);
+        const count = await getUnreadNotificationCount(currentUserId);
+
+        setNotifications(items || []);
+        setUnreadCount(count || 0);
+      } catch (err) {
+        setNotificationError(err?.message || "Failed to load notifications.");
+      }
+    }
+
+    loadNotifications();
+  }, [currentUserId]);
+
+    async function handleMarkNotificationRead(id) {
+    await markNotificationAsRead(id);
+
+    setNotifications((prev) =>
+      prev.map((item) =>
+        item._id === id ? { ...item, isRead: true } : item
+      )
+    );
+
+    setUnreadCount((prev) => Math.max(prev - 1, 0));
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    if (!currentUserId) return;
+
+    await markAllNotificationsAsRead(currentUserId);
+
+    setNotifications((prev) =>
+      prev.map((item) => ({ ...item, isRead: true }))
+    );
+
+    setUnreadCount(0);
+  }
+
+  async function handleDeleteNotification(id) {
+    await deleteNotification(id);
+
+    setNotifications((prev) => {
+      const deleted = prev.find((item) => item._id === id);
+      if (deleted && !deleted.isRead) {
+        setUnreadCount((count) => Math.max(count - 1, 0));
+      }
+
+      return prev.filter((item) => item._id !== id);
+    });
+  }
+
 
   useEffect(() => {
     if (location.pathname === "/bands" || location.pathname === "/my-band") {
@@ -961,6 +1042,92 @@ if (!authTokenChecked) {
               >
                 Profile
               </button>
+              
+                <div className="notification-menu">
+  <button
+    type="button"
+    className="notification-button"
+    onClick={() => setIsNotificationMenuOpen((open) => !open)}
+  >
+    Notifications
+    {unreadCount > 0 && (
+      <span className="notification-badge">{unreadCount}</span>
+    )}
+  </button>
+
+  {isNotificationMenuOpen && (
+    <div className="notification-dropdown">
+      <div className="notification-dropdown-header">
+        <h3>Notifications</h3>
+
+        {notifications.length > 0 && (
+          <button type="button" onClick={handleMarkAllNotificationsRead}>
+            Mark all read
+          </button>
+        )}
+      </div>
+
+      {notificationError && (
+        <p className="notification-error">{notificationError}</p>
+      )}
+
+      <div className="notification-list">
+        {notifications.slice(0, 5).length === 0 ? (
+          <p className="notification-empty">No notifications yet.</p>
+        ) : (
+          notifications.slice(0, 5).map((notification) => (
+            <div
+              key={notification._id}
+              className={`notification-item ${
+                notification.isRead ? "" : "unread"
+              }`}
+            >
+              <div>
+                <strong>{notification.title}</strong>
+                <p>{notification.body}</p>
+              </div>
+
+              <div className="notification-actions">
+                {!notification.isRead && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleMarkNotificationRead(notification._id)
+                    }
+                  >
+                    Read
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeleteNotification(notification._id)
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <button
+        type="button"
+        className="notification-view-all"
+        onClick={() => {
+          setIsNotificationModalOpen(true);
+          setIsNotificationMenuOpen(false);
+        }}
+      >
+        View all
+      </button>
+    </div>
+  )}
+</div>
+
+
               <button type="button" onClick={handleLogout}>
                 Log Out
               </button>
@@ -975,6 +1142,92 @@ if (!authTokenChecked) {
               <button type="button" onClick={() => navigate("/dashboard")}>
                 Dashboard
               </button>
+
+              <div className="notification-menu">
+  <button
+    type="button"
+    className="notification-button"
+    onClick={() => setIsNotificationMenuOpen((open) => !open)}
+  >
+    Notifications
+    {unreadCount > 0 && (
+      <span className="notification-badge">{unreadCount}</span>
+    )}
+  </button>
+
+  {isNotificationMenuOpen && (
+    <div className="notification-dropdown">
+      <div className="notification-dropdown-header">
+        <h3>Notifications</h3>
+
+        {notifications.length > 0 && (
+          <button type="button" onClick={handleMarkAllNotificationsRead}>
+            Mark all read
+          </button>
+        )}
+      </div>
+
+      {notificationError && (
+        <p className="notification-error">{notificationError}</p>
+      )}
+
+      <div className="notification-list">
+        {notifications.slice(0, 5).length === 0 ? (
+          <p className="notification-empty">No notifications yet.</p>
+        ) : (
+          notifications.slice(0, 5).map((notification) => (
+            <div
+              key={notification._id}
+              className={`notification-item ${
+                notification.isRead ? "" : "unread"
+              }`}
+            >
+              <div>
+                <strong>{notification.title}</strong>
+                <p>{notification.body}</p>
+              </div>
+
+              <div className="notification-actions">
+                {!notification.isRead && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleMarkNotificationRead(notification._id)
+                    }
+                  >
+                    Read
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeleteNotification(notification._id)
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <button
+        type="button"
+        className="notification-view-all"
+        onClick={() => {
+          setIsNotificationModalOpen(true);
+          setIsNotificationMenuOpen(false);
+        }}
+      >
+        View all
+      </button>
+    </div>
+  )}
+</div>
+
+
               <button type="button" onClick={handleLogout}>
                 Log Out
               </button>
@@ -1869,6 +2122,77 @@ if (!authTokenChecked) {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+            {isNotificationModalOpen && (
+        <div className="notification-modal-backdrop">
+          <div className="notification-modal">
+            <div className="notification-modal-header">
+              <h2>Notifications</h2>
+
+              <button
+                type="button"
+                onClick={() => setIsNotificationModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="notification-modal-actions">
+              <button type="button" onClick={handleMarkAllNotificationsRead}>
+                Mark all read
+              </button>
+            </div>
+
+            <div className="notification-list">
+              {notifications.length === 0 ? (
+                <p className="notification-empty">No notifications yet.</p>
+              ) : (
+                notifications.map((notification) => (
+                  <div
+                    key={notification._id}
+                    className={`notification-item ${
+                      notification.isRead ? "" : "unread"
+                    }`}
+                  >
+                    <div>
+                      <strong>{notification.title}</strong>
+                      <p>{notification.body}</p>
+
+                      {notification.createdAt && (
+                        <span className="notification-date">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="notification-actions">
+                      {!notification.isRead && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleMarkNotificationRead(notification._id)
+                          }
+                        >
+                          Read
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDeleteNotification(notification._id)
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }

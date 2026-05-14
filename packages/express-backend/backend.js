@@ -13,6 +13,7 @@ import reviewServices from "./review-services.js";
 import gigServices from "./gig-services.js";
 import authServices from "./auth-services.js";
 import { VALID_ROLES } from "./user.js";
+import notificationServices from "./notification-services.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -364,6 +365,19 @@ app.post("/auth/register", async (req, res) => {
       display_name,
       role,
     });
+
+    try {
+  await notificationServices.createNotification({
+    userId: String(created.id || created._id),
+    type: "welcome",
+    title: "Welcome to Giggly",
+    body: `Welcome to Giggly, ${created.display_name || display_name}!`,
+    relatedId: String(created.id || created._id),
+  });
+} catch (notificationErr) {
+  console.error("Failed to create welcome notification:", notificationErr);
+}
+
 
     return res.status(201).json({
       data: {
@@ -1201,6 +1215,110 @@ app.post(
   })
 );
 
+app.get("/notifications", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const notifications =
+      await notificationServices.getNotificationsByUser(userId);
+
+    res.status(200).json({ data: notifications });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+app.get("/notifications/unread-count", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const count = await notificationServices.getUnreadCount(userId);
+
+    res.status(200).json({ data: { count } });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch unread count" });
+  }
+});
+
+app.post("/notifications", async (req, res) => {
+  try {
+    const { userId, type, title, body, relatedId } = req.body;
+
+    if (!userId || !type || !title) {
+      return res.status(400).json({
+        error: "userId, type, and title are required",
+      });
+    }
+
+    const notification = await notificationServices.createNotification({
+      userId,
+      type,
+      title,
+      body,
+      relatedId,
+    });
+
+    res.status(201).json({ data: notification });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create notification" });
+  }
+});
+
+app.put("/notifications/:id/read", async (req, res) => {
+  try {
+    const notification =
+      await notificationServices.markNotificationAsRead(req.params.id);
+
+    if (!notification) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+
+    res.status(200).json({ data: notification });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to mark notification as read" });
+  }
+});
+
+app.put("/notifications/read-all", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    await notificationServices.markAllNotificationsAsRead(userId);
+
+    res.status(200).json({ data: { success: true } });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to mark notifications as read" });
+  }
+});
+
+app.delete("/notifications/:id", async (req, res) => {
+  try {
+    const deleted =
+      await notificationServices.deleteNotification(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete notification" });
+  }
+});
+
+
 app.use((err, _req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
@@ -1222,3 +1340,5 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () =>
   console.log(`Server running on http://localhost:${PORT}`)
 );
+
+

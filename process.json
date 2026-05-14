@@ -1,0 +1,12 @@
+{
+  "apps": [
+    {
+      "name": "giggly-backend",
+      "script": "packages/express-backend/backend.js",
+      "watch": false,
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  ]
+}

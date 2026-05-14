@@ -783,10 +783,9 @@ export default function App() {
   useEffect(() => {
     const token = getAuthToken();
     if (!token) {
-      setAuthTokenChecked(prev => (prev === false ? true : prev));
+      Promise.resolve().then(() => setAuthTokenChecked(prev => (prev === false ? true : prev)));
       return;
     }
-  }, []);
 
     apiVerifyAuth()
       .then(async (data) => {
@@ -827,7 +826,7 @@ export default function App() {
         setAuthUser(null);
       })
       .finally(() => setAuthTokenChecked(true));
-  }, [authTokenChecked]);
+  }, []);
 
   useEffect(() => {
     if (location.pathname === "/bands" || location.pathname === "/my-band") {
@@ -897,6 +896,14 @@ export default function App() {
     setBandUploadMessage("Update failed.");
   }
 };
+
+if (!authTokenChecked) {
+      return (
+        <div style={{ color: 'white', textAlign: 'center', marginTop: '50px'}}>
+        Loading...
+        </div>
+      );
+    }
 
   return (
     <>

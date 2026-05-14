@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3001";
+const API_URL = "giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net";
 
 const TOKEN_STORAGE_KEY = "giggly_access_token";
 

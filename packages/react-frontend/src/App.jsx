@@ -22,7 +22,7 @@ import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/location.jsx";
 import BandsPage from "./components/Bands.jsx";
 
-const API_BASE_URL = "http://localhost:3001";
+const API_BASE_URL = "giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net";
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",

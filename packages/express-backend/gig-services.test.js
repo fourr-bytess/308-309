@@ -26,7 +26,7 @@ describe("Gig Model and Functions Test Suite", () => {
         null,
         null,
         "Venue A",
-        null,
+        true,
         ["Under the Radar"]
       );
 
@@ -37,6 +37,7 @@ describe("Gig Model and Functions Test Suite", () => {
           genres: { $in: ["jazz"] },
           locations: { $in: ["san francisco"] },
           host: "Venue A",
+          booked: true,
           bands_hired: { $in: ["Under the Radar"] },
         })
       );

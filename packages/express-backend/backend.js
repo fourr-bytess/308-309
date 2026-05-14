@@ -21,7 +21,16 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "https://witty-mud-06aba3e10.7.azurestaticapps.net",
+      "http://localhost:5173"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true
+  })
+);
 
 const uploadsRoot = path.join(__dirname, "uploads");
 const musiciansUploads = path.join(uploadsRoot, "musicians");

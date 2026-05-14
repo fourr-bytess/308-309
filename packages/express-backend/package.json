@@ -45,7 +45,7 @@
     "format:check": "npx prettier --check .",
     "test:format": "prettier -c src lib test",
     "lint": "npx eslint .",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' npx jest",
     "dev": "nodemon --exec \"node backend.js\"",
     "start": "node backend.js"
   },

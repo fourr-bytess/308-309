@@ -1336,9 +1336,7 @@ app.get("/", (req, res) => {
   res.send("Giggly API is running !!");
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () =>
-  console.log(`Server running on http://localhost:${PORT}`)
-);
-
-
+const port = process.env.PORT || 3001;
+app.listen(process.env.PORT || port, () => {
+  console.log("REST API is listening.");
+});

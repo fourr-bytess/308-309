@@ -34,7 +34,6 @@
     "./lib/ours/index.js": "./lib/ours/browser.js"
   },
   "scripts": {
-    "build": "node build/build.mjs 18.19.0",
     "postbuild": "prettier -w lib test",
     "test:legacy": "tap --rcfile=./tap.yml test/parallel/test-*.js test/ours/test-*.js",
     "test:prepare": "node test/browser/runner-prepare.mjs",
@@ -46,7 +45,7 @@
     "format:check": "npx prettier --check .",
     "test:format": "prettier -c src lib test",
     "lint": "npx eslint .",
-    "test": "npx jest",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' npx jest",
     "dev": "nodemon --exec \"node backend.js\"",
     "start": "node backend.js"
   },
@@ -67,14 +66,16 @@
     "string_decoder": "^1.3.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.17.10",
+    "@babel/core": "^7.29.0",
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
     "@babel/plugin-proposal-optional-chaining": "^7.16.7",
+    "@babel/preset-env": "^7.29.5",
     "@eslint/eslintrc": "^3.2.0",
     "@rollup/plugin-commonjs": "^22.0.0",
     "@rollup/plugin-inject": "^4.0.4",
     "@rollup/plugin-node-resolve": "^13.3.0",
     "@sinonjs/fake-timers": "^9.1.2",
+    "babel-jest": "^30.4.1",
     "browserify": "^17.0.0",
     "c8": "^7.11.2",
     "esbuild": "^0.19.9",

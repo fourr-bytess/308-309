@@ -18,11 +18,12 @@
     "packages/*"
   ],
   "scripts": {
+    "start": "node index.js",
     "backend": "cd packages/express-backend && npm run dev",
     "frontend": "cd packages/react-frontend && npm run dev",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
-    "build": "node build/build.mjs 18.19.0",
+    "build": "npm run build --workspaces --if-present",
     "lint": "npx eslint .",
     "format": "prettier --write ."
   },
@@ -39,8 +40,8 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
-    "@babel/preset-env": "^7.29.0",
-    "babel-jest": "^30.3.0",
+    "@babel/preset-env": "^7.29.5",
+    "babel-jest": "^30.4.1",
     "concurrently": "^9.2.1",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",

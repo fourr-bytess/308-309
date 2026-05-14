@@ -21,12 +21,12 @@ describe("Gig Model and Functions Test Suite", () => {
         "Jazz Show",
         "Jazz music for age 21+",
         ["Jazz"],
-        ["San Francisco"],
+        "San Francisco",
         null,
         null,
         null,
         "Venue A",
-        null,
+        true,
         ["Under the Radar"]
       );
 
@@ -36,27 +36,28 @@ describe("Gig Model and Functions Test Suite", () => {
           description: "jazz music for age 21+",
           genres: { $in: ["jazz"] },
           locations: { $in: ["san francisco"] },
-          host: "venue a",
-          bands_hired: { $in: ["under the radar"] },
+          host: "Venue A",
+          booked: true,
+          bands_hired: { $in: ["Under the Radar"] },
         })
       );
     });
 
     test("Testing filters -- success", async () => {
-      const mockDate = new Date("2026-02-02");
+      const mockDate = new Date("2026-02-02T00:00:00.000Z");
       const timeRange = [new Date(), new Date()];
 
       const filters = {
         price_range: [200, 300],
-        date: () => mockDate,
+        date: mockDate,
         time: timeRange,
-        booked: () => true,
+        booked: true,
       };
       gigModel.countDocuments.mockResolvedValue(5);
       await gigServices.getGigsCount(filters);
       expect(gigModel.countDocuments).toHaveBeenCalledWith(
         expect.objectContaining({
-          price: { $gte: 200, $lte: 300 },
+          price_range: { $gte: 200, $lte: 300 },
           date: mockDate,
           time: { $gte: timeRange[0], $lte: timeRange[1] },
           booked: true,

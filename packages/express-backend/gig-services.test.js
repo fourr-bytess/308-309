@@ -48,7 +48,7 @@ describe("Gig Model and Functions Test Suite", () => {
 
       const filters = {
         price_range: [200, 300],
-        date: () => mockDate,
+        date: mockDate,
         time: timeRange,
         booked: () => true,
       };

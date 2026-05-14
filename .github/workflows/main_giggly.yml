@@ -1,7 +1,7 @@
 # Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 
-name: Deploy Express Backend to Azure
+name: Deploy Express Backend
 
 on:
   push:
@@ -25,21 +25,9 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install backend dependencies
+      - name: Install backend deps
         working-directory: ./packages/express-backend
         run: npm install
-
-      - name: Build backend
-        working-directory: ./packages/express-backend
-        run: |
-          if npm run | grep build; then
-            npm run build
-          fi
-
-      - name: Zip backend
-        run: |
-          cd packages/express-backend
-          zip -r ../../release.zip .
 
       - name: Azure Login
         uses: azure/login@v2
@@ -51,5 +39,5 @@ jobs:
       - name: Deploy Backend
         uses: azure/webapps-deploy@v3
         with:
-          app-name: giggly-bmdtgwaafaf0hwa4
-          package: release.zip
+          app-name: giggly
+          package: ./packages/express-backend

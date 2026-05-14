@@ -1,11 +1,11 @@
-const API_URL = "http://localhost:3001";
+const API_URL = "https://giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net";
 
 const TOKEN_STORAGE_KEY = "giggly_access_token";
 
 export function getAuthToken() {
   try {
     return localStorage.getItem(TOKEN_STORAGE_KEY);
-  } catch (_err) {
+  } catch {
     return null;
   }
 }
@@ -14,7 +14,7 @@ export function setAuthToken(token) {
   try {
     if (!token) return;
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } catch (_err) {
+  } catch {
     // ignore storage failures (private mode, etc.)
   }
 }
@@ -22,7 +22,7 @@ export function setAuthToken(token) {
 export function clearAuthToken() {
   try {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
-  } catch (_err) {
+  } catch {
     // ignore
   }
 }
@@ -187,30 +187,136 @@ export async function createReview(review) {
   return res.json();
 }
 
-// Conversations - Jose
-export async function getConversations(){
-  const res = await fetch(`${API_URL}/conversations`);
-  const data = await res.json();
-  return data.data;
-}
-export async function getConversationsById(id){
-  const res = await fetch(`${API_URL}/conversations/${id}`);
-  const data = await res.json();
-  return data.data;
+export async function getNotifications(userId) {
+  const res = await authFetch(
+    `/notifications?userId=${encodeURIComponent(userId)}`
+  );
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to fetch notifications");
+  }
+
+  return payload.data;
 }
 
-export async function createConversation(message){
-  const res = await authFetch(`/conversations`,{
+export async function getUnreadNotificationCount(userId) {
+  const res = await authFetch(
+    `/notifications/unread-count?userId=${encodeURIComponent(userId)}`
+  );
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to fetch unread count");
+  }
+
+  return payload.data.count;
+}
+
+export async function createNotification(notification) {
+  const res = await authFetch("/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(notification),
+  });
+
+  return res.json();
+}
+
+export async function markNotificationAsRead(id) {
+  const res = await authFetch(`/notifications/${id}/read`, {
+    method: "PUT",
+  });
+
+  return res.json();
+}
+
+export async function markAllNotificationsAsRead(userId) {
+  const res = await authFetch("/notifications/read-all", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+
+  return res.json();
+}
+
+export async function deleteNotification(id) {
+  const res = await authFetch(`/notifications/${id}`, {
+    method: "DELETE",
+  });
+
+  return res.json();
+}
+
+export async function getConversations(userId) {
+  const res = await authFetch(
+    `/conversations?userId=${encodeURIComponent(userId)}`
+  );
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to fetch conversations");
+  }
+
+  return payload.data;
+}
+
+export async function createConversation(conversation) {
+  const res = await authFetch("/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(conversation),
+  });
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to create conversation");
+  }
+
+  return payload.data;
+}
+
+export async function getConversationMessages(conversationId) {
+  const res = await authFetch(`/conversations/${conversationId}/messages`);
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to fetch messages");
+  }
+
+  return payload.data;
+}
+
+export async function sendConversationMessage(conversationId, message) {
+  const res = await authFetch(`/conversations/${conversationId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(message),
   });
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to send message");
+  }
+
+  return payload.data;
+}
+
+export async function markConversationAsRead(conversationId, userId) {
+  const res = await authFetch(`/conversations/${conversationId}/read`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId }),
+  });
+
   return res.json();
 }
 
-export async function deleteConversationById(id){
+export async function deleteConversation(id) {
   const res = await authFetch(`/conversations/${id}`, {
     method: "DELETE",
   });
-  return res.json()
+
+  return res.json();
 }

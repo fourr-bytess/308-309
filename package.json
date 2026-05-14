@@ -14,26 +14,38 @@
   "author": "",
   "type": "module",
   "main": "index.js",
-  "scripts": {
-    "dev": "npm run dev -w react-frontend",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
-  },
   "workspaces": [
     "packages/*"
   ],
+  "scripts": {
+    "start": "node index.js",
+    "backend": "cd packages/express-backend && npm run dev",
+    "frontend": "cd packages/react-frontend && npm run dev",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npx eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "leaflet": "^1.9.4",
+    "mongoose": "^9.6.2",
+    "multer": "^2.1.1",
+    "react-leaflet": "^5.0.0"
+  },
   "devDependencies": {
     "@babel/core": "^7.29.0",
-    "@babel/preset-env": "^7.29.0",
-    "babel-jest": "^30.3.0",
+    "@babel/preset-env": "^7.29.5",
+    "babel-jest": "^30.4.1",
+    "concurrently": "^9.2.1",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "nodemon": "^3.1.11",
     "supertest": "^7.2.2"
-  },
-  "dependencies": {
-    "leaflet": "^1.9.4",
-    "mongoose": "^9.1.6",
-    "multer": "^2.1.1",
-    "react-leaflet": "^5.0.0"
   }
 }

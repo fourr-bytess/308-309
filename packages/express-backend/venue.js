@@ -11,7 +11,7 @@ const venueSchema = new mongoose.Schema(
       type: String,
       required: true,
       lowercase: true,
-      trim: true
+      trim: true,
     },
     address: {
       type: String,
@@ -21,17 +21,17 @@ const venueSchema = new mongoose.Schema(
       type: String,
       required: true,
       lowercase: true,
-      trim: true
+      trim: true,
     },
     state: {
       type: String,
       required: true,
       lowercase: true,
-      trim: true
+      trim: true,
     },
     zip: {
       type: String,
-      trim: true
+      trim: true,
     },
     capacity: {
       type: Number,
@@ -39,14 +39,14 @@ const venueSchema = new mongoose.Schema(
     contact_email: {
       type: String,
       required: true,
-      trim:true
+      trim: true,
     },
     description: {
       type: String,
-      trim:true
+      trim: true,
     },
   },
-  { collection: "venues" },
+  { collection: "venues" }
 );
 
 const Venue = mongoose.model("venue", venueSchema);

@@ -1,0 +1,43 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Deploy Express Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backend deps
+        working-directory: ./packages/express-backend
+        run: npm install
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_A246B7DB096048B7B2262A00047242FC }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_33C39A581FEF4CEB835C72BB416D0881 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_EBD47399B7F04BE0B07815D3FFF15569 }}
+
+      - name: Deploy Backend
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: giggly
+          package: ./packages/express-backend

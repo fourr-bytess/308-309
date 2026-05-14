@@ -13,6 +13,9 @@ import reviewServices from "./review-services.js";
 import gigServices from "./gig-services.js";
 import authServices from "./auth-services.js";
 import { VALID_ROLES } from "./user.js";
+import notificationServices from "./notification-services.js";
+import conversationServices from "./conversation-services.js";
+import messageServices from "./message-services.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +23,16 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "https://witty-mud-06aba3e10.7.azurestaticapps.net",
+      "http://localhost:5173"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true
+  })
+);
 
 const uploadsRoot = path.join(__dirname, "uploads");
 const musiciansUploads = path.join(uploadsRoot, "musicians");
@@ -123,7 +135,9 @@ function requireRole(allowedRoles, handler) {
 
     if (!allowedRoles.includes(req.auth?.role)) {
       return res.status(403).json({
-        error: `This action requires one of these roles: ${allowedRoles.join(", ")}`,
+        error: `This action requires one of these roles: ${allowedRoles.join(
+          ", "
+        )}`,
       });
     }
 
@@ -160,8 +174,9 @@ async function resolveOwnedMusicianForAuth(authUser) {
     return null;
   }
 
-  const ownedMusician =
-    await musicianServices.findOwnedMusicianByUserId(authUserId);
+  const ownedMusician = await musicianServices.findOwnedMusicianByUserId(
+    authUserId
+  );
   if (ownedMusician) {
     return ownedMusician;
   }
@@ -171,15 +186,16 @@ async function resolveOwnedMusicianForAuth(authUser) {
     return null;
   }
 
-  const unclaimedMusician =
-    await musicianServices.findMusicianByName(fallbackName);
+  const unclaimedMusician = await musicianServices.findMusicianByName(
+    fallbackName
+  );
   if (!unclaimedMusician || unclaimedMusician.owner_user) {
     return null;
   }
 
   return musicianServices.claimMusicianOwnership(
     unclaimedMusician._id,
-    authUserId,
+    authUserId
   );
 }
 
@@ -198,8 +214,9 @@ async function resolveOwnedVenueForAuth(authUser) {
     .trim()
     .toLowerCase();
   if (normalizedEmail) {
-    const venueByEmail =
-      await venueServices.findVenueByContactEmail(normalizedEmail);
+    const venueByEmail = await venueServices.findVenueByContactEmail(
+      normalizedEmail
+    );
     if (venueByEmail && !venueByEmail.owner_user) {
       return venueServices.claimVenueOwnership(venueByEmail._id, authUserId);
     }
@@ -253,7 +270,7 @@ async function ensureBandAccess(req, res, bandId) {
   const isBandMember =
     Boolean(ownedMusician) &&
     (band.members || []).some(
-      (memberId) => String(memberId) === String(ownedMusician._id),
+      (memberId) => String(memberId) === String(ownedMusician._id)
     );
 
   if (!isBandMember) {
@@ -313,11 +330,9 @@ async function ensureMusicianAccess(req, res, musicianId) {
   }
 
   if (!isOwnedByUser(musician, req.auth?.sub)) {
-    res
-      .status(403)
-      .json({
-        error: "You do not have permission to manage this musician profile",
-      });
+    res.status(403).json({
+      error: "You do not have permission to manage this musician profile",
+    });
     return null;
   }
 
@@ -361,6 +376,19 @@ app.post("/auth/register", async (req, res) => {
       display_name,
       role,
     });
+
+    try {
+  await notificationServices.createNotification({
+    userId: String(created.id || created._id),
+    type: "welcome",
+    title: "Welcome to Giggly",
+    body: `Welcome to Giggly, ${created.display_name || display_name}!`,
+    relatedId: String(created.id || created._id),
+  });
+} catch (notificationErr) {
+  console.error("Failed to create welcome notification:", notificationErr);
+}
+
 
     return res.status(201).json({
       data: {
@@ -422,7 +450,7 @@ app.get(
         profiles,
       },
     });
-  }),
+  })
 );
 
 app.get("/bands", async (req, res) => {
@@ -456,7 +484,7 @@ app.get("/bands", async (req, res) => {
     const { bands } = await bandServices.getBandsPaginated(
       cappedLimit,
       offset,
-      filters,
+      filters
     );
     res
       .status(200)
@@ -497,7 +525,7 @@ app.post(
       const memberIds = new Set(
         Array.isArray(req.body.members)
           ? req.body.members.map((memberId) => String(memberId))
-          : [],
+          : []
       );
       memberIds.add(String(ownedMusician._id));
 
@@ -510,7 +538,7 @@ app.post(
     } catch (error) {
       res.status(400).json({ error: "Failed to create band" });
     }
-  }),
+  })
 );
 
 app.delete(
@@ -536,7 +564,7 @@ app.delete(
     } catch (err) {
       return res.status(404).json({ error: "Invalid ID" });
     }
-  }),
+  })
 );
 
 app.post(
@@ -566,7 +594,7 @@ app.post(
         const imageUrl = makeUploadedImageUrl(req, "bands", req.file.filename);
         const updatedBand = await bandServices.updateBandProfilePicture(
           req.params.id,
-          imageUrl,
+          imageUrl
         );
         if (!updatedBand) {
           return res.status(404).json({ error: "Band not found" });
@@ -578,7 +606,7 @@ app.post(
           .json({ error: "Failed to upload band profile picture" });
       }
     });
-  }),
+  })
 );
 
 app.post(
@@ -608,11 +636,11 @@ app.post(
         const imageUrl = makeUploadedImageUrl(
           req,
           "band-gallery",
-          req.file.filename,
+          req.file.filename
         );
         const updatedBand = await bandServices.addBandGalleryImage(
           req.params.id,
-          imageUrl,
+          imageUrl
         );
         if (!updatedBand) {
           return res.status(404).json({ error: "Band not found" });
@@ -622,7 +650,7 @@ app.post(
         res.status(400).json({ error: "Failed to upload band gallery image" });
       }
     });
-  }),
+  })
 );
 
 app.delete(
@@ -638,7 +666,7 @@ app.delete(
       }
       const updatedBand = await bandServices.removeBandGalleryImage(
         req.params.id,
-        imageUrl,
+        imageUrl
       );
       if (!updatedBand) {
         return res.status(404).json({ error: "Band not found" });
@@ -647,7 +675,7 @@ app.delete(
     } catch (err) {
       res.status(400).json({ error: "Failed to remove band gallery image" });
     }
-  }),
+  })
 );
 
 app.post(
@@ -659,18 +687,18 @@ app.post(
       }
       const { videoUrl } = req.body;
       const videoId = String(videoUrl || "").match(
-        /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/,
+        /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/
       )?.[1];
       if (!videoId) return res.status(400).json({ error: "Invalid URL" });
       const updatedBand = await bandServices.addBandVideo(
         req.params.id,
-        videoId,
+        videoId
       );
       res.status(200).json({ data: updatedBand });
     } catch (err) {
       res.status(400).json({ error: "Failed to upload video" });
     }
-  }),
+  })
 );
 
 app.delete(
@@ -694,7 +722,7 @@ app.delete(
       console.error("Delete Error:", err);
       res.status(400).json({ error: "Failed to delete video" });
     }
-  }),
+  })
 );
 
 //GET /venues
@@ -719,7 +747,7 @@ app.get("/venues", async (req, res) => {
       state,
       zip,
       capacity_range,
-      contact_email,
+      contact_email
     );
 
     res.json({ data: venues });
@@ -754,7 +782,7 @@ app.post(
     } catch (err) {
       res.status(400).json({ error: "Failed to create venue" });
     }
-  }),
+  })
 );
 
 // GET /venues/:id ...
@@ -778,7 +806,7 @@ app.delete(
     try {
       if (process.env.NODE_ENV === "test" && !req.auth) {
         const deleted = await venueServices.findVenueByIdAndDelete(
-          req.params.id,
+          req.params.id
         );
         if (!deleted) {
           return res.status(404).json({ error: "Venue not found" });
@@ -797,7 +825,7 @@ app.delete(
     } catch (err) {
       return res.status(400).json({ error: "Invalid ID" });
     }
-  }),
+  })
 );
 
 // GET /gigs ...
@@ -832,15 +860,15 @@ app.get("/gigs", async (req, res) => {
         req.query.booked === "true"
           ? true
           : req.query.booked === "false"
-            ? false
-            : undefined,
+          ? false
+          : undefined,
     };
 
     const total = await gigServices.getGigsCount(filters);
     const { gigs } = await gigServices.getGigsPaginated(
       cappedLimit,
       offset,
-      filters,
+      filters
     );
     res
       .status(200)
@@ -905,7 +933,7 @@ app.delete(
     } catch (err) {
       return res.status(400).json({ error: "Invalid ID" });
     }
-  }),
+  })
 );
 
 // GET /musicians ...
@@ -974,7 +1002,7 @@ app.post(
     } catch (err) {
       res.status(400).json({ error: "Failed to create musician" });
     }
-  }),
+  })
 );
 
 // DELETE /musicians/:id
@@ -984,7 +1012,7 @@ app.delete(
     try {
       if (process.env.NODE_ENV === "test" && !req.auth) {
         const deleted = await musicianServices.findMusicianByIdAndDelete(
-          req.params.id,
+          req.params.id
         );
         if (!deleted) {
           return res.status(404).json({ error: "Musician not found" });
@@ -996,7 +1024,7 @@ app.delete(
         return;
       }
       const deleted = await musicianServices.findMusicianByIdAndDelete(
-        req.params.id,
+        req.params.id
       );
       if (!deleted) {
         return res.status(404).json({ error: "Musician not found" });
@@ -1005,7 +1033,7 @@ app.delete(
     } catch (err) {
       res.status(400).json({ error: "Invalid ID" });
     }
-  }),
+  })
 );
 
 app.post(
@@ -1035,12 +1063,12 @@ app.post(
         const imageUrl = makeUploadedImageUrl(
           req,
           "musicians",
-          req.file.filename,
+          req.file.filename
         );
         const updatedMusician =
           await musicianServices.updateMusicianProfilePicture(
             req.params.id,
-            imageUrl,
+            imageUrl
           );
         if (!updatedMusician) {
           return res.status(404).json({ error: "Musician not found" });
@@ -1052,7 +1080,7 @@ app.post(
           .json({ error: "Failed to upload musician profile picture" });
       }
     });
-  }),
+  })
 );
 
 app.post(
@@ -1064,18 +1092,18 @@ app.post(
       }
       const { videoUrl } = req.body;
       const videoId = String(videoUrl || "").match(
-        /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/,
+        /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^& \n]+)/
       )?.[1];
       if (!videoId) return res.status(400).json({ error: "Invalid URL" });
       const updatedMusician = await musicianServices.addMusicianVideo(
         req.params.id,
-        videoId,
+        videoId
       );
       res.status(200).json({ data: updatedMusician });
     } catch (err) {
       res.status(400).json({ error: "Failed to upload video" });
     }
-  }),
+  })
 );
 
 app.delete(
@@ -1094,7 +1122,7 @@ app.delete(
     } catch (err) {
       res.status(400).json({ error: "Failed to delete video" });
     }
-  }),
+  })
 );
 
 // GET /musicians/:id/reviews ...
@@ -1110,7 +1138,7 @@ app.get("/musicians/:id/reviews", async (req, res) => {
     const { reviews } = await reviewServices.getReviewsPaginated(
       cappedLimit,
       offset,
-      filters,
+      filters
     );
 
     res
@@ -1142,7 +1170,7 @@ app.get("/reviews", async (req, res) => {
     const { reviews } = await reviewServices.getReviewsPaginated(
       cappedLimit,
       offset,
-      filters,
+      filters
     );
     res
       .status(200)
@@ -1165,11 +1193,9 @@ app.post(
         revieweeType == null ||
         rating == null
       ) {
-        return res
-          .status(400)
-          .json({
-            error: "reviewer, reviewee, revieweeType, and rating are required",
-          });
+        return res.status(400).json({
+          error: "reviewer, reviewee, revieweeType, and rating are required",
+        });
       }
 
       const ratingNum = Number(rating);
@@ -1198,8 +1224,255 @@ app.post(
     } catch (err) {
       res.status(400).json({ error: "Failed to create review" });
     }
-  }),
+  })
 );
+
+app.get("/notifications", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const notifications =
+      await notificationServices.getNotificationsByUser(userId);
+
+    res.status(200).json({ data: notifications });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch notifications" });
+  }
+});
+
+app.get("/notifications/unread-count", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const count = await notificationServices.getUnreadCount(userId);
+
+    res.status(200).json({ data: { count } });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch unread count" });
+  }
+});
+
+app.post("/notifications", async (req, res) => {
+  try {
+    const { userId, type, title, body, relatedId } = req.body;
+
+    if (!userId || !type || !title) {
+      return res.status(400).json({
+        error: "userId, type, and title are required",
+      });
+    }
+
+    const notification = await notificationServices.createNotification({
+      userId,
+      type,
+      title,
+      body,
+      relatedId,
+    });
+
+    res.status(201).json({ data: notification });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create notification" });
+  }
+});
+
+app.put("/notifications/:id/read", async (req, res) => {
+  try {
+    const notification =
+      await notificationServices.markNotificationAsRead(req.params.id);
+
+    if (!notification) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+
+    res.status(200).json({ data: notification });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to mark notification as read" });
+  }
+});
+
+app.put("/notifications/read-all", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    await notificationServices.markAllNotificationsAsRead(userId);
+
+    res.status(200).json({ data: { success: true } });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to mark notifications as read" });
+  }
+});
+
+app.delete("/notifications/:id", async (req, res) => {
+  try {
+    const deleted =
+      await notificationServices.deleteNotification(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Notification not found" });
+    }
+
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete notification" });
+  }
+});
+
+app.get("/conversations", async (req, res) => {
+  try {
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    const conversations =
+      await conversationServices.getConversationsByUser(String(userId));
+
+    res.status(200).json({ data: conversations });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch conversations" });
+  }
+});
+
+app.post("/conversations", async (req, res) => {
+  try {
+    const { bandId, venueId, bandUserId, venueUserId } = req.body;
+
+    if (!bandId || !venueId || !bandUserId || !venueUserId) {
+      return res.status(400).json({
+        error: "bandId, venueId, bandUserId, and venueUserId are required",
+      });
+    }
+
+    const existing =
+      await conversationServices.findConversationByParticipants({
+        bandId,
+        venueId,
+        bandUserId: String(bandUserId),
+        venueUserId: String(venueUserId),
+      });
+
+    if (existing) {
+      return res.status(200).json({ data: existing });
+    }
+
+    const conversation = await conversationServices.addConversation({
+      bandId,
+      venueId,
+      bandUserId: String(bandUserId),
+      venueUserId: String(venueUserId),
+    });
+
+    res.status(201).json({ data: conversation });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to create conversation" });
+  }
+});
+
+app.get("/conversations/:id/messages", async (req, res) => {
+  try {
+    const messages = await messageServices.getMessages(req.params.id);
+    res.status(200).json({ data: messages });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+app.post("/conversations/:id/messages", async (req, res) => {
+  try {
+    const { senderUserId, senderRole, text } = req.body;
+
+    if (!senderUserId || !senderRole || !text) {
+      return res.status(400).json({
+        error: "senderUserId, senderRole, and text are required",
+      });
+    }
+
+    const conversation = await conversationServices.findConversationById(
+      req.params.id
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    const message = await messageServices.addMessage({
+      conversationId: req.params.id,
+      senderUserId: String(senderUserId),
+      senderRole,
+      text,
+      readByUserIds: [String(senderUserId)],
+    });
+
+    await conversationServices.updateConversationLastMessage(
+      req.params.id,
+      text
+    );
+
+    const receiverUserId =
+      String(senderUserId) === String(conversation.bandUserId)
+        ? String(conversation.venueUserId)
+        : String(conversation.bandUserId);
+
+    await notificationServices.createNotification({
+      userId: receiverUserId,
+      type: "message",
+      title: "New message",
+      body: "You have a new message.",
+      relatedId: String(conversation._id),
+    });
+
+    res.status(201).json({ data: message });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to send message" });
+  }
+});
+
+app.put("/conversations/:id/read", async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    await messageServices.markMessagesRead(req.params.id, String(userId));
+
+    res.status(200).json({ data: { success: true } });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to mark conversation as read" });
+  }
+});
+
+app.delete("/conversations/:id", async (req, res) => {
+  try {
+    const deleted = await conversationServices.findConversationByIdAndDelete(
+      req.params.id
+    );
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to delete conversation" });
+  }
+});
+
 
 app.use((err, _req, res, next) => {
   if (err instanceof multer.MulterError) {

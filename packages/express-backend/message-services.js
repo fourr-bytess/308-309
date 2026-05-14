@@ -1,22 +1,32 @@
 import Message from "./messages.js";
 
 function getMessages(conversationId) {
-  return Message.find({ conversationId });
-}
-
-function getMessagesCount(filters) {
-  return Message.countDocuments(filters);
-}
-
-function getMessagesPaginated(limit, offset, filters) {
-  return Message.find(filters)
-    .skip(offset)
-    .limit(limit);
+  return Message.find({ conversationId }).sort({ createdAt: 1 });
 }
 
 function addMessage(message) {
   const newMessage = new Message(message);
   return newMessage.save();
+}
+
+function markMessagesRead(conversationId, userId) {
+  return Message.updateMany(
+    {
+      conversationId,
+      readByUserIds: { $ne: userId },
+    },
+    {
+      $addToSet: { readByUserIds: userId },
+    },
+  );
+}
+
+function getUnreadMessagesCount(userId, conversationIds) {
+  return Message.countDocuments({
+    conversationId: { $in: conversationIds },
+    senderUserId: { $ne: userId },
+    readByUserIds: { $ne: userId },
+  });
 }
 
 function findMessageById(id) {
@@ -29,9 +39,9 @@ function findMessageByIdAndDelete(id) {
 
 export default {
   getMessages,
-  getMessagesCount,
-  getMessagesPaginated,
   addMessage,
+  markMessagesRead,
+  getUnreadMessagesCount,
   findMessageById,
   findMessageByIdAndDelete,
 };

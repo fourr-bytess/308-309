@@ -268,7 +268,7 @@ export default function BandsPage({
 
                   <button
                     className="secondary-btn"
-                    onClick={() => navigate(`/bands/${band._id}`)}
+                    onClick={() => navigate(`/band/${band._id}/public`)}
                   >
                     Open Profile
                   </button>

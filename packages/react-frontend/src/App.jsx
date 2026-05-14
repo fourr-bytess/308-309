@@ -17,13 +17,23 @@ import {
   register as apiRegister,
   verifyAuth as apiVerifyAuth,
   updateBand,
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  getConversations,
+  createConversation,
+  getConversationMessages,
+  sendConversationMessage,
+  markConversationAsRead,
 } from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
-import Location from "./components/Location.jsx";
+import Location from "./components/location.jsx";
 import BandsPage from "./components/Bands.jsx";
 
-const API_BASE_URL = "http://localhost:3001";
+const API_BASE_URL = "https://giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net";
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -80,6 +90,19 @@ export default function App() {
   const [authTokenChecked, setAuthTokenChecked] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authUser, setAuthUser] = useState(null);
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationError, setNotificationError] = useState("");
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+
+  const [conversations, setConversations] = useState([]);
+  const [activeConversation, setActiveConversation] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [messageText, setMessageText] = useState("");
+  const [messageError, setMessageError] = useState("");
+
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -297,7 +320,7 @@ export default function App() {
       const backendRole = data?.user?.role;
       const frontendRole = toFrontendRole(backendRole);
       setAuthUser({
-        id: String(data?.user?.id || ""),
+        id: String(data?.user?.id || data?.user?._id || ""),
         email: data?.user?.email || email,
         displayName: data?.user?.display_name || "",
       });
@@ -308,6 +331,9 @@ export default function App() {
         password,
         role: frontendRole,
       }));
+
+      setIsNotificationMenuOpen(false);
+      setIsNotificationModalOpen(false);
       setIsLoggedIn(true);
 
       if (frontendRole === "Artist") {
@@ -339,6 +365,11 @@ export default function App() {
   function handleLogout() {
     setIsLoggedIn(false);
     setAuthUser(null);
+    setNotifications([]);
+    setUnreadCount(0);
+    setNotificationError("");
+    setIsNotificationMenuOpen(false);
+    setIsNotificationModalOpen(false);
     setMusicianId("");
     setVenueId("");
     setBandDetails(null);
@@ -824,10 +855,9 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (authTokenChecked) return;
     const token = getAuthToken();
     if (!token) {
-      setAuthTokenChecked(true);
+      Promise.resolve().then(() => setAuthTokenChecked(prev => (prev === false ? true : prev)));
       return;
     }
 
@@ -837,7 +867,7 @@ export default function App() {
         const backendRole = verifiedUser.role;
         const frontendRole = toFrontendRole(backendRole);
         setAuthUser({
-          id: String(verifiedUser.id || ""),
+          id: String(verifiedUser.id || verifiedUser._id || ""),
           email: verifiedUser.email || "",
           displayName: verifiedUser.display_name || "",
         });
@@ -874,7 +904,184 @@ export default function App() {
         setAuthUser(null);
       })
       .finally(() => setAuthTokenChecked(true));
-  }, [authTokenChecked]);
+  }, []);
+
+    useEffect(() => {
+    if (!currentUserId) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    async function loadNotifications() {
+      try {
+        setNotificationError("");
+
+        const items = await getNotifications(currentUserId);
+        const count = await getUnreadNotificationCount(currentUserId);
+
+        setNotifications(items || []);
+        setUnreadCount(count || 0);
+      } catch (err) {
+        setNotificationError(err?.message || "Failed to load notifications.");
+      }
+    }
+
+    loadNotifications();
+  }, [currentUserId]);
+
+    async function handleMarkNotificationRead(id) {
+    await markNotificationAsRead(id);
+
+    setNotifications((prev) =>
+      prev.map((item) =>
+        item._id === id ? { ...item, isRead: true } : item
+      )
+    );
+
+    setUnreadCount((prev) => Math.max(prev - 1, 0));
+  }
+
+  async function handleMarkAllNotificationsRead() {
+    if (!currentUserId) return;
+
+    await markAllNotificationsAsRead(currentUserId);
+
+    setNotifications((prev) =>
+      prev.map((item) => ({ ...item, isRead: true }))
+    );
+
+    setUnreadCount(0);
+  }
+
+  async function handleDeleteNotification(id) {
+    await deleteNotification(id);
+
+    setNotifications((prev) => {
+      const deleted = prev.find((item) => item._id === id);
+      if (deleted && !deleted.isRead) {
+        setUnreadCount((count) => Math.max(count - 1, 0));
+      }
+
+      return prev.filter((item) => item._id !== id);
+    });
+  }
+
+  useEffect(() => {
+  if (!currentUserId) {
+    setConversations([]);
+    setActiveConversation(null);
+    setMessages([]);
+    return;
+  }
+
+  async function loadConversations() {
+    try {
+      setMessageError("");
+      const items = await getConversations(currentUserId);
+      setConversations(items || []);
+    } catch (err) {
+      setMessageError(err?.message || "Failed to load conversations.");
+    }
+  }
+
+  loadConversations();
+}, [currentUserId]);
+
+async function handleOpenConversation(conversation) {
+  try {
+    setMessageError("");
+    setActiveConversation(conversation);
+
+    const items = await getConversationMessages(conversation._id);
+    setMessages(items || []);
+
+    await markConversationAsRead(conversation._id, currentUserId);
+  } catch (err) {
+    setMessageError(err?.message || "Failed to open conversation.");
+  }
+}
+
+async function handleStartBandConversation(band) {
+  if (!currentUserId || !venueId || !band?._id) {
+    setMessageError("Please log in as a venue to message this band.");
+    return;
+  }
+
+  const bandUserId = band.owner_user || band.ownerUserId;
+
+  if (!bandUserId) {
+    setMessageError("This band does not have an owner to message yet.");
+    return;
+  }
+
+  try {
+    setMessageError("");
+
+    const conversation = await createConversation({
+      bandId: band._id,
+      venueId,
+      bandUserId: String(bandUserId),
+      venueUserId: currentUserId,
+    });
+
+    setActiveConversation(conversation);
+
+const items = await getConversationMessages(conversation._id);
+setMessages(items || []);
+
+setConversations((prev) => [
+  conversation,
+  ...prev.filter((item) => item._id !== conversation._id),
+]);
+
+navigate("/messages");
+
+  } catch (err) {
+    setMessageError(err?.message || "Failed to start conversation.");
+  }
+}
+
+async function handleSendMessage(event) {
+  event.preventDefault();
+
+  if (!activeConversation || !currentUserId || !messageText.trim()) {
+    return;
+  }
+
+  try {
+    setMessageError("");
+
+    const senderRole =
+      String(activeConversation.bandUserId) === String(currentUserId)
+        ? "band"
+        : "venue";
+
+    const created = await sendConversationMessage(activeConversation._id, {
+      senderUserId: currentUserId,
+      senderRole,
+      text: messageText.trim(),
+    });
+
+    setMessages((prev) => [...prev, created]);
+    setMessageText("");
+
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation._id === activeConversation._id
+          ? {
+              ...conversation,
+              lastMessage: created.text,
+              lastMessageTime: created.createdAt,
+            }
+          : conversation
+      )
+    );
+  } catch (err) {
+    setMessageError(err?.message || "Failed to send message.");
+  }
+}
+
 
   useEffect(() => {
     if (location.pathname === "/bands" || location.pathname === "/my-band") {
@@ -887,12 +1094,16 @@ export default function App() {
     }
 
     if (location.pathname === "/dashboard") {
-      fetch(`${API_BASE_URL}/venues`)
-        .then((res) => res.json())
-        .then((data) => {
-          setVenues(data.data);
-        })
-        .catch((err) => console.error("Failed to load venues:", err));
+if (venueId) {
+    fetch(`${API_BASE_URL}/venues/${venueId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setVenues(data.data ? [data.data] : []);
+      })
+      .catch((err) => console.error("Failed to load venue:", err));
+  } else {
+    setVenues([]);
+  }
     }
 
     if (location.pathname === "/gigs") {
@@ -928,7 +1139,7 @@ export default function App() {
         .then((res) => res.json())
         .then((data) => setMusicianDetails(data.data));
     }
-  }, [location.pathname, pathMusicianId]);
+  }, [location.pathname, pathMusicianId, venueId]);
 
   const saveBio = async () => {
     try {
@@ -944,6 +1155,14 @@ export default function App() {
       setBandUploadMessage("Update failed.");
     }
   };
+
+if (!authTokenChecked) {
+      return (
+        <div style={{ color: 'white', textAlign: 'center', marginTop: '50px'}}>
+        Loading...
+        </div>
+      );
+    }
 
   return (
     <>
@@ -1001,6 +1220,97 @@ export default function App() {
               >
                 Profile
               </button>
+              
+              <button type="button" onClick={() => navigate("/messages")}>
+  Messages
+</button>
+
+              
+                <div className="notification-menu">
+  <button
+    type="button"
+    className="notification-button"
+    onClick={() => setIsNotificationMenuOpen((open) => !open)}
+  >
+    Notifications
+    {unreadCount > 0 && (
+      <span className="notification-badge">{unreadCount}</span>
+    )}
+  </button>
+
+  {isNotificationMenuOpen && (
+    <div className="notification-dropdown">
+      <div className="notification-dropdown-header">
+        <h3>Notifications</h3>
+
+        {notifications.length > 0 && (
+          <button type="button" onClick={handleMarkAllNotificationsRead}>
+            Mark all read
+          </button>
+        )}
+      </div>
+
+      {notificationError && (
+        <p className="notification-error">{notificationError}</p>
+      )}
+
+      <div className="notification-list">
+        {notifications.slice(0, 5).length === 0 ? (
+          <p className="notification-empty">No notifications yet.</p>
+        ) : (
+          notifications.slice(0, 5).map((notification) => (
+            <div
+              key={notification._id}
+              className={`notification-item ${
+                notification.isRead ? "" : "unread"
+              }`}
+            >
+              <div>
+                <strong>{notification.title}</strong>
+                <p>{notification.body}</p>
+              </div>
+
+              <div className="notification-actions">
+                {!notification.isRead && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleMarkNotificationRead(notification._id)
+                    }
+                  >
+                    Read
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeleteNotification(notification._id)
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <button
+        type="button"
+        className="notification-view-all"
+        onClick={() => {
+          setIsNotificationModalOpen(true);
+          setIsNotificationMenuOpen(false);
+        }}
+      >
+        View all
+      </button>
+    </div>
+  )}
+</div>
+
+
               <button type="button" onClick={handleLogout}>
                 Log Out
               </button>
@@ -1015,6 +1325,96 @@ export default function App() {
               <button type="button" onClick={() => navigate("/dashboard")}>
                 Dashboard
               </button>
+
+              <button type="button" onClick={() => navigate("/messages")}>
+  Messages
+</button>
+
+              <div className="notification-menu">
+  <button
+    type="button"
+    className="notification-button"
+    onClick={() => setIsNotificationMenuOpen((open) => !open)}
+  >
+    Notifications
+    {unreadCount > 0 && (
+      <span className="notification-badge">{unreadCount}</span>
+    )}
+  </button>
+
+  {isNotificationMenuOpen && (
+    <div className="notification-dropdown">
+      <div className="notification-dropdown-header">
+        <h3>Notifications</h3>
+
+        {notifications.length > 0 && (
+          <button type="button" onClick={handleMarkAllNotificationsRead}>
+            Mark all read
+          </button>
+        )}
+      </div>
+
+      {notificationError && (
+        <p className="notification-error">{notificationError}</p>
+      )}
+
+      <div className="notification-list">
+        {notifications.slice(0, 5).length === 0 ? (
+          <p className="notification-empty">No notifications yet.</p>
+        ) : (
+          notifications.slice(0, 5).map((notification) => (
+            <div
+              key={notification._id}
+              className={`notification-item ${
+                notification.isRead ? "" : "unread"
+              }`}
+            >
+              <div>
+                <strong>{notification.title}</strong>
+                <p>{notification.body}</p>
+              </div>
+
+              <div className="notification-actions">
+                {!notification.isRead && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleMarkNotificationRead(notification._id)
+                    }
+                  >
+                    Read
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleDeleteNotification(notification._id)
+                  }
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <button
+        type="button"
+        className="notification-view-all"
+        onClick={() => {
+          setIsNotificationModalOpen(true);
+          setIsNotificationMenuOpen(false);
+        }}
+      >
+        View all
+      </button>
+    </div>
+  )}
+</div>
+
+
               <button type="button" onClick={handleLogout}>
                 Log Out
               </button>
@@ -1429,7 +1829,17 @@ export default function App() {
           }
         />
 
-        <Route path="/band/:id/public" element={<BandPublicProfile />} />
+        <Route
+  path="/band/:id/public"
+  element={
+    <BandPublicProfile
+      isLoggedIn={isLoggedIn}
+      userRole={profile.role}
+      venueId={venueId}
+      onStartConversation={handleStartBandConversation}
+    />
+  }
+/>
 
         <Route
           path="/musicians/:id"
@@ -1965,8 +2375,152 @@ export default function App() {
           }
         />
 
+          <Route
+  path="/messages"
+  element={
+    <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
+      <section id="messages" className="page active">
+        <div className="messages-shell">
+          <aside className="conversation-list">
+            <h2>Messages</h2>
+
+            {messageError && <p className="upload-message error">{messageError}</p>}
+
+            {conversations.length === 0 ? (
+              <p className="list-empty-message">No conversations yet.</p>
+            ) : (
+              conversations.map((conversation) => (
+                <button
+                  type="button"
+                  key={conversation._id}
+                  className={`conversation-item ${
+                    activeConversation?._id === conversation._id ? "active" : ""
+                  }`}
+                  onClick={() => handleOpenConversation(conversation)}
+                >
+                  <strong>{conversation.lastMessage || "New conversation"}</strong>
+                  {conversation.lastMessageTime && (
+                    <span>
+                      {new Date(conversation.lastMessageTime).toLocaleString()}
+                    </span>
+                  )}
+                </button>
+              ))
+            )}
+          </aside>
+
+          <main className="message-panel">
+            {activeConversation ? (
+              <>
+                <div className="message-list">
+                  {messages.map((message) => (
+                    <div
+                      key={message._id}
+                      className={`message-bubble ${
+                        String(message.senderUserId) === String(currentUserId)
+                          ? "mine"
+                          : "theirs"
+                      }`}
+                    >
+                      <p>{message.text}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <form className="message-form" onSubmit={handleSendMessage}>
+                  <input
+                    type="text"
+                    value={messageText}
+                    onChange={(event) => setMessageText(event.target.value)}
+                    placeholder="Write a message..."
+                  />
+                  <button type="submit">Send</button>
+                </form>
+              </>
+            ) : (
+              <p className="message-placeholder">Select a conversation.</p>
+            )}
+          </main>
+        </div>
+      </section>
+    </ProtectedRoute>
+  }
+/>
+
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+            {isNotificationModalOpen && (
+        <div className="notification-modal-backdrop">
+          <div className="notification-modal">
+            <div className="notification-modal-header">
+              <h2>Notifications</h2>
+
+              <button
+                type="button"
+                onClick={() => setIsNotificationModalOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="notification-modal-actions">
+              <button type="button" onClick={handleMarkAllNotificationsRead}>
+                Mark all read
+              </button>
+            </div>
+
+            <div className="notification-list">
+              {notifications.length === 0 ? (
+                <p className="notification-empty">No notifications yet.</p>
+              ) : (
+                notifications.map((notification) => (
+                  <div
+                    key={notification._id}
+                    className={`notification-item ${
+                      notification.isRead ? "" : "unread"
+                    }`}
+                  >
+                    <div>
+                      <strong>{notification.title}</strong>
+                      <p>{notification.body}</p>
+
+                      {notification.createdAt && (
+                        <span className="notification-date">
+                          {new Date(notification.createdAt).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="notification-actions">
+                      {!notification.isRead && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleMarkNotificationRead(notification._id)
+                          }
+                        >
+                          Read
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleDeleteNotification(notification._id)
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }

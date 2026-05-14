@@ -1,22 +1,18 @@
 import Conversation from "./conversation.js";
 
-function getConversations(bandId, venueId) {
-  const query = {};
-
-  if (bandId) query.bandId = bandId;
-  if (venueId) query.venueId = venueId;
-
-  return Conversation.find(query);
+function getConversationsByUser(userId) {
+  return Conversation.find({
+    $or: [{ bandUserId: userId }, { venueUserId: userId }],
+  }).sort({ lastMessageTime: -1 });
 }
 
-function getConversationsCount(filters) {
-  return Conversation.countDocuments(filters);
-}
-
-function getConversationsPaginated(limit, offset, filters) {
-  return Conversation.find(filters)
-    .skip(offset)
-    .limit(limit);
+function findConversationByParticipants({
+  bandId,
+  venueId,
+  bandUserId,
+  venueUserId,
+}) {
+  return Conversation.findOne({ bandId, venueId, bandUserId, venueUserId });
 }
 
 function addConversation(data) {
@@ -28,15 +24,34 @@ function findConversationById(id) {
   return Conversation.findById(id);
 }
 
+function updateConversationLastMessage(id, text) {
+  return Conversation.findByIdAndUpdate(
+    id,
+    {
+      lastMessage: text,
+      lastMessageTime: new Date(),
+    },
+    { new: true }
+  );
+}
+
+function markConversationRead(conversationId, userId) {
+  return Conversation.findById(conversationId).then((conversation) => {
+    if (!conversation) return null;
+    return conversation;
+  });
+}
+
 function findConversationByIdAndDelete(id) {
   return Conversation.findByIdAndDelete(id);
 }
 
 export default {
-  getConversations,
-  getConversationsCount,
-  getConversationsPaginated,
+  getConversationsByUser,
+  findConversationByParticipants,
   addConversation,
   findConversationById,
+  updateConversationLastMessage,
+  markConversationRead,
   findConversationByIdAndDelete,
 };

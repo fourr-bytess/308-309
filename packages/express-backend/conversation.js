@@ -1,50 +1,49 @@
 import mongoose from "mongoose";
-const {Schema} = mongoose;
 
-const conversationSchema = new Schema({
-  bandId: {
-    type: Schema.Types.ObjectId,
-    ref: "Band",
-    required: true,
-    index: true,
-  },
-  venueId: {
-    type: Schema.Types.ObjectId,
-    ref: "Venue",
-    required: true,
-    index: true,
-  },
+const { Schema } = mongoose;
 
-  slotID: {
-    type: Schema.Types.ObjectId,
-    ref: "Availability",
+const conversationSchema = new Schema(
+  {
+    bandId: {
+      type: Schema.Types.ObjectId,
+      ref: "Band",
+      required: true,
+      index: true,
+    },
+    venueId: {
+      type: Schema.Types.ObjectId,
+      ref: "Venue",
+      required: true,
+      index: true,
+    },
+    bandUserId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    venueUserId: {
+      type: String,
+      required: true,
+      index: true,
+    },
+    lastMessage: {
+      type: String,
+      default: "",
+    },
+    lastMessageTime: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
   },
-
-  bookingRequestId: {
-    type: Schema.Types.ObjectId,
-    ref: "BookingRequest",
-  },
-
-  lastMessageTime: {
-    type: Date,
-    default: Date.now,
-    index: true,
-  },
-
-  lastMessage: {
-    type: String,
-  },
-});
+  { timestamps: true },
+);
 
 conversationSchema.index(
-  {
-    bandId: 1,
-    venueId: 1,
-  },
-  {
-    unique: true,
-  },
+  { bandId: 1, venueId: 1, bandUserId: 1, venueUserId: 1 },
+  { unique: true },
 );
 
 const Conversation = mongoose.model("Conversation", conversationSchema);
+
 export default Conversation;

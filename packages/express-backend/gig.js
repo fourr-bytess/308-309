@@ -92,7 +92,7 @@ const GigSchema = new mongoose.Schema(
       ref: "Band",
     },
   },
-  { collection: "gigs_list" },
+  { collection: "gigs_list" }
 );
 
 const Gig = mongoose.model("Gig", GigSchema);

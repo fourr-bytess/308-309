@@ -42,7 +42,9 @@ function findOwnedVenueByUserId(ownerUserId) {
 }
 
 function findVenueByContactEmail(contactEmail) {
-  return venueModel.findOne({ contact_email: String(contactEmail || "").toLowerCase() });
+  return venueModel.findOne({
+    contact_email: String(contactEmail || "").toLowerCase(),
+  });
 }
 
 function findVenueByName(name) {
@@ -53,7 +55,7 @@ function claimVenueOwnership(id, ownerUserId) {
   return venueModel.findByIdAndUpdate(
     id,
     { owner_user: ownerUserId },
-    { new: true, runValidators: true },
+    { new: true, runValidators: true }
   );
 }
 

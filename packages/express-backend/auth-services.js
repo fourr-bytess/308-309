@@ -46,7 +46,7 @@ function createAccessToken(user) {
       role: user.role,
     },
     getJwtSecret(),
-    { expiresIn: "2h" },
+    { expiresIn: "2h" }
   );
 }
 

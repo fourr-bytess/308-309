@@ -54,7 +54,7 @@ function getGigs(
   time,
   host,
   booked,
-  bands_hired,
+  bands_hired
 ) {
   const query = buildGigsQuery({
     name,

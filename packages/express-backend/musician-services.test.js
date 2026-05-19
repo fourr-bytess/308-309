@@ -13,7 +13,7 @@ describe("Musician Model and Functions Test Suite", () => {
   });
 
   describe("getMusicians and buildMusiciansQuery", () => {
-    test("Testing filters -- success", async () => {
+    test("Testing filters -- pass", async () => {
       const mockSelect = jest.fn().mockResolvedValue([]);
       musicianModel.find.mockReturnValue({ select: mockSelect });
 
@@ -32,7 +32,7 @@ describe("Musician Model and Functions Test Suite", () => {
       );
     });
 
-    test("Testing bio filter -- success", async () => {
+    test("Testing bio filter -- pass", async () => {
       musicianModel.countDocuments.mockResolvedValue(0);
       await musicianServices.getMusiciansCount({ bio: ["Jazz"] });
       expect(musicianModel.countDocuments).toHaveBeenCalledWith({
@@ -40,7 +40,7 @@ describe("Musician Model and Functions Test Suite", () => {
       });
     });
 
-    test("Testing handling empty filters -- success", async () => {
+    test("Testing handling empty filters -- pass", async () => {
       const mockSelect = jest.fn().mockResolvedValue([]);
       musicianModel.find.mockReturnValue({ select: mockSelect });
       await musicianServices.getMusicians();
@@ -49,7 +49,7 @@ describe("Musician Model and Functions Test Suite", () => {
   });
 
   describe("getMusiciansPaginated", () => {
-    test("Testing return musicians and count -- success", async () => {
+    test("Testing return musicians and count -- pass", async () => {
       const mockMusicians = [{ name: "Musician 1" }];
       const mockTotal = 1;
       const mockSelect = jest.fn().mockResolvedValue(mockMusicians);
@@ -65,7 +65,7 @@ describe("Musician Model and Functions Test Suite", () => {
   });
 
   describe("CRUD operations", () => {
-    test("Testing addMusician -- success", async () => {
+    test("Testing addMusician -- pass", async () => {
       const musicianData = { name: "New Musician" };
       musicianModel.prototype.save = jest.fn().mockResolvedValue(musicianData);
       const result = await musicianServices.addMusician(musicianData);
@@ -73,13 +73,13 @@ describe("Musician Model and Functions Test Suite", () => {
       expect(musicianModel.prototype.save).toHaveBeenCalled();
     });
 
-    test("Testing findMusicianById -- success", async () => {
+    test("Testing findMusicianById -- pass", async () => {
       musicianModel.findById.mockResolvedValue({ name: "True" });
       await musicianServices.findMusicianById("111");
       expect(musicianModel.findById).toHaveBeenCalledWith("111");
     });
 
-    test("Testing findMusicianByIdAndDelete -- success", async () => {
+    test("Testing findMusicianByIdAndDelete -- pass", async () => {
       musicianModel.findByIdAndDelete.mockResolvedValue({ success: true });
       await musicianServices.findMusicianByIdAndDelete("111");
       expect(musicianModel.findByIdAndDelete).toHaveBeenCalledWith("111");

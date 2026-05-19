@@ -13,7 +13,7 @@ describe("Review Model and Functions Test Suite", () => {
   });
 
   describe("getReviews and buildReviewsQuery", () => {
-    test("Testing filters -- success", async () => {
+    test("Testing filters -- pass", async () => {
       const mockSelect = jest.fn().mockResolvedValue([]);
       reviewModel.find.mockReturnValue({ select: mockSelect });
 
@@ -36,7 +36,7 @@ describe("Review Model and Functions Test Suite", () => {
       );
     });
 
-    test("Testing filters -- success", async () => {
+    test("Testing filters -- pass", async () => {
       reviewModel.countDocuments.mockResolvedValue(10);
       const filters = {
         rating: "4",
@@ -51,7 +51,7 @@ describe("Review Model and Functions Test Suite", () => {
       );
     });
 
-    test("Testing empty filters -- success", async () => {
+    test("Testing empty filters -- pass", async () => {
       const mockSelect = jest.fn().mockResolvedValue([]);
       reviewModel.find.mockReturnValue({ select: mockSelect });
       await reviewServices.getReviews("", null, null, null, null);
@@ -60,7 +60,7 @@ describe("Review Model and Functions Test Suite", () => {
   });
 
   describe("getReviewsPaginated", () => {
-    test("Testing return reviews and count -- success", async () => {
+    test("Testing return reviews and count -- pass", async () => {
       const mockReviews = [{ header: "Terrible" }];
       const mockTotal = 1;
       const mockSelect = jest.fn().mockResolvedValue(mockReviews);
@@ -76,7 +76,7 @@ describe("Review Model and Functions Test Suite", () => {
   });
 
   describe("CRUD operations", () => {
-    test("Testing addReview -- success", async () => {
+    test("Testing addReview -- pass", async () => {
       const reviewData = { rating: 2, header: "Not very good" };
       reviewModel.prototype.save = jest.fn().mockResolvedValue(reviewData);
       const result = await reviewServices.addReview(reviewData);
@@ -84,13 +84,13 @@ describe("Review Model and Functions Test Suite", () => {
       expect(reviewModel.prototype.save).toHaveBeenCalled();
     });
 
-    test("Testing findReviewById -- success", async () => {
+    test("Testing findReviewById -- pass", async () => {
       reviewModel.findById.mockResolvedValue({ rating: 2 });
       await reviewServices.findReviewById("111");
       expect(reviewModel.findById).toHaveBeenCalledWith("111");
     });
 
-    test("Testing findReviewByIdAndDelete -- success", async () => {
+    test("Testing findReviewByIdAndDelete -- pass", async () => {
       reviewModel.findByIdAndDelete.mockResolvedValue({ success: true });
       await reviewServices.findReviewByIdAndDelete("111");
       expect(reviewModel.findByIdAndDelete).toHaveBeenCalledWith("111");

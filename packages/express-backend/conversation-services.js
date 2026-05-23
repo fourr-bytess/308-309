@@ -88,6 +88,23 @@ function findConversationByIdAndDelete(id) {
   return Conversation.findByIdAndDelete(id);
 }
 
+function getConversations(bandIdFilter, venueIdFilter) {
+  const query = {};
+  if (bandIdFilter) query.bandId = bandIdFilter; // Or bandUserId depending on schema intent
+  if (venueIdFilter) query.venueId = venueIdFilter;
+  return Conversation.find(query);
+}
+
+function getConversationsCount(query = {}) {
+  return Conversation.countDocuments(query);
+}
+
+function getConversationsPaginated(limit, offset, query = {}) {
+  return Conversation.find(query)
+    .skip(offset)
+    .limit(limit);
+}
+
 export default {
   getConversationsByUser,
   findConversationByParticipants,
@@ -96,4 +113,7 @@ export default {
   updateConversationLastMessage,
   markConversationRead,
   findConversationByIdAndDelete,
+  getConversations,
+  getConversationsCount,
+  getConversationsPaginated,
 };

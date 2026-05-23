@@ -7,8 +7,8 @@ describe("Message Model Test Suite", () => {
 
     const validMessage = new Message({
       conversationId: new mongoose.Types.ObjectId(),
-      sender: "band",
-      senderId: "band_123",
+      senderRole: "band",
+      senderUserId: "band_123",
       text: "Hey! We'd love to perform at your venue next Friday @ 5:00 pm.",
     });
 
@@ -18,8 +18,8 @@ describe("Message Model Test Suite", () => {
   test("Testing missing conversation ID for message -- fail", async () => {
 
     const invalidMessage = new Message({
-      sender: "band",
-      senderId: "band_123",
+      senderRole: "band",
+      senderUserId: "band_123",
       text: "Are you still looking for live music?",
     });
 
@@ -34,8 +34,8 @@ describe("Message Model Test Suite", () => {
 
     const invalidMessage = new Message({
       conversationId: new mongoose.Types.ObjectId(),
-      sender: "manager",
-      senderId: "manager_001",
+      senderRole: "manager",
+      senderUserId: "manager_001",
       text: "This should fail validation.",
     });
 
@@ -50,14 +50,14 @@ describe("Message Model Test Suite", () => {
 
     const invalidMessage = new Message({
       conversationId: new mongoose.Types.ObjectId(),
-      sender: "venue",
+      senderRole: "venue",
       text: "Can your band bring sound equipment?",
     });
 
     try {
       await invalidMessage.validate();
     } catch (error) {
-      expect(error.message).toContain("senderId");
+      expect(error.message).toContain("senderUserId");
     }
   });
 
@@ -65,8 +65,8 @@ describe("Message Model Test Suite", () => {
 
     const invalidMessage = new Message({
       conversationId: new mongoose.Types.ObjectId(),
-      sender: "band",
-      senderId: "band_123",
+      senderRole: "band",
+      senderUserId: "band_123",
     });
 
     try {
@@ -80,8 +80,8 @@ describe("Message Model Test Suite", () => {
 
     const invalidMessage = new Message({
       conversationId: new mongoose.Types.ObjectId(),
-      sender: "venue",
-      senderId: "venue_456",
+      senderRole: "venue",
+      senderUserId: "venue_456",
       text: "a".repeat(2001),
     });
 
@@ -96,15 +96,14 @@ describe("Message Model Test Suite", () => {
 
     const validMessage = new Message({
       conversationId: new mongoose.Types.ObjectId(),
-      sender: "venue",
-      senderId: "venue_456",
+      senderRole: "venue",
+      senderUserId: "venue_456",
       text: "Your band has officially been booked !",
     });
 
     await validMessage.validate();
 
-    expect(validMessage.readByBand).toBe(false);
-    expect(validMessage.readByVenue).toBe(false);
+    expect(validMessage.readByUserIds).toEqual([]);
   });
 
 });

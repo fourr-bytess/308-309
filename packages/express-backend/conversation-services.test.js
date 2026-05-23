@@ -165,4 +165,59 @@ describe("Conversation Services Test Suite", () => {
 
   });
 
+  describe("Testing edge cases", () => {
+    test("Testing getConversationsByUser -- pass", async () => {
+      conversationModel.find.mockReturnValue({
+        sort: jest.fn().mockResolvedValue([])
+      });
+
+      await conversationServices.getConversationsByUser("user_123");
+
+      expect(conversationModel.find).toHaveBeenCalledWith({
+        $or: [{ bandUserId: "user_123" }, { venueUserId: "user_123" }],
+      });
+    });
+
+    test("Testing findConversationByParticipants -- pass", async () => {
+      conversationModel.findOne = jest.fn().mockResolvedValue({});
+      
+      const participants = {
+        bandId: "b1",
+        venueId: "v1",
+        bandUserId: "bu1",
+        venueUserId: "vu1"
+      };
+      
+      await conversationServices.findConversationByParticipants(participants);
+      expect(conversationModel.findOne).toHaveBeenCalledWith(participants);
+    });
+
+    test("Testing updateConversationLastMessage -- pass", async () => {
+      conversationModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+
+      await conversationServices.updateConversationLastMessage("conv_123", "New text");
+
+      expect(conversationModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "conv_123",
+        expect.objectContaining({ lastMessage: "New text" }),
+        { new: true }
+      );
+    });
+
+    test("Testing markConversationRead when conversation is found -- pass", async () => {
+      const mockConversation = { id: "conv_123" };
+      conversationModel.findById.mockResolvedValue(mockConversation);
+
+      const result = await conversationServices.markConversationRead("conv_123", "user_123");
+      expect(result).toEqual(mockConversation);
+    });
+
+    test("Testing markConversationRead when conversation is null (branch coverage) -- pass", async () => {
+      conversationModel.findById.mockResolvedValue(null);
+
+      const result = await conversationServices.markConversationRead("conv_123", "user_123");
+      expect(result).toBeNull();
+    });
+  });
+
 });

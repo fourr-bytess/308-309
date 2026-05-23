@@ -19,7 +19,7 @@ describe("Message Services Test Suite", () => {
 
     test("Testing retrieval of messages for a specific booking conversation -- success", async () => {
 
-      messageModel.find.mockResolvedValue([]);
+      messageModel.find.mockReturnValue({sort: jest.fn().mockResolvedValue([])});
 
       await messageServices.getMessages("conversation_123");
 
@@ -115,6 +115,37 @@ describe("Message Services Test Suite", () => {
       );
     });
 
+  });
+
+  describe("Testing message read operations", () => {
+    test("Testing markMessagesRead updates documents -- pass", async () => {
+      messageModel.updateMany = jest.fn().mockResolvedValue({ modifiedCount: 2 });
+
+      await messageServices.markMessagesRead("conversation_123", "user_999");
+
+      expect(messageModel.updateMany).toHaveBeenCalledWith(
+        {
+          conversationId: "conversation_123",
+          readByUserIds: { $ne: "user_999" },
+        },
+        {
+          $addToSet: { readByUserIds: "user_999" },
+        }
+      );
+    });
+
+    test("Testing getUnreadMessagesCount queries correctly -- pass", async () => {
+      messageModel.countDocuments.mockResolvedValue(3);
+
+      const result = await messageServices.getUnreadMessagesCount("user_999", ["c1", "c2"]);
+
+      expect(result).toBe(3);
+      expect(messageModel.countDocuments).toHaveBeenCalledWith({
+        conversationId: { $in: ["c1", "c2"] },
+        senderUserId: { $ne: "user_999" },
+        readByUserIds: { $ne: "user_999" },
+      });
+    });
   });
 
 });

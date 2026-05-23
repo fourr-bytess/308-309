@@ -252,23 +252,38 @@ export default function BandsPage({
               <p className="list-empty-message">No bands match your filters.</p>
             ) : (
               filteredBands.map((band) => (
-                <div key={band._id} className="card band-card">
-                  <h3>{band.name}</h3>
+                <div
+                  key={band._id}
+                  className="card band-card featured-band-card"
+                >
+                  <div className="band-card-top">
+                    <div className="band-avatar">
+                      {band.name?.charAt(0)?.toUpperCase() || "B"}
+                    </div>
 
-                  <p>{band.locations?.[0] || band.location || "No location"}</p>
+                    <div>
+                      <h3>{band.name}</h3>
+                      <p className="band-location">
+                        ZIP:{" "}
+                        {band.locations?.[0] || band.location || "No location"}
+                      </p>
+                    </div>
+                  </div>
 
-                  <p>
-                    {band.genres?.length ? band.genres.join(", ") : "No genre"}
-                  </p>
+                  <div className="band-card-details">
+                    <span className="band-genre-pill">
+                      {band.genres?.length ? band.genres[0] : "No genre"}
+                    </span>
 
-                  <p>
-                    Fixed Rate: $
-                    {band.price_range?.[1] ?? band.price_range?.[0] ?? 0}
-                  </p>
+                    <span className="band-rate-pill">
+                      Fixed Rate: $
+                      {band.price_range?.[1] ?? band.price_range?.[0] ?? 0}
+                    </span>
+                  </div>
 
                   <button
-                    className="secondary-btn"
-                    onClick={() => navigate(`/band/${band._id}/public`)}
+                    className="primary-btn band-profile-btn"
+                    onClick={() => navigate(`/bands/${band._id}`)}
                   >
                     Open Profile
                   </button>

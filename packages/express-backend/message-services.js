@@ -37,6 +37,16 @@ function findMessageByIdAndDelete(id) {
   return Message.findByIdAndDelete(id);
 }
 
+function getMessagesCount(query = {}) {
+  return Message.countDocuments(query);
+}
+
+function getMessagesPaginated(limit, offset, query = {}) {
+  return Message.find(query)
+    .skip(offset)
+    .limit(limit);
+}
+
 export default {
   getMessages,
   addMessage,
@@ -44,4 +54,6 @@ export default {
   getUnreadMessagesCount,
   findMessageById,
   findMessageByIdAndDelete,
+  getMessagesCount,
+  getMessagesPaginated,
 };

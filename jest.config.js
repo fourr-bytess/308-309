@@ -1,3 +1,7 @@
+/**
+ * @jest-environment jsdom
+ */
+
 export default {
     transform: {
         "^.+\\.[t|j]sx?$": "babel-jest"

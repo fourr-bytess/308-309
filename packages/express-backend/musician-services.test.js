@@ -85,4 +85,66 @@ describe("Musician Model and Functions Test Suite", () => {
       expect(musicianModel.findByIdAndDelete).toHaveBeenCalledWith("111");
     });
   });
+
+  describe("Untested Profile Ownership and Media Operations", () => {
+    test("Testing findOwnedMusicianByUserId -- pass", async () => {
+      musicianModel.findOne = jest.fn().mockResolvedValue({ id: "m1" });
+      const result = await musicianServices.findOwnedMusicianByUserId("user_123");
+      expect(musicianModel.findOne).toHaveBeenCalledWith({ owner_user: "user_123" });
+      expect(result).toEqual({ id: "m1" });
+    });
+
+    test("Testing findMusicianByName -- pass", async () => {
+      musicianModel.findOne = jest.fn().mockResolvedValue({ name: "john doe" });
+      await musicianServices.findMusicianByName("John Doe");
+      expect(musicianModel.findOne).toHaveBeenCalledWith({ name: "john doe" });
+    });
+
+    test("Testing findMusicianByName with null fallback -- pass", async () => {
+      musicianModel.findOne = jest.fn().mockResolvedValue(null);
+      await musicianServices.findMusicianByName(null);
+      expect(musicianModel.findOne).toHaveBeenCalledWith({ name: "" });
+    });
+
+    test("Testing claimMusicianOwnership -- pass", async () => {
+      musicianModel.findByIdAndUpdate = jest.fn().mockResolvedValue({ id: "m1" });
+      await musicianServices.claimMusicianOwnership("m1", "user_123");
+      expect(musicianModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "m1",
+        { owner_user: "user_123" },
+        { new: true, runValidators: true }
+      );
+    });
+
+    test("Testing updateMusicianProfilePicture -- pass", async () => {
+      musicianModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await musicianServices.updateMusicianProfilePicture("m1", "http://image.png");
+      expect(musicianModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "m1",
+        { profile_picture_url: "http://image.png" },
+        { new: true, runValidators: true }
+      );
+    });
+
+    test("Testing addMusicianVideo -- pass", async () => {
+      musicianModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await musicianServices.addMusicianVideo("m1", "vid_123");
+      expect(musicianModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "m1",
+        { $push: { video_urls: "vid_123" } },
+        { new: true }
+      );
+    });
+
+    test("Testing removeMusicianVideo -- pass", async () => {
+      musicianModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await musicianServices.removeMusicianVideo("m1", "vid_123");
+      expect(musicianModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "m1",
+        { $pull: { video_urls: "vid_123" } },
+        { new: true }
+      );
+    });
+  });
+
 });

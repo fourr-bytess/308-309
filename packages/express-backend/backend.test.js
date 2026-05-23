@@ -9,6 +9,33 @@ let mockReviewServices;
 let mockGigServices;
 let mockAuthServices;
 let mockConnect;
+let mockNotificationServices;
+let mockConversationServices;
+let mockMessageServices;
+
+mockNotificationServices = {
+    getNotificationsByUser: jest.fn().mockResolvedValue([]),
+    getUnreadCount: jest.fn().mockResolvedValue(0),
+    createNotification: jest.fn().mockResolvedValue({}),
+    markNotificationAsRead: jest.fn().mockResolvedValue({}),
+    markAllNotificationsAsRead: jest.fn().mockResolvedValue(),
+    deleteNotification: jest.fn().mockResolvedValue({}),
+  };
+
+mockConversationServices = {
+    getConversationsByUser: jest.fn().mockResolvedValue([]),
+    findConversationByParticipants: jest.fn().mockResolvedValue(null),
+    addConversation: jest.fn().mockResolvedValue({}),
+    findConversationById: jest.fn().mockResolvedValue({ bandUserId: "b1", venueUserId: "v1" }),
+    updateConversationLastMessage: jest.fn().mockResolvedValue(),
+    findConversationByIdAndDelete: jest.fn().mockResolvedValue({}),
+  };
+
+mockMessageServices = {
+    getMessages: jest.fn().mockResolvedValue([]),
+    addMessage: jest.fn().mockResolvedValue({}),
+    markMessagesRead: jest.fn().mockResolvedValue(),
+  };
 
 function createMockRes() {
   return {
@@ -174,6 +201,18 @@ async function loadBackend({ connectShouldReject = false } = {}) {
 
   await jest.unstable_mockModule("./user.js", () => ({
     VALID_ROLES: ["musician", "band", "venue"],
+  }));
+
+  await jest.unstable_mockModule("./notification-services.js", () => ({
+    default: mockNotificationServices,
+  }));
+
+  await jest.unstable_mockModule("./conversation-services.js", () => ({
+    default: mockConversationServices,
+  }));
+
+  await jest.unstable_mockModule("./message-services.js", () => ({
+    default: mockMessageServices,
   }));
 
   const backend = await import("./backend.js");

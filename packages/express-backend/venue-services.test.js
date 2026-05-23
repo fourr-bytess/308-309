@@ -75,4 +75,54 @@ describe("Venue Model and Functions Test Suite", () => {
       expect(venueModel.findByIdAndDelete).toHaveBeenCalledWith("111");
     });
   });
+
+  describe("Untested Contact Email Filters, Ownership, and Profiles", () => {
+    test("Testing getVenue with contact_email parameter -- success", async () => {
+      venueModel.find.mockResolvedValue([]);
+      await venueServices.getVenue(null, null, null, null, null, "BOOKING@VENUE.COM");
+      expect(venueModel.find).toHaveBeenCalledWith({
+        contact_email: "booking@venue.com"
+      });
+    });
+
+    test("Testing findOwnedVenueByUserId -- success", async () => {
+      venueModel.findOne = jest.fn().mockResolvedValue({});
+      await venueServices.findOwnedVenueByUserId("owner_999");
+      expect(venueModel.findOne).toHaveBeenCalledWith({ owner_user: "owner_999" });
+    });
+
+    test("Testing findVenueByContactEmail -- success", async () => {
+      venueModel.findOne = jest.fn().mockResolvedValue({});
+      await venueServices.findVenueByContactEmail("HELLO@VENUE.COM");
+      expect(venueModel.findOne).toHaveBeenCalledWith({ contact_email: "hello@venue.com" });
+    });
+
+    test("Testing findVenueByContactEmail fallback branch -- success", async () => {
+      venueModel.findOne = jest.fn().mockResolvedValue({});
+      await venueServices.findVenueByContactEmail(null);
+      expect(venueModel.findOne).toHaveBeenCalledWith({ contact_email: "" });
+    });
+
+    test("Testing findVenueByName -- success", async () => {
+      venueModel.findOne = jest.fn().mockResolvedValue({});
+      await venueServices.findVenueByName("The Garage");
+      expect(venueModel.findOne).toHaveBeenCalledWith({ name: "the garage" });
+    });
+
+    test("Testing findVenueByName fallback branch -- success", async () => {
+      venueModel.findOne = jest.fn().mockResolvedValue({});
+      await venueServices.findVenueByName(null);
+      expect(venueModel.findOne).toHaveBeenCalledWith({ name: "" });
+    });
+
+    test("Testing claimVenueOwnership -- success", async () => {
+      venueModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await venueServices.claimVenueOwnership("venue_123", "owner_777");
+      expect(venueModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "venue_123",
+        { owner_user: "owner_777" },
+        { new: true, runValidators: true }
+      );
+    });
+  });
 });

@@ -19,7 +19,7 @@ describe("Message Services Test Suite", () => {
 
     test("Testing retrieval of messages for a specific booking conversation -- success", async () => {
 
-      messageModel.find.mockResolvedValue([]);
+      messageModel.find.mockReturnValue({sort: jest.fn().mockResolvedValue([])});
 
       await messageServices.getMessages("conversation_123");
 

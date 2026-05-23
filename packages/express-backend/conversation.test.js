@@ -8,6 +8,8 @@ describe("Conversation Model Test Suite", () => {
     const validConversation = new Conversation({
       bandId: new mongoose.Types.ObjectId(),
       venueId: new mongoose.Types.ObjectId(),
+      bandUserId: "user_band_123",
+      venueUserId: "user_venue_456",
       lastMessage: "Hello",
     });
 
@@ -45,6 +47,8 @@ describe("Conversation Model Test Suite", () => {
     const validConversation = new Conversation({
       bandId: new mongoose.Types.ObjectId(),
       venueId: new mongoose.Types.ObjectId(),
+      bandUserId: "user_band_123",
+      venueUserId: "user_venue_456",
     });
 
     await validConversation.validate();

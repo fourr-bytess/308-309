@@ -35,7 +35,7 @@ describe("Gig Model and Functions Test Suite", () => {
           name: "jazz show",
           description: "jazz music for age 21+",
           genres: { $in: ["jazz"] },
-          locations: { $in: ["san francisco"] },
+          location: "san francisco",
           host: "Venue A",
           booked: true,
           bands_hired: { $in: ["Under the Radar"] },

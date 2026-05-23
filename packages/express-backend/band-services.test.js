@@ -182,4 +182,56 @@ describe("Band Services Test Suite", () => {
 
   });
 
+  describe("Untested Band Asset Modification Services", () => {
+    test("Testing updateBandProfilePicture -- pass", async () => {
+      bandModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await bandServices.updateBandProfilePicture("b1", "img_url");
+      expect(bandModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "b1",
+        { profile_picture_url: "img_url" },
+        { new: true, runValidators: true }
+      );
+    });
+
+    test("Testing addBandGalleryImage -- pass", async () => {
+      bandModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await bandServices.addBandGalleryImage("b1", "gallery_url");
+      expect(bandModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "b1",
+        { $push: { gallery_images: "gallery_url" } },
+        { new: true, runValidators: true }
+      );
+    });
+
+    test("Testing removeBandGalleryImage -- pass", async () => {
+      bandModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await bandServices.removeBandGalleryImage("b1", "gallery_url");
+      expect(bandModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "b1",
+        { $pull: { gallery_images: "gallery_url" } },
+        { new: true, runValidators: true }
+      );
+    });
+
+    test("Testing addBandVideo -- pass", async () => {
+      bandModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await bandServices.addBandVideo("b1", "vid_id");
+      expect(bandModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "b1",
+        { $push: { video_urls: "vid_id" } },
+        { new: true }
+      );
+    });
+
+    test("Testing removeBandVideo -- pass", async () => {
+      bandModel.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+      await bandServices.removeBandVideo("b1", "vid_id");
+      expect(bandModel.findByIdAndUpdate).toHaveBeenCalledWith(
+        "b1",
+        { $pull: { video_urls: "vid_id" } },
+        { new: true }
+      );
+    });
+  });
+
 });

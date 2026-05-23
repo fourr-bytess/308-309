@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 /* global describe, beforeEach, test, expect */
 import { jest } from '@jest/globals';
 

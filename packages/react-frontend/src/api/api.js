@@ -1,9 +1,48 @@
-const API_URL =
+export const API_URL =
   window.location.hostname === "localhost"
     ? "http://localhost:3001"
     : "https://giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net";
 
 const TOKEN_STORAGE_KEY = "giggly_access_token";
+const SEARCH_AREA_STORAGE_KEY = "giggly_search_area";
+
+const EMPTY_SEARCH_AREA = { coords: null, radius: null, zip: "" };
+
+export function loadSearchArea() {
+  try {
+    const raw = localStorage.getItem(SEARCH_AREA_STORAGE_KEY);
+    if (!raw) {
+      return { ...EMPTY_SEARCH_AREA };
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      coords: parsed?.coords ?? null,
+      radius: parsed?.radius ?? null,
+      zip: parsed?.zip ?? "",
+    };
+  } catch {
+    return { ...EMPTY_SEARCH_AREA };
+  }
+}
+
+export function saveSearchArea(area) {
+  try {
+    if (!area?.coords) {
+      localStorage.removeItem(SEARCH_AREA_STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(
+      SEARCH_AREA_STORAGE_KEY,
+      JSON.stringify({
+        coords: area.coords,
+        radius: area.radius,
+        zip: area.zip ?? "",
+      }),
+    );
+  } catch {
+    // ignore storage failures (private mode, etc.)
+  }
+}
 
 export function getAuthToken() {
   try {

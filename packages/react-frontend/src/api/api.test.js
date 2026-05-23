@@ -1,3 +1,4 @@
+/** @jest-environment jsdom */
 /* global describe, beforeEach, test, expect */
 import { jest } from '@jest/globals';
 
@@ -13,9 +14,53 @@ import {
   createMusician,
   getReviews,
   createReview,
+  loadSearchArea,
+  saveSearchArea,
 } from "./api.js";
 
 globalThis.fetch = jest.fn();
+
+describe("search area persistence", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  test("loadSearchArea returns defaults when nothing is stored", () => {
+    expect(loadSearchArea()).toEqual({
+      coords: null,
+      radius: null,
+      zip: "",
+    });
+  });
+
+  test("saveSearchArea stores and loadSearchArea restores a saved area", () => {
+    const area = {
+      coords: { lat: 35.3, lng: -120.7 },
+      radius: 10,
+      zip: "93401",
+    };
+
+    saveSearchArea(area);
+
+    expect(loadSearchArea()).toEqual(area);
+  });
+
+  test("saveSearchArea clears storage when coords are missing", () => {
+    saveSearchArea({
+      coords: { lat: 35.3, lng: -120.7 },
+      radius: 10,
+      zip: "93401",
+    });
+
+    saveSearchArea({ coords: null, radius: 10, zip: "" });
+
+    expect(loadSearchArea()).toEqual({
+      coords: null,
+      radius: null,
+      zip: "",
+    });
+  });
+});
 
 describe("API Service Tests", () => {
   beforeEach(() => {

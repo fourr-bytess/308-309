@@ -17,11 +17,29 @@ function ChangeMapView({ coords, zoom }) {
   return null;
 }
 
-export default function Location({ userRole, onSetSearchArea }) {
+export default function Location({
+  userRole,
+  initialSearchArea,
+  onSetSearchArea,
+}) {
   const navigate = useNavigate();
-  const [locationCoords, setLocationCoords] = useState(null);
-  const [zipCode, setZip] = useState("");
-  const [radius, setRadius] = useState(5);
+  const [locationCoords, setLocationCoords] = useState(
+    initialSearchArea?.coords ?? null,
+  );
+  const [zipCode, setZipCode] = useState(initialSearchArea?.zip ?? "");
+  const [radius, setRadius] = useState(initialSearchArea?.radius ?? 5);
+
+  useEffect(() => {
+    if (initialSearchArea?.coords) {
+      setLocationCoords(initialSearchArea.coords);
+    }
+    if (initialSearchArea?.zip) {
+      setZipCode(initialSearchArea.zip);
+    }
+    if (initialSearchArea?.radius) {
+      setRadius(initialSearchArea.radius);
+    }
+  }, [initialSearchArea]);
 
   async function handleZipSearch() {
     if (!zipCode) return;
@@ -48,13 +66,17 @@ export default function Location({ userRole, onSetSearchArea }) {
   }
 
   useEffect(() => {
+    if (initialSearchArea?.coords) {
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition((position) => {
       setLocationCoords({
         lat: position.coords.latitude,
         lng: position.coords.longitude,
       });
     });
-  }, []);
+  }, [initialSearchArea?.coords]);
   const zoomLevel =
     radius <= 5 ? 10.5 : radius <= 10 ? 9.5 : radius <= 15 ? 9 : 8.5;
 
@@ -106,6 +128,7 @@ export default function Location({ userRole, onSetSearchArea }) {
         />
         <button
           className="primary-btn"
+          disabled={!locationCoords}
           onClick={() => {
             const area = {
               coords: locationCoords,

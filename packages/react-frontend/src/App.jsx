@@ -10,11 +10,14 @@ import {
 import Gigs from "./components/Gigs.jsx";
 import logoG from "./assets/giggly_g_logo-removebg-preview.png";
 import {
+  API_URL,
   authFetch,
   clearAuthToken,
   getAuthToken,
+  loadSearchArea,
   login as apiLogin,
   register as apiRegister,
+  saveSearchArea,
   verifyAuth as apiVerifyAuth,
   updateBand,
   getNotifications,
@@ -33,10 +36,6 @@ import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/location.jsx";
 import BandsPage from "./components/Bands.jsx";
 
-const API_BASE_URL =
-  window.location.hostname === "localhost"
-    ? "http://localhost:3001"
-    : "https://giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net";
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -131,11 +130,12 @@ export default function App() {
 
   const [gigs, setGigs] = useState([]);
 
-  const [searchArea, setSearchArea] = useState({
-    coords: null,
-    radius: null,
-    zip: "",
-  });
+  const [searchArea, setSearchArea] = useState(loadSearchArea);
+
+  function updateSearchArea(area) {
+    setSearchArea(area);
+    saveSearchArea(area);
+  }
 
   const [bandDetails, setBandDetails] = useState(null);
   const [bandDetailsError, setBandDetailsError] = useState("");
@@ -233,7 +233,7 @@ export default function App() {
       .trim()
       .toLowerCase();
     const lookupResponse = await fetch(
-      `${API_BASE_URL}/musicians?name=${encodeURIComponent(normalizedName)}&limit=1`,
+      `${API_URL}/musicians?name=${encodeURIComponent(normalizedName)}&limit=1`,
     );
     const lookupPayload = await lookupResponse.json();
 
@@ -263,7 +263,7 @@ export default function App() {
   async function createOrLoadVenueProfile(email) {
     const venueName = (email.split("@")[0] || "venue").trim().toLowerCase();
     const lookupResponse = await fetch(
-      `${API_BASE_URL}/venues?contact_email=${encodeURIComponent(email)}`,
+      `${API_URL}/venues?contact_email=${encodeURIComponent(email)}`,
     );
     const lookupPayload = await lookupResponse.json();
 
@@ -1083,7 +1083,7 @@ export default function App() {
 
   useEffect(() => {
     if (location.pathname === "/bands" || location.pathname === "/my-band") {
-      fetch(`${API_BASE_URL}/bands`)
+      fetch(`${API_URL}/bands`)
         .then((res) => res.json())
         .then((data) => {
           setBands(data.data);
@@ -1093,7 +1093,7 @@ export default function App() {
 
     if (location.pathname === "/dashboard") {
       if (venueId) {
-        fetch(`${API_BASE_URL}/venues/${venueId}`)
+        fetch(`${API_URL}/venues/${venueId}`)
           .then((res) => res.json())
           .then((data) => {
             setVenues(data.data ? [data.data] : []);
@@ -1105,7 +1105,7 @@ export default function App() {
     }
 
     if (location.pathname === "/gigs") {
-      fetch(`${API_BASE_URL}/gigs`)
+      fetch(`${API_URL}/gigs`)
         .then((res) => res.json())
         .then((data) => {
           setGigs(data.data || []);
@@ -1115,7 +1115,7 @@ export default function App() {
 
     const bandId = getBandIdFromPath(location.pathname);
     if (bandId) {
-      fetch(`${API_BASE_URL}/bands/${bandId}`)
+      fetch(`${API_URL}/bands/${bandId}`)
         .then((res) => {
           if (!res.ok) {
             throw new Error("Band not found");
@@ -1133,7 +1133,7 @@ export default function App() {
     }
 
     if (pathMusicianId) {
-      fetch(`${API_BASE_URL}/musicians/${pathMusicianId}`)
+      fetch(`${API_URL}/musicians/${pathMusicianId}`)
         .then((res) => res.json())
         .then((data) => setMusicianDetails(data.data));
     }
@@ -1468,7 +1468,7 @@ export default function App() {
               <Location
                 userRole={profile.role}
                 initialSearchArea={searchArea}
-                onSetSearchArea={(area) => setSearchArea(area)}
+                onSetSearchArea={updateSearchArea}
               />
             </ProtectedRoute>
           }

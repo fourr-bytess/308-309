@@ -1025,13 +1025,72 @@ export default function App() {
         venueUserId: currentUserId,
       });
 
+      const conversationWithName = {
+        ...conversation,
+        otherUserDisplayName: band.name,
+      };
+
       setActiveConversation(conversation);
 
       const items = await getConversationMessages(conversation._id);
       setMessages(items || []);
 
       setConversations((prev) => [
-        conversation,
+        conversationWithName,
+        ...prev.filter((item) => item._id !== conversation._id),
+      ]);
+
+      navigate("/messages");
+    } catch (err) {
+      setMessageError(err?.message || "Failed to start conversation.");
+    }
+  }
+
+  async function handleStartGigConversation(gig) {
+    if (!currentUserId || profile.role !== "Artist") {
+      setMessageError("Please log in as an artist to message this venue.");
+      return;
+    }
+
+    const band = bands.find((item) =>
+      (item.members || []).some(
+        (memberId) => String(memberId) === String(musicianId),
+      ),
+    );
+
+    if (!band) {
+      setMessageError("Create or join a band before messaging venues.");
+      return;
+    }
+
+    if (!gig.host || !gig.owner_user) {
+      setMessageError("This gig is missing venue contact information.");
+      return;
+    }
+
+    try {
+      setMessageError("");
+
+      const conversation = await createConversation({
+        gigId: gig._id,
+        bandId: band._id,
+        venueId: gig.host,
+        bandUserId: currentUserId,
+        venueUserId: String(gig.owner_user),
+      });
+
+      const conversationWithName = {
+        ...conversation,
+        otherUserDisplayName: `Venue - ${gig.name}`,
+      };
+
+      setActiveConversation(conversationWithName);
+
+      const items = await getConversationMessages(conversation._id);
+      setMessages(items || []);
+
+      setConversations((prev) => [
+        conversationWithName,
         ...prev.filter((item) => item._id !== conversation._id),
       ]);
 
@@ -1082,8 +1141,12 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (location.pathname === "/bands" || location.pathname === "/my-band") {
-      fetch(`${API_URL}/bands`)
+    if (
+      location.pathname === "/bands" ||
+      location.pathname === "/my-band" ||
+      (location.pathname === "/gigs" && profile.role === "Artist")
+    ) {
+      fetch(`${API_BASE_URL}/bands`)
         .then((res) => res.json())
         .then((data) => {
           setBands(data.data);
@@ -1137,7 +1200,7 @@ export default function App() {
         .then((res) => res.json())
         .then((data) => setMusicianDetails(data.data));
     }
-  }, [location.pathname, pathMusicianId, venueId]);
+  }, [location.pathname, pathMusicianId, venueId, profile.role]);
 
   const saveBio = async () => {
     try {
@@ -1953,7 +2016,12 @@ export default function App() {
               allowedRoles={["Artist", "Venue"]}
               redirectTo="/dashboard"
             >
-              <Gigs gigs={gigs} />
+              <Gigs
+                gigs={gigs}
+                canMessageVenues={profile.role === "Artist"}
+                onMessageVenue={handleStartGigConversation}
+                messageError={messageError}
+              />
             </ProtectedRoute>
           }
         />
@@ -2410,8 +2478,17 @@ export default function App() {
                           onClick={() => handleOpenConversation(conversation)}
                         >
                           <strong>
-                            {conversation.lastMessage || "New conversation"}
+                            {conversation.otherUserDisplayName ||
+                              "Unknown User"}
                           </strong>
+                          {conversation.gigName && (
+                            <span className="conversation-gig-name">
+                              {conversation.gigName}
+                            </span>
+                          )}
+                          <span className="conversation-preview">
+                            {conversation.lastMessage || "New conversation"}
+                          </span>
                           {conversation.lastMessageTime && (
                             <span>
                               {new Date(

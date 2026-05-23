@@ -719,6 +719,7 @@ input[type="range"] {
   margin-bottom: 10px;
   box-sizing: border-box;
   color: #2A9D8F;
+  color: #20809a;
   font-size: 14px;
   border-radius: 8px;
   cursor: pointer;
@@ -986,6 +987,20 @@ input[type="range"] {
 .conversation-item span {
   font-size: 0.85rem;
   color: #6f5365;
+}
+.conversation-gig-name,
+.conversation-preview {
+  display: block;
+}
+
+.conversation-gig-name {
+  margin-bottom: 4px;
+  font-weight: 600;
+  color: #5a0f2e;
+}
+
+.conversation-preview {
+  margin-bottom: 4px;
 }
 
 .message-panel {

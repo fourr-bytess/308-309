@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import gigModel from "./gig.js";
 
 const GIG_SELECT =
-  "name description genres location address capacity price_range date time host booked bands_hired";
+  "name description genres location address capacity price_range date time host owner_user booked bands_hired";
 function buildGigsQuery(filters = {}) {
   const query = {};
   if (filters.name) {

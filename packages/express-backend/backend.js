@@ -1349,7 +1349,7 @@ app.get("/conversations", async (req, res) => {
 
 app.post("/conversations", async (req, res) => {
   try {
-    const { bandId, venueId, bandUserId, venueUserId } = req.body;
+    const { gigId, bandId, venueId, bandUserId, venueUserId } = req.body;
 
     if (!bandId || !venueId || !bandUserId || !venueUserId) {
       return res.status(400).json({
@@ -1359,6 +1359,7 @@ app.post("/conversations", async (req, res) => {
 
     const existing =
       await conversationServices.findConversationByParticipants({
+        gigId,
         bandId,
         venueId,
         bandUserId: String(bandUserId),
@@ -1370,6 +1371,7 @@ app.post("/conversations", async (req, res) => {
     }
 
     const conversation = await conversationServices.addConversation({
+      gigId,
       bandId,
       venueId,
       bandUserId: String(bandUserId),
@@ -1378,7 +1380,10 @@ app.post("/conversations", async (req, res) => {
 
     res.status(201).json({ data: conversation });
   } catch (err) {
-    res.status(400).json({ error: "Failed to create conversation" });
+    console.error("Failed to create conversation:", err);
+  res.status(400).json({
+    error: err.message || "Failed to create conversation",
+  });
   }
 });
 

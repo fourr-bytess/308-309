@@ -16,6 +16,12 @@ const conversationSchema = new Schema(
       required: true,
       index: true,
     },
+    gigId: {
+      type: Schema.Types.ObjectId,
+      ref: "Gig",
+      default: null,
+      index: true,
+    },
     bandUserId: {
       type: String,
       required: true,
@@ -40,7 +46,7 @@ const conversationSchema = new Schema(
 );
 
 conversationSchema.index(
-  { bandId: 1, venueId: 1, bandUserId: 1, venueUserId: 1 },
+  { gigId: 1, bandId: 1, venueId: 1, bandUserId: 1, venueUserId: 1 },
   { unique: true },
 );
 

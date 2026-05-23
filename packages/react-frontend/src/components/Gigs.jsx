@@ -48,7 +48,7 @@ function ChangeMapView({ coords, zoom }) {
   return null;
 }
 
-export default function Gigs({ gigs }) {
+export default function Gigs({ gigs, canMessageVenues = false, onMessageVenue, messageError = "",}) {
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [maxPay, setMaxPay] = useState(4000);
   const [searchText, setSearchText] = useState("");
@@ -118,13 +118,11 @@ export default function Gigs({ gigs }) {
     radius <= 5 ? 10 : radius <= 10 ? 9.5 : radius <= 15 ? 9 : 8;
 
   const now = new Date();
-  const oneWeek = new Date();
-  oneWeek.setDate(now.getDate() + 7);
 
   const filteredGigs = gigs.filter((gig) => {
     const gigDate = new Date(gig.date);
 
-    if (gigDate < now || gigDate > oneWeek) {
+    if (gigDate < now) {
       return false;
     }
 
@@ -229,6 +227,9 @@ export default function Gigs({ gigs }) {
         <div className="bands-content">
           <div className="bands-content-header">
             <h2>Available Gigs This Week</h2>
+            {messageError && (
+  <p className="upload-message error">{messageError}</p>
+)}
           </div>
 
           <div className="search-row">
@@ -261,6 +262,16 @@ export default function Gigs({ gigs }) {
                   <p>
                     {gig.genres?.length ? gig.genres.join(", ") : "No genre"}
                   </p>
+
+                  {canMessageVenues && (
+                    <button
+                      type="button"
+                      className="view-public-btn"
+                      onClick={() => onMessageVenue?.(gig)}
+                    >
+                      Message venue
+                    </button>
+                  )}
                 </div>
               ))
             )}

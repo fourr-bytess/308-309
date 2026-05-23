@@ -1,18 +1,60 @@
 import Conversation from "./conversation.js";
+import User from "./user.js"
+import Gig from "./gig.js";
 
-function getConversationsByUser(userId) {
-  return Conversation.find({
+async function getConversationsByUser(userId) {
+  const conversations = await Conversation.find({
     $or: [{ bandUserId: userId }, { venueUserId: userId }],
   }).sort({ lastMessageTime: -1 });
+
+  const otherUserIds = conversations.map((conversation) =>
+    String(conversation.bandUserId) === String(userId)
+      ? conversation.venueUserId
+      : conversation.bandUserId
+  );
+
+  const users = await User.find({ _id: { $in: otherUserIds } })
+    .select("display_name")
+    .lean();
+
+  const gigIds = conversations
+  .map((conversation) => conversation.gigId)
+  .filter(Boolean);
+
+  const gigs = await Gig.find({ _id: { $in: gigIds } })
+    .select("name")
+    .lean();
+
+  const gigNamesById = new Map(
+    gigs.map((gig) => [String(gig._id), gig.name])
+  );
+
+  const namesById = new Map(
+    users.map((user) => [String(user._id), user.display_name])
+  );
+
+  return conversations.map((conversation) => {
+    const otherUserId =
+      String(conversation.bandUserId) === String(userId)
+        ? conversation.venueUserId
+        : conversation.bandUserId;
+
+    return {
+      ...conversation.toObject(),
+      otherUserDisplayName: namesById.get(String(otherUserId)) || "",
+      gigName: gigNamesById.get(String(conversation.gigId)) || "",
+    };
+  });
 }
 
 function findConversationByParticipants({
+  gigId,
   bandId,
   venueId,
   bandUserId,
   venueUserId,
 }) {
-  return Conversation.findOne({ bandId, venueId, bandUserId, venueUserId });
+  return Conversation.findOne({ gigId, bandId, venueId, bandUserId, venueUserId });
 }
 
 function addConversation(data) {

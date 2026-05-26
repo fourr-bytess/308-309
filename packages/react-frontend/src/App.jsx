@@ -1146,7 +1146,7 @@ export default function App() {
       location.pathname === "/my-band" ||
       (location.pathname === "/gigs" && profile.role === "Artist")
     ) {
-      fetch(`${API_BASE_URL}/bands`)
+      fetch(`${API_URL}/bands`)
         .then((res) => res.json())
         .then((data) => {
           setBands(data.data);

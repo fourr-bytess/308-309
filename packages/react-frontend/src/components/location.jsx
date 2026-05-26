@@ -1,18 +1,16 @@
 import { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Circle } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { useNavigate } from "react-router-dom";
-
-import { useMap } from "react-leaflet";
 
 function ChangeMapView({ coords, zoom }) {
   const map = useMap();
 
   useEffect(() => {
-    if (map) {
+    if (map && coords) {
       map.setView([coords.lat, coords.lng], zoom);
     }
-  }, [map, coords.lat, coords.lng, zoom]);
+  }, [map, coords, zoom]);
 
   return null;
 }
@@ -23,6 +21,7 @@ export default function Location({
   onSetSearchArea,
 }) {
   const navigate = useNavigate();
+
   const [locationCoords, setLocationCoords] = useState(
     initialSearchArea?.coords ?? null,
   );
@@ -33,36 +32,55 @@ export default function Location({
     if (initialSearchArea?.coords) {
       setLocationCoords(initialSearchArea.coords);
     }
+
     if (initialSearchArea?.zip) {
       setZipCode(initialSearchArea.zip);
     }
+
     if (initialSearchArea?.radius) {
       setRadius(initialSearchArea.radius);
     }
   }, [initialSearchArea]);
 
-  async function handleZipSearch() {
-    if (!zipCode) return;
+  async function getCoordsFromZip(zip) {
+    const cleanZip = String(zip || "").trim();
+
+    if (!cleanZip) return null;
 
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zipCode}&country=USA`,
+        `https://api.zippopotam.us/us/${encodeURIComponent(cleanZip)}`,
       );
-      const data = await res.json();
 
-      if (data.length === 0) {
-        alert("ZIP code not found");
-        return;
+      if (!res.ok) {
+        console.error("ZIP lookup failed:", res.status);
+        return null;
       }
 
-      const lat = parseFloat(data[0].lat);
-      const lng = parseFloat(data[0].lon);
+      const data = await res.json();
+      const place = data.places?.[0];
 
-      setLocationCoords({ lat, lng });
+      if (!place) return null;
+
+      return {
+        lat: parseFloat(place.latitude),
+        lng: parseFloat(place.longitude),
+      };
     } catch (err) {
-      console.error(err);
-      alert("Error fetching location");
+      console.error("ZIP lookup error:", err);
+      return null;
     }
+  }
+
+  async function handleZipSearch() {
+    const coordinates = await getCoordsFromZip(zipCode);
+
+    if (!coordinates) {
+      alert("ZIP code not found");
+      return;
+    }
+
+    setLocationCoords(coordinates);
   }
 
   useEffect(() => {
@@ -77,6 +95,7 @@ export default function Location({
       });
     });
   }, [initialSearchArea?.coords]);
+
   const zoomLevel =
     radius <= 5 ? 10.5 : radius <= 10 ? 9.5 : radius <= 15 ? 9 : 8.5;
 
@@ -89,10 +108,10 @@ export default function Location({
           type="text"
           placeholder="Enter ZIP Code"
           value={zipCode}
-          onChange={(e) => setZip(e.target.value)}
+          onChange={(e) => setZipCode(e.target.value)}
         />
+
         <button className="zip-btn" onClick={handleZipSearch}>
-          {" "}
           &gt;
         </button>
 
@@ -105,11 +124,14 @@ export default function Location({
               style={{ height: "300px", width: "100%" }}
             >
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
               <Marker position={[locationCoords.lat, locationCoords.lng]} />
+
               <Circle
                 center={[locationCoords.lat, locationCoords.lng]}
                 radius={radius * 1609.34}
               />
+
               <ChangeMapView coords={locationCoords} zoom={zoomLevel} />
             </MapContainer>
           )}
@@ -126,13 +148,14 @@ export default function Location({
           value={radius}
           onChange={(e) => setRadius(Number(e.target.value))}
         />
+
         <button
           className="primary-btn"
           disabled={!locationCoords}
           onClick={() => {
             const area = {
               coords: locationCoords,
-              radius: radius,
+              radius,
               zip: zipCode,
             };
 

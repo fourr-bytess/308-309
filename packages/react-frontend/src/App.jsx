@@ -2162,7 +2162,7 @@ export default function App() {
                           {musicianDetails.name}
                         </h1>
                         <p className="band-genre" id="musician-instruments-list" style={{ color: "#ffd447" }}>
-                          {musicianDetails.instruments?.join(", ") || "Solo Musician Account"}
+                          {musicianDetails.instruments?.join(", ") || "Musician"}
                         </p>
                       </div>
                     </div>

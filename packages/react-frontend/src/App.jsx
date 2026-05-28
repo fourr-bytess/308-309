@@ -32,12 +32,17 @@ import {
   getConversationMessages,
   sendConversationMessage,
   markConversationAsRead,
+  getGigRequests,
+  createGigRequest,
+  acceptGigRequest,
+  declineGigRequest,
 } from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/location.jsx";
 import BandsPage from "./components/Bands.jsx";
 import BandManager from "./components/BandManager.jsx";
+import AvailabilityCalendar from "./components/AvailabilityCalendar.jsx";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
@@ -141,6 +146,8 @@ export default function App() {
   const [venues, setVenues] = useState([]);
 
   const [gigs, setGigs] = useState([]);
+  const [gigRequests, setGigRequests] = useState([]);
+  const [gigRequestMessage, setGigRequestMessage] = useState("");
 
   const [searchArea, setSearchArea] = useState(loadSearchArea);
 
@@ -368,6 +375,7 @@ export default function App() {
       } else {
         const venueRecord = await createOrLoadVenueProfile(email);
         setVenueId(venueRecord._id || "");
+        setVenues([venueRecord]);
         setProfile((prev) => ({
           ...prev,
           profilePictureUrl: venueRecord.profile_picture_url || "",
@@ -397,6 +405,8 @@ export default function App() {
     setVerifySending(false);
     setNotifications([]);
     setUnreadCount(0);
+    setGigRequests([]);
+    setGigRequestMessage("");
     setNotificationError("");
     setIsNotificationMenuOpen(false);
     setIsNotificationModalOpen(false);
@@ -998,6 +1008,7 @@ export default function App() {
             verifiedUser.email,
           );
           setVenueId(data?.profiles?.venueId || venueRecord._id || "");
+          setVenues([venueRecord]);
           setMusicianId("");
           setProfile((prev) => ({
             ...prev,
@@ -1089,6 +1100,24 @@ export default function App() {
     }
 
     loadConversations();
+  }, [currentUserId]);
+
+  useEffect(() => {
+    if (!currentUserId) {
+      setGigRequests([]);
+      return;
+    }
+
+    async function loadGigRequests() {
+      try {
+        const requests = await getGigRequests();
+        setGigRequests(requests || []);
+      } catch (err) {
+        setGigRequestMessage(err?.message || "Failed to load gig requests.");
+      }
+    }
+
+    loadGigRequests();
   }, [currentUserId]);
 
   async function handleOpenConversation(conversation) {
@@ -1203,6 +1232,79 @@ export default function App() {
     }
   }
 
+  async function handleRequestGig(gig) {
+    if (!currentUserId || profile.role !== "Artist") {
+      setMessageError("Please log in as an artist to request this gig.");
+      return;
+    }
+
+    const band = bands.find((item) =>
+      (item.members || []).some(
+        (memberId) => String(memberId) === String(musicianId),
+      ),
+    );
+
+    if (!band) {
+      setMessageError("Create or join a band before requesting gigs.");
+      return;
+    }
+
+    if (!gig.host || !gig.owner_user) {
+      setMessageError("This gig is missing venue contact information.");
+      return;
+    }
+
+    try {
+      setMessageError("");
+      setGigRequestMessage("");
+
+      await createGigRequest({
+        gigId: gig._id,
+        bandId: band._id,
+        venueId: gig.host,
+        venueUserId: String(gig.owner_user),
+      });
+
+      const requests = await getGigRequests();
+      setGigRequests(requests || []);
+      setGigRequestMessage("Gig request sent.");
+    } catch (err) {
+      setMessageError(err?.message || "Failed to request gig.");
+    }
+  }
+
+  async function handleAcceptGigRequest(id) {
+    try {
+      setGigRequestMessage("");
+      const updated = await acceptGigRequest(id);
+      setGigRequests((prev) =>
+        prev.map((item) => (item._id === updated._id ? updated : item)),
+      );
+      const requests = await getGigRequests();
+      setGigRequests(requests || []);
+      const refreshedGigs = await fetch(`${API_URL}/gigs?host=${venueId}&limit=50`)
+        .then((res) => res.json())
+        .then((data) => data.data || []);
+      setGigs(refreshedGigs);
+      setGigRequestMessage("Gig request accepted.");
+    } catch (err) {
+      setGigRequestMessage(err?.message || "Failed to accept request.");
+    }
+  }
+
+  async function handleDeclineGigRequest(id) {
+    try {
+      setGigRequestMessage("");
+      const updated = await declineGigRequest(id);
+      setGigRequests((prev) =>
+        prev.map((item) => (item._id === updated._id ? updated : item)),
+      );
+      setGigRequestMessage("Gig request declined.");
+    } catch (err) {
+      setGigRequestMessage(err?.message || "Failed to decline request.");
+    }
+  }
+
   async function handleSendMessage(event) {
     event.preventDefault();
 
@@ -1247,6 +1349,7 @@ export default function App() {
     if (
       location.pathname === "/bands" ||
       location.pathname === "/my-band" ||
+      location.pathname === "/calendar" ||
       (location.pathname === "/gigs" && profile.role === "Artist")
     ) {
       fetch(`${API_URL}/bands`)
@@ -1257,7 +1360,7 @@ export default function App() {
         .catch((err) => console.error("Failed to load bands:", err));
     }
 
-    if (location.pathname === "/dashboard") {
+    if (location.pathname === "/dashboard" || location.pathname === "/calendar") {
       if (venueId) {
         fetch(`${API_URL}/venues/${venueId}`)
           .then((res) => res.json())
@@ -1265,12 +1368,23 @@ export default function App() {
             setVenues(data.data ? [data.data] : []);
           })
           .catch((err) => console.error("Failed to load venue:", err));
-      } else {
+
+        fetch(`${API_URL}/gigs?host=${venueId}&limit=50`)
+          .then((res) => res.json())
+          .then((data) => {
+            setGigs(data.data || []);
+          })
+          .catch((err) => console.error("Failed to load venue gigs:", err));
+      } else if (location.pathname === "/dashboard") {
         setVenues([]);
+        setGigs([]);
       }
     }
 
-    if (location.pathname === "/gigs") {
+    if (
+      location.pathname === "/gigs" ||
+      (location.pathname === "/calendar" && profile.role === "Artist")
+    ) {
       fetch(`${API_URL}/gigs`)
         .then((res) => res.json())
         .then((data) => {
@@ -1319,6 +1433,43 @@ export default function App() {
       setBandUploadMessage("Update failed.");
     }
   };
+
+  const managedBandIds = bands
+    .filter((band) =>
+      (band.members || []).some(
+        (memberId) => String(memberId) === String(musicianId),
+      ),
+    )
+    .map((band) => String(band._id));
+
+  const calendarOwnerType = profile.role === "Venue" ? "venue" : "musician";
+  const calendarOwnerId = profile.role === "Venue" ? venueId : musicianId;
+  const calendarGigs =
+    profile.role === "Venue"
+      ? gigs.filter((gig) => String(gig.host) === String(venueId))
+      : gigs.filter((gig) =>
+          (gig.bands_hired || []).some((bandId) =>
+            managedBandIds.includes(String(bandId)),
+          ),
+        );
+  const calendarGigRequests =
+    profile.role === "Venue"
+      ? gigRequests.filter(
+          (request) =>
+            String(request.venueId?._id || request.venueId) ===
+              String(venueId) && request.status === "pending",
+        )
+      : gigRequests.filter(
+          (request) =>
+            managedBandIds.includes(
+              String(request.bandId?._id || request.bandId),
+            ) && request.status === "pending",
+        );
+  const pendingVenueRequests = gigRequests.filter(
+    (request) =>
+      String(request.venueId?._id || request.venueId) === String(venueId) &&
+      request.status === "pending",
+  );
 
   if (!authTokenChecked) {
     return (
@@ -1374,6 +1525,9 @@ export default function App() {
               </button>
               <button type="button" onClick={() => navigate("/my-band")}>
                 My Band
+              </button>
+              <button type="button" onClick={() => navigate("/calendar")}>
+                Calendar
               </button>
               <button type="button" onClick={() => navigate(`/musicians/${musicianId}`)}>
                 My Profile Page
@@ -1491,6 +1645,9 @@ export default function App() {
               </button>
               <button type="button" onClick={() => navigate("/dashboard")}>
                 Dashboard
+              </button>
+              <button type="button" onClick={() => navigate("/calendar")}>
+                Calendar
               </button>
               <button type="button" onClick={() => navigate("/profile")}>
                 Edit User Info
@@ -2292,6 +2449,20 @@ export default function App() {
                     )}
                   </section>
 
+                  {musicianDetails?._id && (
+                    <AvailabilityCalendar
+                      ownerType="musician"
+                      ownerId={musicianDetails._id}
+                      gigs={canManageCurrentMusicianPage ? calendarGigs : []}
+                      gigRequests={
+                        canManageCurrentMusicianPage ? calendarGigRequests : []
+                      }
+                      readOnly
+                      compact
+                      title="Schedule"
+                    />
+                  )}
+
                   <section className="band-section" id="musician-photos-section">
                     <h3>Photos</h3>
                     <div className="horizontal-scroll-container">
@@ -2394,7 +2565,8 @@ export default function App() {
                 gigs={gigs}
                 canMessageVenues={profile.role === "Artist"}
                 onMessageVenue={handleStartGigConversation}
-                messageError={messageError}
+                onRequestGig={handleRequestGig}
+                messageError={messageError || gigRequestMessage}
               />
             </ProtectedRoute>
           }
@@ -2647,6 +2819,35 @@ export default function App() {
         />
 
         <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+            >
+              <section id="calendar" className="page active">
+                <div className="dashboard-card">
+                  {calendarOwnerId ? (
+                    <AvailabilityCalendar
+                      ownerType={calendarOwnerType}
+                      ownerId={calendarOwnerId}
+                      gigs={calendarGigs}
+                      gigRequests={calendarGigRequests}
+                      title="My Schedule"
+                    />
+                  ) : (
+                    <p className="upload-message">
+                      Your profile is still loading. Try again in a moment.
+                    </p>
+                  )}
+                </div>
+              </section>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/dashboard"
           element={
             <ProtectedRoute
@@ -2661,7 +2862,54 @@ export default function App() {
                   <h2>Venue Dashboard</h2>
 
                   <p>Your registered venues</p>
-
+                  <section className="request-list">
+                    <h3>Pending Gig Requests</h3>
+                    {gigRequestMessage && (
+                      <p className="upload-message">{gigRequestMessage}</p>
+                    )}
+                    {pendingVenueRequests.length === 0 ? (
+                      <p>No pending gig requests.</p>
+                    ) : (
+                      pendingVenueRequests.map((request) => (
+                        <div key={request._id} className="request-card">
+                          <h4>{request.gigId?.name || "Gig request"}</h4>
+                          <p>
+                            <strong>Band:</strong>{" "}
+                            {request.bandId?.name || "Unknown band"}
+                          </p>
+                          <p>
+                            <strong>Date:</strong>{" "}
+                            {request.gigId?.date
+                              ? new Date(request.gigId.date).toLocaleDateString()
+                              : "No date"}
+                          </p>
+                          <p>
+                            <strong>Status:</strong> {request.status}
+                          </p>
+                          <div className="request-card-actions">
+                            <button
+                              type="button"
+                              className="primary-btn"
+                              onClick={() =>
+                                handleAcceptGigRequest(request._id)
+                              }
+                            >
+                              Accept
+                            </button>
+                            <button
+                              type="button"
+                              className="secondary-btn"
+                              onClick={() =>
+                                handleDeclineGigRequest(request._id)
+                              }
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </section>
                   <form
                     className="create-band-form"
                     onSubmit={createGigFromForm}

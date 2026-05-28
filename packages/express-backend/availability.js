@@ -1,9 +1,15 @@
 import mongoose from "mongoose";
 
 const availabilitySchema = new mongoose.Schema({
-  bandId: {
+  ownerType: {
+    type: String,
+    enum: ["venue", "musician", "band"],
+    required: true,
+    index: true,
+  },
+
+  ownerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Band",
     required: true,
     index: true,
   },
@@ -22,13 +28,14 @@ const availabilitySchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ["available", "pending", "unavailable", "canceled"],
-    default: "unavailable",
+    enum: ["available", "pending", "unavailable", "booked", "canceled"],
+    default: "available",
     index: true,
   },
 
   notes: {
     type: String,
+    default: "",
   },
 });
 

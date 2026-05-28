@@ -17,6 +17,8 @@ import notificationServices from "./notification-services.js";
 import conversationServices from "./conversation-services.js";
 import messageServices from "./message-services.js";
 import emailVerificationServices from "./email-verification-services.js";
+import availabilityService from "./availability-service.js";
+import gigRequestServices from "./gig-request-services.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1934,6 +1936,222 @@ app.delete(
   }
 })
 );
+
+app.get(
+  "/gig-requests",
+  requireAuth(async (req, res) => {
+    try {
+      const authUserId = getAuthUserId(req);
+      const filters = {
+        gigId: req.query.gigId,
+        bandId: req.query.bandId,
+        venueId: req.query.venueId,
+        status: req.query.status,
+      };
+
+      if (req.auth?.role === "venue") {
+        filters.venueUserId = authUserId;
+      } else {
+        filters.bandUserId = authUserId;
+      }
+
+      const requests = await gigRequestServices.getGigRequests(filters);
+      res.status(200).json({ data: requests });
+    } catch (err) {
+      console.error("Failed to fetch gig requests:", err);
+      res.status(500).json({ error: "Failed to fetch gig requests" });
+    }
+  }),
+);
+
+app.post(
+  "/gig-requests",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      const { gigId, bandId, venueId, venueUserId } = req.body;
+
+      if (!gigId || !bandId || !venueId || !venueUserId) {
+        return res.status(400).json({
+          error: "gigId, bandId, venueId, and venueUserId are required",
+        });
+      }
+
+      const band = await ensureBandAccess(req, res, bandId);
+      if (!band) return;
+
+      const gig = await gigServices.findGigById(gigId);
+      if (!gig) {
+        return res.status(404).json({ error: "Gig not found" });
+      }
+      if (gig.booked) {
+        return res.status(400).json({ error: "This gig is already booked" });
+      }
+      if (String(gig.host) !== String(venueId)) {
+        return res.status(400).json({ error: "Gig does not belong to venue" });
+      }
+
+      const request = await gigRequestServices.createGigRequest({
+        gigId,
+        bandId,
+        venueId,
+        bandUserId: getAuthUserId(req),
+        venueUserId: String(venueUserId),
+      });
+
+      await notificationServices.createNotification({
+        userId: String(venueUserId),
+        type: "booking-request",
+        title: "New gig request",
+        body: `${band.name} requested your gig.`,
+        relatedId: String(request._id),
+      });
+
+      res.status(201).json({ data: request });
+    } catch (err) {
+      res
+        .status(400)
+        .json({ error: err.message || "Failed to create gig request" });
+    }
+  }),
+);
+
+app.put(
+  "/gig-requests/:id/accept",
+  requireRole(["venue"], async (req, res) => {
+    try {
+      const existing = await gigRequestServices.findGigRequestById(
+        req.params.id,
+      );
+      if (!existing) {
+        return res.status(404).json({ error: "Gig request not found" });
+      }
+      if (String(existing.venueUserId) !== getAuthUserId(req)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const request = await gigRequestServices.acceptGigRequest(req.params.id);
+
+      await notificationServices.createNotification({
+        userId: String(request.bandUserId),
+        type: "gig-booked",
+        title: "Gig request accepted",
+        body: "Your gig request was accepted.",
+        relatedId: String(request._id),
+      });
+
+      res.status(200).json({ data: request });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to accept gig request" });
+    }
+  }),
+);
+
+app.put(
+  "/gig-requests/:id/decline",
+  requireRole(["venue"], async (req, res) => {
+    try {
+      const existing = await gigRequestServices.findGigRequestById(
+        req.params.id,
+      );
+      if (!existing) {
+        return res.status(404).json({ error: "Gig request not found" });
+      }
+      if (String(existing.venueUserId) !== getAuthUserId(req)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const request = await gigRequestServices.declineGigRequest(req.params.id);
+      res.status(200).json({ data: request });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to decline gig request" });
+    }
+  }),
+);
+
+app.delete(
+  "/gig-requests/:id",
+  requireAuth(async (req, res) => {
+    try {
+      const request = await gigRequestServices.cancelGigRequest(req.params.id);
+      if (!request) {
+        return res.status(404).json({ error: "Gig request not found" });
+      }
+      if (
+        String(request.bandUserId) !== getAuthUserId(req) &&
+        String(request.venueUserId) !== getAuthUserId(req)
+      ) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      res.status(200).json({ data: request });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to cancel gig request" });
+    }
+  }),
+);
+
+app.get("/availability", async (req, res) => {
+  try {
+    const { ownerType, ownerId, start, end, status } = req.query;
+
+    if (!ownerType || !ownerId) {
+      return res.status(400).json({
+        error: "ownerType and ownerId are required",
+      });
+    }
+
+    const slots = await availabilityService.getSlots({
+      ownerType,
+      ownerId,
+      start,
+      end,
+      status,
+    });
+
+    res.status(200).json({ data: slots });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch availability" });
+  }
+});
+
+app.post("/availability", async (req, res) => {
+  try {
+    const { ownerType, ownerId, start, end, status, notes } = req.body;
+
+    if (!ownerType || !ownerId || !start || !end) {
+      return res.status(400).json({
+        error: "ownerType, ownerId, start, and end are required",
+      });
+    }
+
+    const slot = await availabilityService.createAvailability({
+      ownerType,
+      ownerId,
+      start,
+      end,
+      status,
+      notes,
+    });
+
+    res.status(201).json({ data: slot });
+  } catch (err) {
+    res.status(400).json({
+      error: err.message || "Failed to create availability",
+    });
+  }
+});
+
+app.delete("/availability/:id", async (req, res) => {
+  try {
+    const deleted = await availabilityService.deleteAvailability(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Availability slot not found" });
+    }
+
+    res.status(200).json({ data: deleted });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to delete availability" });
+  }
+});
 
 app.use((err, _req, res, next) => {
   if (err instanceof multer.MulterError) {

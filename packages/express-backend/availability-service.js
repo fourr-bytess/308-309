@@ -1,41 +1,60 @@
 import Availability from "./availability.js";
 
-async function createAvailability({ bandId, start, end, notes }) {
+async function createAvailability({
+  ownerType,
+  ownerId,
+  start,
+  end,
+  status = "available",
+  notes = "",
+}) {
   const s = new Date(start);
   const e = new Date(end);
 
   const conflict = await Availability.findOne({
-    bandId,
-    status: { $in: ["available", "pending", "unavailable"] },
+    ownerType,
+    ownerId,
+    status: { $in: ["available", "unavailable", "pending", "booked"] },
     start: { $lt: e },
     end: { $gt: s },
   });
 
-  if (conflict) throw new Error("Availability overlaps existing time slot");
+  if (conflict) {
+    throw new Error("Availability overlaps existing time slot");
+  }
 
   return Availability.create({
-    bandId,
+    ownerType,
+    ownerId,
     start: s,
     end: e,
+    status,
     notes,
-    status: "open",
   });
 }
 
-async function getSlots({ bandId, startime, endtime, status = "open" }) {
-  const query = { bandId };
-  if (status) query.status = status;
+async function getSlots({ ownerType, ownerId, start, end, status }) {
+  const query = { ownerType, ownerId };
 
-  if (startime || endtime) {
+  if (status) {
+    query.status = status;
+  }
+
+  if (start || end) {
     query.start = {};
-    if (startime) query.start.$gte = new Date(startime);
-    if (endtime) query.start.$lte = new Date(endtime);
+    if (start) query.start.$gte = new Date(start);
+    if (end) query.start.$lte = new Date(end);
   }
 
   return Availability.find(query).sort({ start: 1 });
 }
 
+async function deleteAvailability(id) {
+  return Availability.findByIdAndDelete(id);
+}
+
 export default {
   createAvailability,
   getSlots,
+  deleteAvailability,
 };

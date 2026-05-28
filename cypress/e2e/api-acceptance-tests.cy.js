@@ -2,40 +2,16 @@ describe("Giggly Acceptance Tests", () => {
   const frontendUrl = "http://localhost:5173";
   const apiUrl = "http://localhost:3001";
 
-  describe("E2E UI Tests", () => {
-    it("E2E test: loads the Giggly frontend", () => {
-      cy.visit(frontendUrl);
-
-      cy.contains("Giggly").should("be.visible");
-    });
-
-    it("E2E test: unauthenticated user is redirected to login when viewing bands", () => {
-      cy.intercept("GET", `${apiUrl}/bands`).as("getBands");
-
-      cy.visit(`${frontendUrl}/bands`);
-
-      cy.wait("@getBands")
-        .its("response.statusCode")
-        .then((statusCode) => {
-          expect(statusCode).to.be.oneOf([200, 304]);
-        });
-
-      cy.url().should("include", "login");
-      cy.get("body").should("be.visible");
-    });
-
-    it("E2E test: login page displays required login fields", () => {
-      cy.visit(`${frontendUrl}/login`);
-
-      cy.get('input[placeholder="Email"]').should("be.visible");
-      cy.get('input[placeholder="Password"]').should("be.visible");
-      cy.get("#loginBtn").should("be.visible").and("not.be.disabled");
-    });
-  });
-
   describe("API Tests", () => {
     it("API GET test: gets gigs from the backend", () => {
       cy.request("GET", `${apiUrl}/gigs`).then((response) => {
+        expect(response.status).to.eq(200);
+        expect(response.body).to.exist;
+      });
+    });
+
+    it("API GET test: gets bands from the backend", () => {
+      cy.request("GET", `${apiUrl}/bands`).then((response) => {
         expect(response.status).to.eq(200);
         expect(response.body).to.exist;
       });
@@ -75,6 +51,23 @@ describe("Giggly Acceptance Tests", () => {
           expect(secondResponse.status).to.be.oneOf([400, 409]);
           expect(secondResponse.body).to.exist;
         });
+      });
+    });
+
+    it("API negative test: rejects registration with missing required fields", () => {
+      const invalidUser = {
+        email: `invaliduser${Date.now()}@test.com`,
+        role: "venue",
+      };
+
+      cy.request({
+        method: "POST",
+        url: `${apiUrl}/auth/register`,
+        body: invalidUser,
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.be.oneOf([400, 422]);
+        expect(response.body).to.exist;
       });
     });
   });

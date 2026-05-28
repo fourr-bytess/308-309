@@ -708,7 +708,6 @@ app.delete(
       if (!(await ensureBandAccess(req, res, req.params.id))) {
         return;
       }
-      // 2. Now both id and videoId are available in req.params
       const { id, videoId } = req.params;
 
       const updated = await bandServices.removeBandVideo(id, videoId);
@@ -1083,6 +1082,106 @@ app.post(
   })
 );
 
+app.put(
+  "/musicians/:id",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      if (!(await ensureMusicianAccess(req, res, req.params.id))) {
+        return;
+      }
+      
+      const { name, bio } = req.body;
+      const updates = {};
+      if (name !== undefined) updates.name = name;
+      if (bio !== undefined) updates.bio = bio;
+
+      const updatedMusician = await musicianServices.updateMusicianProfile(
+        req.params.id,
+        updates
+      );
+
+      if (!updatedMusician) {
+        return res.status(404).json({ error: "Musician profile not found" });
+      }
+
+      res.status(200).json({ data: updatedMusician });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to update musician profile" });
+    }
+  })
+);
+
+app.post(
+  "/musicians/:id/gallery",
+  requireRole(["musician", "band"], async (req, res) => {
+    if (!(await ensureMusicianAccess(req, res, req.params.id))) {
+      return;
+    }
+    imageUpload.single("image")(req, res, async (uploadErr) => {
+      if (uploadErr) {
+        if (
+          uploadErr instanceof multer.MulterError &&
+          uploadErr.code === "LIMIT_FILE_SIZE"
+        ) {
+          return res
+            .status(400)
+            .json({ error: "Image must be 5MB or smaller" });
+        }
+        return res
+          .status(400)
+          .json({ error: uploadErr.message || "Upload failed" });
+      }
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "Image file is required" });
+        }
+        const imageUrl = makeUploadedImageUrl(
+          req,
+          "musicians",
+          req.file.filename
+        );
+        
+        const updatedMusician = await musicianServices.addMusicianGalleryImage(
+          req.params.id,
+          imageUrl
+        );
+        if (!updatedMusician) {
+          return res.status(404).json({ error: "Musician not found" });
+        }
+        res.status(200).json({ data: updatedMusician });
+      } catch (err) {
+        res.status(400).json({ error: "Failed to upload gallery image" });
+      }
+    });
+  })
+);
+
+app.delete(
+  "/musicians/:id/gallery",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      if (!(await ensureMusicianAccess(req, res, req.params.id))) {
+        return;
+      }
+      const { imageUrl } = req.body;
+      if (!imageUrl) {
+        return res.status(400).json({ error: "imageUrl is required" });
+      }
+      
+      const updatedMusician = await musicianServices.removeMusicianGalleryImage(
+        req.params.id,
+        imageUrl
+      );
+      if (!updatedMusician) {
+        return res.status(404).json({ error: "Musician not found" });
+      }
+      res.status(200).json({ data: updatedMusician });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to remove musician gallery image" });
+    }
+  })
+);
+
 app.post(
   "/musicians/:id/videos",
   requireRole(["musician", "band"], async (req, res) => {
@@ -1124,8 +1223,6 @@ app.delete(
     }
   })
 );
-
-// GET /musicians/:id/reviews ...
 
 app.get("/musicians/:id/reviews", async (req, res) => {
   try {

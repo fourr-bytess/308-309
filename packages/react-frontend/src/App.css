@@ -110,7 +110,8 @@ textarea {
 
 /* Dashboard... */
 
-#dashboard {
+#dashboard,
+#calendar {
   background: #f2e8cf;
   flex-direction: column;
 }
@@ -1224,4 +1225,116 @@ input[type="range"] {
   font-weight: 700;
   cursor: pointer;
   margin-top: auto;
+}
+
+.availability-calendar {
+  background: #fffaf0;
+  border: 1px solid rgba(90, 15, 46, 0.18);
+  border-radius: 8px;
+  color: #3a0f3a;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.availability-calendar h2 {
+  color: #3a0f3a;
+  margin-top: 0;
+}
+
+.availability-calendar .fc {
+  color: #3a0f3a;
+}
+
+.availability-calendar .fc-col-header-cell-cushion,
+.availability-calendar .fc-daygrid-day-number,
+.availability-calendar .fc-timegrid-slot-label-cushion,
+.availability-calendar .fc-toolbar-title {
+  color: #3a0f3a;
+}
+
+.availability-calendar .fc-button {
+  background: #2a9d8f;
+  border-color: #2a9d8f;
+  color: #f2e8cf;
+}
+
+.availability-calendar .fc-button:hover,
+.availability-calendar .fc-button-primary:not(:disabled).fc-button-active {
+  background: #1a675e;
+  border-color: #1a675e;
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+}
+
+.calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.available-dot {
+  background: #22c55e;
+}
+
+.open-gig-dot {
+  background: #8b5cf6;
+}
+
+.booked-dot {
+  background: #3b82f6;
+}
+
+.pending-dot {
+  background: #f59e0b;
+}
+
+.request-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 26px;
+}
+
+.request-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(242, 232, 207, 0.28);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.request-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.default-unavailable-note {
+  color: #5a0f2e;
+  opacity: 0.85;
+}
+
+.calendar-compact {
+  padding: 16px;
+}
+
+.calendar-compact .fc {
+  font-size: 0.9rem;
+}
+
+.calendar-compact .fc-toolbar-title {
+  font-size: 1.1rem;
 }

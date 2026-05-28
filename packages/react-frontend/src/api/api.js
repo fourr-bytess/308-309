@@ -405,3 +405,113 @@ export async function deleteConversation(id) {
 
   return res.json();
 }
+
+export async function getAvailability(ownerType, ownerId) {
+  const response = await authFetch(
+    `/availability?ownerType=${ownerType}&ownerId=${ownerId}`
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to load availability");
+  }
+
+  return response.json();
+}
+
+export async function createAvailability(slot) {
+  const response = await authFetch("/availability", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(slot),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create availability");
+  }
+
+  return response.json();
+}
+
+export async function deleteAvailability(id) {
+  const response = await authFetch(`/availability/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to delete availability");
+  }
+
+  return response.json();
+}
+
+export async function getGigRequests(params = {}) {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.set(key, value);
+    }
+  });
+
+  const response = await authFetch(`/gig-requests?${search.toString()}`);
+
+  if (!response.ok) {
+    throw new Error("Failed to load gig requests");
+  }
+
+  const payload = await response.json();
+  return payload.data || [];
+}
+
+export async function createGigRequest(request) {
+  const response = await authFetch("/gig-requests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Failed to request gig");
+  }
+
+  return payload.data;
+}
+
+export async function acceptGigRequest(id) {
+  const response = await authFetch(`/gig-requests/${id}/accept`, {
+    method: "PUT",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Failed to accept gig request");
+  }
+
+  return payload.data;
+}
+
+export async function declineGigRequest(id) {
+  const response = await authFetch(`/gig-requests/${id}/decline`, {
+    method: "PUT",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Failed to decline gig request");
+  }
+
+  return payload.data;
+}
+
+export async function cancelGigRequest(id) {
+  const response = await authFetch(`/gig-requests/${id}`, {
+    method: "DELETE",
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Failed to cancel gig request");
+  }
+
+  return payload.data;
+}

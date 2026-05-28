@@ -48,7 +48,13 @@ function ChangeMapView({ coords, zoom }) {
   return null;
 }
 
-export default function Gigs({ gigs, canMessageVenues = false, onMessageVenue, messageError = "",}) {
+export default function Gigs({
+  gigs,
+  canMessageVenues = false,
+  onMessageVenue,
+  onRequestGig,
+  messageError = "",
+}) {
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [maxPay, setMaxPay] = useState(4000);
   const [searchText, setSearchText] = useState("");
@@ -264,13 +270,22 @@ export default function Gigs({ gigs, canMessageVenues = false, onMessageVenue, m
                   </p>
 
                   {canMessageVenues && (
-                    <button
-                      type="button"
-                      className="view-public-btn"
-                      onClick={() => onMessageVenue?.(gig)}
-                    >
-                      Message venue
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="view-public-btn"
+                        onClick={() => onRequestGig?.(gig)}
+                      >
+                        Request Gig
+                      </button>
+                      <button
+                        type="button"
+                        className="view-public-btn"
+                        onClick={() => onMessageVenue?.(gig)}
+                      >
+                        Message venue
+                      </button>
+                    </>
                   )}
                 </div>
               ))

@@ -48,6 +48,7 @@ function createAccessToken(user) {
       email: user.email,
       display_name: user.display_name,
       role: user.role,
+      email_verified: Boolean(user.email_verified),
     },
     getJwtSecret(),
     { expiresIn: "2h" }

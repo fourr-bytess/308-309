@@ -16,6 +16,7 @@ import { VALID_ROLES } from "./user.js";
 import notificationServices from "./notification-services.js";
 import conversationServices from "./conversation-services.js";
 import messageServices from "./message-services.js";
+import emailVerificationServices from "./email-verification-services.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -94,6 +95,14 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
 }
 
+function isEmailVerificationBypassEnabled() {
+  if (process.env.NODE_ENV === "production") return false;
+  return (
+    process.env.EMAIL_VERIFICATION_BYPASS === "true" ||
+    process.env.EMAIL_VERIFICATION_BYPASS === "1"
+  );
+}
+
 function extractBearerToken(req) {
   const header = req.get
     ? req.get("authorization")
@@ -127,6 +136,24 @@ function requireAuth(handler) {
   };
 }
 
+function requireAuthWith(middlewares, handler) {
+  const list = Array.isArray(middlewares) ? middlewares.filter(Boolean) : [];
+  return requireAuth(async (req, res) => {
+    let idx = 0;
+    const run = () =>
+      new Promise((resolve) => {
+        const mw = list[idx];
+        idx += 1;
+        if (!mw) return resolve(true);
+        mw(req, res, () => resolve(run()));
+      });
+
+    await run();
+    if (res.headersSent) return;
+    return handler(req, res);
+  });
+}
+
 function requireRole(allowedRoles, handler) {
   return requireAuth(async (req, res) => {
     if (process.env.NODE_ENV === "test" && !req.auth) {
@@ -145,6 +172,110 @@ function requireRole(allowedRoles, handler) {
   });
 }
 
+function getAuthUserId(req) {
+  return String(req.auth?.sub || req.auth?.id || req.auth?._id || "");
+}
+
+function isConversationParticipant(conversation, userId) {
+  if (!conversation) return false;
+  return (
+    String(conversation.bandUserId) === String(userId) ||
+    String(conversation.venueUserId) === String(userId)
+  );
+}
+
+function createInMemoryRateLimiter({ windowMs, max, keyFn }) {
+  const hits = new Map();
+
+  function cleanup(now) {
+    for (const [key, entry] of hits.entries()) {
+      if (!entry || now - entry.windowStartMs >= windowMs) {
+        hits.delete(key);
+      }
+    }
+  }
+
+  return function rateLimit(req, res, next) {
+    if (process.env.NODE_ENV === "test") return next();
+
+    const now = Date.now();
+    cleanup(now);
+
+    const key = String(keyFn(req) || "");
+    const existing = hits.get(key);
+
+    if (!existing || now - existing.windowStartMs >= windowMs) {
+      hits.set(key, { windowStartMs: now, count: 1 });
+      return next();
+    }
+
+    existing.count += 1;
+    if (existing.count > max) {
+      return res.status(429).json({ error: "Too many requests" });
+    }
+
+    hits.set(key, existing);
+    return next();
+  };
+}
+
+function getRequestIp(req) {
+  return (
+    String(req.ip || "").trim() ||
+    String(req.headers?.["x-forwarded-for"] || "").split(",")[0].trim() ||
+    String(req.socket?.remoteAddress || "").trim() ||
+    "unknown"
+  );
+}
+
+const authRateLimit = createInMemoryRateLimiter({
+  windowMs: 60 * 1000,
+  max: 15,
+  keyFn: (req) => `${getRequestIp(req)}:${String(req.path || "").toLowerCase()}`,
+});
+
+const messageSendRateLimit = createInMemoryRateLimiter({
+  windowMs: 10 * 1000,
+  max: 8,
+  keyFn: (req) => {
+    const userId = getAuthUserId(req) || "anon";
+    return `${userId}:${String(req.path || "").toLowerCase()}`;
+  },
+});
+
+const recentMessageFingerprint = new Map();
+function passesBasicSpamChecks({ senderUserId, conversationId, text }) {
+  const normalized = String(text || "").trim();
+  if (!normalized) {
+    return { ok: false, status: 400, error: "text is required" };
+  }
+  if (normalized.length > 2000) {
+    return { ok: false, status: 400, error: "Message too long" };
+  }
+
+  const key = `${String(senderUserId)}:${String(conversationId)}`;
+  const now = Date.now();
+  const last = recentMessageFingerprint.get(key);
+  const fingerprint = normalized.toLowerCase();
+
+  // Cooldown: 1 msg/sec per conversation per user
+  if (last?.lastSentMs && now - last.lastSentMs < 1000) {
+    return {
+      ok: false,
+      status: 429,
+      error: "You are sending messages too quickly",
+    };
+  }
+
+  // Duplicate suppression: same message repeated within 10 seconds
+  if (last?.lastFingerprint === fingerprint && now - (last?.lastSentMs || 0) < 10_000) {
+    return { ok: false, status: 429, error: "Duplicate message detected" };
+  }
+
+  recentMessageFingerprint.set(key, { lastSentMs: now, lastFingerprint: fingerprint });
+  return { ok: true };
+}
+
 function getProfileLookupNameFromEmail(email) {
   return String(email || "")
     .split("@")[0]
@@ -158,6 +289,7 @@ function toAuthUserResponse(authUser) {
     email: authUser?.email || "",
     display_name: authUser?.display_name || "",
     role: authUser?.role || "",
+    email_verified: Boolean(authUser?.email_verified),
   };
 }
 
@@ -341,7 +473,7 @@ mongoose
   .then(() => console.log("Connected to MongoDB"))
   .catch((error) => console.error("MongoDB connection error:", error));
 
-app.post("/auth/register", async (req, res) => {
+app.post("/auth/register", authRateLimit, async (req, res) => {
   try {
     const { email, password, display_name, role } = req.body;
 
@@ -375,16 +507,28 @@ app.post("/auth/register", async (req, res) => {
     });
 
     try {
-      await notificationServices.createNotification({
-        userId: String(created.id || created._id),
-        type: "welcome",
-        title: "Welcome to Giggly",
-        body: `Welcome to Giggly, ${created.display_name || display_name}!`,
-        relatedId: String(created.id || created._id),
-      });
-    } catch (notificationErr) {
-      console.error("Failed to create welcome notification:", notificationErr);
+  await notificationServices.createNotification({
+    userId: String(created.id || created._id),
+    type: "welcome",
+    title: "Welcome to Giggly",
+    body: `Welcome to Giggly, ${created.display_name || display_name}!`,
+    relatedId: String(created.id || created._id),
+  });
+} catch (notificationErr) {
+  console.error("Failed to create welcome notification:", notificationErr);
+}
+
+    if (!isEmailVerificationBypassEnabled()) {
+      try {
+        await emailVerificationServices.sendVerificationForUser({
+          userId: created._id,
+          email: created.email,
+        });
+      } catch (verificationErr) {
+        console.error("Failed to send verification email:", verificationErr);
+      }
     }
+
 
     return res.status(201).json({
       data: {
@@ -392,6 +536,7 @@ app.post("/auth/register", async (req, res) => {
         email: created.email,
         display_name: created.display_name,
         role: created.role,
+        email_verified: Boolean(created.email_verified),
         createdAt: created.createdAt,
       },
     });
@@ -403,7 +548,7 @@ app.post("/auth/register", async (req, res) => {
   }
 });
 
-app.post("/auth/login", async (req, res) => {
+app.post("/auth/login", authRateLimit, async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -420,6 +565,7 @@ app.post("/auth/login", async (req, res) => {
       email: user.email,
       display_name: user.display_name,
       role: user.role,
+      email_verified: Boolean(user.email_verified),
     };
     const profiles = await getAuthProfiles(authUser);
     const token = authServices.createAccessToken(user);
@@ -448,6 +594,56 @@ app.get(
     });
   }),
 );
+
+app.post("/auth/email/send", authRateLimit, async (req, res) => {
+  try {
+    const { email } = req.body || {};
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ error: "Valid email is required" });
+    }
+
+    if (isEmailVerificationBypassEnabled()) {
+      return res.status(200).json({ data: { ok: true, bypassed: true } });
+    }
+
+    await emailVerificationServices.sendVerificationForEmail({ email });
+    return res.status(200).json({ data: { ok: true } });
+  } catch (_err) {
+    return res.status(500).json({ error: "Failed to send verification code" });
+  }
+});
+
+app.post("/auth/email/verify", authRateLimit, async (req, res) => {
+  try {
+    const { email, code } = req.body || {};
+    if (!email || !isValidEmail(email) || !code) {
+      return res.status(400).json({ error: "email and code are required" });
+    }
+
+    if (
+      isEmailVerificationBypassEnabled() &&
+      String(code).trim() === "000000"
+    ) {
+      await emailVerificationServices.devBypassVerifyEmail({ email });
+      return res.status(200).json({
+        data: { ok: true, bypassed: true },
+      });
+    }
+
+    const result = await emailVerificationServices.verifyCodeForEmail({
+      email,
+      code,
+    });
+
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error || "Invalid code" });
+    }
+
+    return res.status(200).json({ data: { ok: true } });
+  } catch (_err) {
+    return res.status(500).json({ error: "Failed to verify code" });
+  }
+});
 
 app.get("/bands", async (req, res) => {
   try {
@@ -802,7 +998,6 @@ app.delete(
       if (!(await ensureBandAccess(req, res, req.params.id))) {
         return;
       }
-      // 2. Now both id and videoId are available in req.params
       const { id, videoId } = req.params;
 
       const updated = await bandServices.removeBandVideo(id, videoId);
@@ -1177,6 +1372,106 @@ app.post(
   }),
 );
 
+app.put(
+  "/musicians/:id",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      if (!(await ensureMusicianAccess(req, res, req.params.id))) {
+        return;
+      }
+      
+      const { name, bio } = req.body;
+      const updates = {};
+      if (name !== undefined) updates.name = name;
+      if (bio !== undefined) updates.bio = bio;
+
+      const updatedMusician = await musicianServices.updateMusicianProfile(
+        req.params.id,
+        updates
+      );
+
+      if (!updatedMusician) {
+        return res.status(404).json({ error: "Musician profile not found" });
+      }
+
+      res.status(200).json({ data: updatedMusician });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to update musician profile" });
+    }
+  })
+);
+
+app.post(
+  "/musicians/:id/gallery",
+  requireRole(["musician", "band"], async (req, res) => {
+    if (!(await ensureMusicianAccess(req, res, req.params.id))) {
+      return;
+    }
+    imageUpload.single("image")(req, res, async (uploadErr) => {
+      if (uploadErr) {
+        if (
+          uploadErr instanceof multer.MulterError &&
+          uploadErr.code === "LIMIT_FILE_SIZE"
+        ) {
+          return res
+            .status(400)
+            .json({ error: "Image must be 5MB or smaller" });
+        }
+        return res
+          .status(400)
+          .json({ error: uploadErr.message || "Upload failed" });
+      }
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "Image file is required" });
+        }
+        const imageUrl = makeUploadedImageUrl(
+          req,
+          "musicians",
+          req.file.filename
+        );
+        
+        const updatedMusician = await musicianServices.addMusicianGalleryImage(
+          req.params.id,
+          imageUrl
+        );
+        if (!updatedMusician) {
+          return res.status(404).json({ error: "Musician not found" });
+        }
+        res.status(200).json({ data: updatedMusician });
+      } catch (err) {
+        res.status(400).json({ error: "Failed to upload gallery image" });
+      }
+    });
+  })
+);
+
+app.delete(
+  "/musicians/:id/gallery",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      if (!(await ensureMusicianAccess(req, res, req.params.id))) {
+        return;
+      }
+      const { imageUrl } = req.body;
+      if (!imageUrl) {
+        return res.status(400).json({ error: "imageUrl is required" });
+      }
+      
+      const updatedMusician = await musicianServices.removeMusicianGalleryImage(
+        req.params.id,
+        imageUrl
+      );
+      if (!updatedMusician) {
+        return res.status(404).json({ error: "Musician not found" });
+      }
+      res.status(200).json({ data: updatedMusician });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to remove musician gallery image" });
+    }
+  })
+);
+
 app.post(
   "/musicians/:id/videos",
   requireRole(["musician", "band"], async (req, res) => {
@@ -1218,8 +1513,6 @@ app.delete(
     }
   }),
 );
-
-// GET /musicians/:id/reviews ...
 
 app.get("/musicians/:id/reviews", async (req, res) => {
   try {
@@ -1426,25 +1719,29 @@ app.delete("/notifications/:id", async (req, res) => {
   }
 });
 
-app.get("/conversations", async (req, res) => {
+app.get(
+  "/conversations",
+  requireAuth(async (req, res) => {
   try {
-    const { userId } = req.query;
-
-    if (!userId) {
-      return res.status(400).json({ error: "userId is required" });
+    const authUserId = getAuthUserId(req);
+    const requestedUserId = req.query?.userId ? String(req.query.userId) : "";
+    if (requestedUserId && requestedUserId !== authUserId) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
-    const conversations = await conversationServices.getConversationsByUser(
-      String(userId),
-    );
+    const conversations =
+      await conversationServices.getConversationsByUser(String(authUserId));
 
     res.status(200).json({ data: conversations });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch conversations" });
   }
-});
+})
+);
 
-app.post("/conversations", async (req, res) => {
+app.post(
+  "/conversations",
+  requireAuth(async (req, res) => {
   try {
     const { gigId, bandId, venueId, bandUserId, venueUserId } = req.body;
 
@@ -1454,13 +1751,22 @@ app.post("/conversations", async (req, res) => {
       });
     }
 
-    const existing = await conversationServices.findConversationByParticipants({
-      gigId,
-      bandId,
-      venueId,
-      bandUserId: String(bandUserId),
-      venueUserId: String(venueUserId),
-    });
+    const authUserId = getAuthUserId(req);
+    if (
+      String(bandUserId) !== String(authUserId) &&
+      String(venueUserId) !== String(authUserId)
+    ) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const existing =
+      await conversationServices.findConversationByParticipants({
+        gigId,
+        bandId,
+        venueId,
+        bandUserId: String(bandUserId),
+        venueUserId: String(venueUserId),
+      });
 
     if (existing) {
       return res.status(200).json({ data: existing });
@@ -1481,26 +1787,39 @@ app.post("/conversations", async (req, res) => {
       error: err.message || "Failed to create conversation",
     });
   }
-});
+})
+);
 
-app.get("/conversations/:id/messages", async (req, res) => {
+app.get(
+  "/conversations/:id/messages",
+  requireAuth(async (req, res) => {
   try {
+    const authUserId = getAuthUserId(req);
+    const conversation = await conversationServices.findConversationById(
+      req.params.id
+    );
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+    if (!isConversationParticipant(conversation, authUserId)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     const messages = await messageServices.getMessages(req.params.id);
     res.status(200).json({ data: messages });
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch messages" });
   }
-});
+})
+);
 
-app.post("/conversations/:id/messages", async (req, res) => {
+app.post(
+  "/conversations/:id/messages",
+  requireAuthWith([messageSendRateLimit], async (req, res) => {
   try {
-    const { senderUserId, senderRole, text } = req.body;
-
-    if (!senderUserId || !senderRole || !text) {
-      return res.status(400).json({
-        error: "senderUserId, senderRole, and text are required",
-      });
-    }
+    const authUserId = getAuthUserId(req);
+    const { text } = req.body || {};
 
     const conversation = await conversationServices.findConversationById(
       req.params.id,
@@ -1510,12 +1829,30 @@ app.post("/conversations/:id/messages", async (req, res) => {
       return res.status(404).json({ error: "Conversation not found" });
     }
 
+    if (!isConversationParticipant(conversation, authUserId)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const senderRole =
+      String(conversation.bandUserId) === String(authUserId) ? "band" : "venue";
+
+    const spamCheck = passesBasicSpamChecks({
+      senderUserId: authUserId,
+      conversationId: req.params.id,
+      text,
+    });
+    if (!spamCheck.ok) {
+      return res
+        .status(spamCheck.status || 429)
+        .json({ error: spamCheck.error || "Blocked" });
+    }
+
     const message = await messageServices.addMessage({
       conversationId: req.params.id,
-      senderUserId: String(senderUserId),
+      senderUserId: String(authUserId),
       senderRole,
       text,
-      readByUserIds: [String(senderUserId)],
+      readByUserIds: [String(authUserId)],
     });
 
     await conversationServices.updateConversationLastMessage(
@@ -1524,7 +1861,7 @@ app.post("/conversations/:id/messages", async (req, res) => {
     );
 
     const receiverUserId =
-      String(senderUserId) === String(conversation.bandUserId)
+      String(authUserId) === String(conversation.bandUserId)
         ? String(conversation.venueUserId)
         : String(conversation.bandUserId);
 
@@ -1540,26 +1877,49 @@ app.post("/conversations/:id/messages", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Failed to send message" });
   }
-});
+})
+);
 
-app.put("/conversations/:id/read", async (req, res) => {
+app.put(
+  "/conversations/:id/read",
+  requireAuth(async (req, res) => {
   try {
-    const { userId } = req.body;
+    const authUserId = getAuthUserId(req);
 
-    if (!userId) {
-      return res.status(400).json({ error: "userId is required" });
+    const conversation = await conversationServices.findConversationById(
+      req.params.id
+    );
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+    if (!isConversationParticipant(conversation, authUserId)) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
-    await messageServices.markMessagesRead(req.params.id, String(userId));
+    await messageServices.markMessagesRead(req.params.id, String(authUserId));
 
     res.status(200).json({ data: { success: true } });
   } catch (err) {
     res.status(400).json({ error: "Failed to mark conversation as read" });
   }
-});
+})
+);
 
-app.delete("/conversations/:id", async (req, res) => {
+app.delete(
+  "/conversations/:id",
+  requireAuth(async (req, res) => {
   try {
+    const authUserId = getAuthUserId(req);
+    const conversation = await conversationServices.findConversationById(
+      req.params.id
+    );
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+    if (!isConversationParticipant(conversation, authUserId)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     const deleted = await conversationServices.findConversationByIdAndDelete(
       req.params.id,
     );
@@ -1572,7 +1932,8 @@ app.delete("/conversations/:id", async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: "Failed to delete conversation" });
   }
-});
+})
+);
 
 app.use((err, _req, res, next) => {
   if (err instanceof multer.MulterError) {

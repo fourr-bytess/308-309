@@ -32,6 +32,7 @@ const MusicianSchema = new mongoose.Schema(
       default: "",
     },
     video_urls: [{ type: String }],
+    gallery_images: [{ type: String }],
   },
   { collection: "musicians_list" }
 );

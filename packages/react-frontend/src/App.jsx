@@ -19,6 +19,8 @@ import {
   register as apiRegister,
   saveSearchArea,
   verifyAuth as apiVerifyAuth,
+  sendEmailVerificationCode,
+  verifyEmailCode,
   updateBand,
   getNotifications,
   getUnreadNotificationCount,
@@ -50,6 +52,7 @@ const DEFAULT_PLACEHOLDER_IMAGE =
 function ProtectedRoute({
   isLoggedIn,
   userRole,
+  needsEmailVerification = false,
   allowedRoles = [],
   redirectTo = "/",
   children,
@@ -58,6 +61,10 @@ function ProtectedRoute({
 
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (needsEmailVerification && location.pathname !== "/verify-email") {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
@@ -93,6 +100,10 @@ export default function App() {
   const [authTokenChecked, setAuthTokenChecked] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authUser, setAuthUser] = useState(null);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifyMessage, setVerifyMessage] = useState("");
+  const [verifySending, setVerifySending] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -322,11 +333,14 @@ export default function App() {
       const data = await apiLogin({ email, password });
       const backendRole = data?.user?.role;
       const frontendRole = toFrontendRole(backendRole);
+      const isEmailVerified = Boolean(data?.user?.email_verified);
       setAuthUser({
         id: String(data?.user?.id || data?.user?._id || ""),
         email: data?.user?.email || email,
         displayName: data?.user?.display_name || "",
+        emailVerified: isEmailVerified,
       });
+      setNeedsEmailVerification(!isEmailVerified);
 
       setProfile((prev) => ({
         ...prev,
@@ -339,6 +353,11 @@ export default function App() {
       setIsNotificationModalOpen(false);
       setIsLoggedIn(true);
 
+      if (!isEmailVerified) {
+        navigate("/verify-email", { replace: true });
+        return;
+      }
+
       if (frontendRole === "Artist") {
         const musicianRecord = await createOrLoadMusicianProfile(email);
         setMusicianId(musicianRecord._id);
@@ -349,6 +368,10 @@ export default function App() {
       } else {
         const venueRecord = await createOrLoadVenueProfile(email);
         setVenueId(venueRecord._id || "");
+        setProfile((prev) => ({
+          ...prev,
+          profilePictureUrl: venueRecord.profile_picture_url || "",
+        }));
       }
 
       const from = location.state?.from?.pathname;
@@ -368,6 +391,10 @@ export default function App() {
   function handleLogout() {
     setIsLoggedIn(false);
     setAuthUser(null);
+    setNeedsEmailVerification(false);
+    setVerifyCode("");
+    setVerifyMessage("");
+    setVerifySending(false);
     setNotifications([]);
     setUnreadCount(0);
     setNotificationError("");
@@ -381,6 +408,14 @@ export default function App() {
     setMusicianUploadMessage("");
     setBandUploadMessage("");
     setAuthError("");
+    setProfile({
+      first: "First Name",
+      last: "Last Name",
+      email: "hello@email.com",
+      password: "12345",
+      role: "Artist",
+      profilePictureUrl: "",
+    });
     clearAuthToken();
     navigate("/", { replace: true });
   }
@@ -403,54 +438,86 @@ export default function App() {
           (memberId) => String(memberId) === String(musicianId),
         ))),
   );
-  const canManageCurrentMusicianPage = Boolean(
+  const canManageCurrentMusicianPage =
     isLoggedIn &&
     profile.role === "Artist" &&
-    musicianDetails &&
-    (String(musicianDetails.owner_user || "") === currentUserId ||
-      (musicianId && musicianId === pathMusicianId)),
-  );
+    String(musicianId || "") === String(pathMusicianId || "");
 
-  async function uploadMusicianProfilePicture(file) {
+  async function uploadUserProfilePicture(file) {
     const validationMessage = validateImageFile(file);
     if (validationMessage) {
       setMusicianUploadMessage(validationMessage);
       return;
     }
 
-    if (profile.role !== "Artist") {
-      setMusicianUploadMessage(
-        "Only artist accounts can edit musician profiles.",
-      );
-      return;
-    }
-
-    if (!musicianId) {
-      setMusicianUploadMessage("Please sign in as a musician first.");
-      return;
-    }
-
     const body = new FormData();
     body.append("image", file);
 
-    const response = await authFetch(
-      `/musicians/${musicianId}/profile-picture`,
-      { method: "POST", body },
-    );
-    const payload = await response.json();
+    try {
+      if (profile.role === "Venue") {
+        if (!venueId) {
+          setMusicianUploadMessage("Please sign in as a venue first.");
+          return;
+        }
 
-    if (!response.ok) {
-      setMusicianUploadMessage(
-        payload.error || "Failed to upload musician profile picture.",
-      );
-      return;
+        const response = await authFetch(`/venues/${venueId}/profile-picture`, {
+          method: "POST",
+          body,
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          setMusicianUploadMessage(payload.error || "Failed to upload venue photo.");
+          return;
+        }
+
+        setProfile((prev) => ({
+          ...prev,
+          profilePictureUrl: payload.data.profile_picture_url || "",
+        }));
+        setVenues((prev) =>
+          prev.map((v) => (v._id === venueId ? { ...v, profile_picture_url: payload.data.profile_picture_url } : v))
+        );
+        setMusicianUploadMessage("Venue profile picture updated!");
+      } 
+      
+      else if (profile.role === "Artist") {
+        if (!musicianId) {
+          setMusicianUploadMessage("Please sign in as a musician first.");
+          return;
+        }
+
+        const response = await authFetch(`/musicians/${musicianId}/profile-picture`, {
+          method: "POST",
+          body,
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          setMusicianUploadMessage(payload.error || "Failed to upload musician photo.");
+          return;
+        }
+
+        const newUrl = payload.data.profile_picture_url || "";
+
+        setProfile((prev) => ({
+          ...prev,
+          profilePictureUrl: newUrl,
+        }));
+
+        setMusicianDetails((prev) => {
+          if (prev && String(prev._id) === String(musicianId)) {
+            return { ...prev, profile_picture_url: newUrl };
+          }
+          return prev;
+        });
+
+        setMusicianUploadMessage("Musician profile picture updated successfully!");
+      }
+    } catch (err) {
+      console.error("Profile picture upload error:", err);
+      setMusicianUploadMessage("An unexpected error occurred during upload.");
     }
-
-    setProfile((prev) => ({
-      ...prev,
-      profilePictureUrl: payload.data.profile_picture_url || "",
-    }));
-    setMusicianUploadMessage("Profile picture uploaded.");
   }
 
   async function handleMusicianGalleryUpload(file) {
@@ -459,33 +526,55 @@ export default function App() {
       setMusicianUploadMessage(validationMessage);
       return;
     }
-    if (!pathMusicianId) {
+    if (!musicianId) {
       setMusicianUploadMessage("No musician selected");
       return;
     }
-    if (!canManageCurrentMusicianPage) {
-      setMusicianUploadMessage("You can only manage your own musician page.");
-      return;
-    }
+    
     const body = new FormData();
     body.append("image", file);
 
-    const response = await authFetch(`/musicians/${pathMusicianId}/gallery`, {
-      method: "POST",
-      body,
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      setMusicianUploadMessage(payload.error || "Failed to upload photos");
-      return;
-    }
+    try {
+      const response = await authFetch(`/musicians/${musicianId}/gallery`, {
+        method: "POST",
+        body,
+      });
+      
+      const payload = await response.json();
+      if (!response.ok) {
+        setMusicianUploadMessage(payload.error || "Failed to upload photos");
+        return;
+      }
 
-    setMusicianDetails(payload.data);
+      setMusicianDetails(payload.data);
+      setMusicianUploadMessage("Photo uploaded successfully!");
+    } catch (err) {
+      console.error(err);
+      setMusicianUploadMessage("Network connection error saving gallery image.");
+    }
+  }
+
+  async function removeMusicianGalleryImage(imageUrl) {
+    if (!musicianId) return;
+    try {
+      const response = await authFetch(`/musicians/${musicianId}/gallery`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        setMusicianDetails(payload.data);
+      }
+    } catch (err) {
+      console.error("Failed to delete gallery image:", err);
+    }
   }
 
   const [musicianVideoLink, setMusicianVideoLink] = useState("");
   async function addMusicianVideo() {
-    if (!canManageCurrentMusicianPage || !pathMusicianId) {
+    if (!musicianId) {
       setMusicianUploadMessage("You can only manage your own musician page.");
       return;
     }
@@ -504,6 +593,7 @@ export default function App() {
     if (response.ok) {
       setMusicianDetails(payload.data);
       setMusicianVideoLink("");
+      setMusicianUploadMessage("Video added successfully")
     }
   }
 
@@ -871,17 +961,25 @@ export default function App() {
         const verifiedUser = data?.user || {};
         const backendRole = verifiedUser.role;
         const frontendRole = toFrontendRole(backendRole);
+        const isEmailVerified = Boolean(verifiedUser.email_verified);
         setAuthUser({
           id: String(verifiedUser.id || verifiedUser._id || ""),
           email: verifiedUser.email || "",
           displayName: verifiedUser.display_name || "",
+          emailVerified: isEmailVerified,
         });
+        setNeedsEmailVerification(!isEmailVerified);
         setProfile((prev) => ({
           ...prev,
           email: verifiedUser.email || prev.email,
           role: frontendRole,
         }));
         setIsLoggedIn(true);
+
+        if (!isEmailVerified && location.pathname !== "/verify-email") {
+          navigate("/verify-email", { replace: true });
+          return;
+        }
 
         if (frontendRole === "Artist" && verifiedUser.email) {
           const musicianRecord = await createOrLoadMusicianProfile(
@@ -901,6 +999,10 @@ export default function App() {
           );
           setVenueId(data?.profiles?.venueId || venueRecord._id || "");
           setMusicianId("");
+          setProfile((prev) => ({
+            ...prev,
+            profilePictureUrl: venueRecord.profile_picture_url || "",
+          }));
         }
       })
       .catch(() => {
@@ -1273,14 +1375,14 @@ export default function App() {
               <button type="button" onClick={() => navigate("/my-band")}>
                 My Band
               </button>
-              <button type="button" onClick={() => navigate("/profile")}>
-                My Page
+              <button type="button" onClick={() => navigate(`/musicians/${musicianId}`)}>
+                My Profile Page
               </button>
               <button
                 type="button"
-                onClick={() => navigate(`/musicians/${musicianId}`)}
+                onClick={() => navigate("/profile")}
               >
-                Profile
+                Edit User Info
               </button>
 
               <button type="button" onClick={() => navigate("/messages")}>
@@ -1390,7 +1492,9 @@ export default function App() {
               <button type="button" onClick={() => navigate("/dashboard")}>
                 Dashboard
               </button>
-
+              <button type="button" onClick={() => navigate("/profile")}>
+                Edit User Info
+              </button>
               <button type="button" onClick={() => navigate("/messages")}>
                 Messages
               </button>
@@ -1525,10 +1629,125 @@ export default function App() {
             </section>
           }
         />
+
+        <Route
+          path="/verify-email"
+          element={
+            <section id="verify-email" className="page active">
+              <div className="form-card">
+                <h2>Verify your email</h2>
+                <p style={{ marginTop: 0 }}>
+                  Enter the 6-digit code we sent to{" "}
+                  <strong>{authUser?.email || loginEmail}</strong>.
+                </p>
+
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Verification code"
+                  value={verifyCode}
+                  onChange={(e) =>
+                    setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                />
+
+                {verifyMessage && (
+                  <p className={`upload-message ${verifyMessage.includes("Success") ? "" : "error"}`}>
+                    {verifyMessage}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  className="primary-btn"
+                  disabled={verifySending || verifyCode.length !== 6}
+                  onClick={async () => {
+                    const email = String(authUser?.email || loginEmail || "")
+                      .trim()
+                      .toLowerCase();
+                    if (!email) {
+                      setVerifyMessage("Missing email. Please log in again.");
+                      return;
+                    }
+                    try {
+                      setVerifySending(true);
+                      setVerifyMessage("");
+                      await verifyEmailCode({ email, code: verifyCode });
+                      setVerifyMessage("Success! Email verified.");
+                      setNeedsEmailVerification(false);
+
+                      const refreshed = await apiVerifyAuth();
+                      const verifiedUser = refreshed?.user || {};
+                      setAuthUser((prev) => ({
+                        ...(prev || {}),
+                        emailVerified: Boolean(verifiedUser.email_verified),
+                      }));
+
+                      const backendRole = verifiedUser.role;
+                      const frontendRole = toFrontendRole(backendRole);
+                      if (frontendRole === "Venue") {
+                        navigate("/dashboard", { replace: true });
+                      } else {
+                        navigate("/gigs", { replace: true });
+                      }
+                    } catch (err) {
+                      setVerifyMessage(err?.message || "Invalid code.");
+                    } finally {
+                      setVerifySending(false);
+                    }
+                  }}
+                >
+                  Verify
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={verifySending}
+                  onClick={async () => {
+                    const email = String(authUser?.email || loginEmail || "")
+                      .trim()
+                      .toLowerCase();
+                    if (!email) {
+                      setVerifyMessage("Missing email. Please log in again.");
+                      return;
+                    }
+                    try {
+                      setVerifySending(true);
+                      setVerifyMessage("");
+                      await sendEmailVerificationCode({ email });
+                      setVerifyMessage("Code sent. Check your inbox.");
+                    } catch (err) {
+                      setVerifyMessage(err?.message || "Failed to resend code.");
+                    } finally {
+                      setVerifySending(false);
+                    }
+                  }}
+                >
+                  Resend code
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={verifySending}
+                  onClick={handleLogout}
+                >
+                  Log out
+                </button>
+              </div>
+            </section>
+          }
+        />
         <Route
           path="/location"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+            >
               <Location
                 userRole={profile.role}
                 initialSearchArea={searchArea}
@@ -1541,7 +1760,11 @@ export default function App() {
         <Route
           path="/bands"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+            >
               <BandsPage
                 bands={bands}
                 navigate={navigate}
@@ -1559,6 +1782,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist"]}
               redirectTo="/bands"
             >
@@ -1613,6 +1837,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist"]}
               redirectTo="/bands"
             >
@@ -1720,6 +1945,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist"]}
               redirectTo="/bands"
             >
@@ -1919,97 +2145,237 @@ export default function App() {
         <Route
           path="/musicians/:id"
           element={
-            <section id="profile" className="page active">
-              <div className="profile-popup band-profile-popup">
-                {musicianDetails && (
-                  <>
-                    <img
-                      className="profile-image"
-                      src={
-                        musicianDetails.profile_picture_url ||
-                        DEFAULT_PLACEHOLDER_IMAGE
-                      }
-                    />
-                    <h2>{musicianDetails.name}</h2>
-                    <p className="bio-text">
-                      {musicianDetails.bio || "No bio yet."}
-                    </p>
+            <section className="band-profile-page" id="musician-public-profile" style={{ minHeight: "100vh" }}>
+              {!musicianDetails ? (
+                <div className="list-empty-message" style={{ padding: "40px" }}>Loading Musician Profile...</div>
+              ) : (
+                <>
+                  <div className="band-header" id="musician-profile-header">
+                    <div style={{ display: "flex", alignItems: "center", gap: "24px", flexWrap: "wrap" }}>
+                      <img
+                        src={musicianDetails.profile_picture_url || DEFAULT_PLACEHOLDER_IMAGE}
+                        alt={musicianDetails.name}
+                        style={{ width: "130px", height: "130px", borderRadius: "50%", objectFit: "cover", border: "4px solid #f2e8cf" }}
+                      />
+                      <div>
+                        <h1 className="band-title" id="musician-main-title" style={{ textTransform: "capitalize" }}>
+                          {musicianDetails.name}
+                        </h1>
+                        <p className="band-genre" id="musician-instruments-list" style={{ color: "#ffd447" }}>
+                          {musicianDetails.instruments?.join(", ") || "Solo Musician Account"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-                    {canManageCurrentMusicianPage && (
-                      <div
-                        className="management-box"
-                        style={{
-                          border: "1px dashed #667eea",
-                          padding: "15px",
-                          borderRadius: "8px",
-                          marginBottom: "20px",
-                        }}
-                      >
-                        <h4 style={{ marginBottom: "10px" }}>
-                          Manage your page
-                        </h4>
-                        <div className="profile-row upload-row">
-                          <span className="label">Upload YouTube Video</span>
+                  {canManageCurrentMusicianPage && (
+                    <div 
+                      className="band-section" 
+                      id="musician-management-panel"
+                      style={{
+                        background: "rgba(255, 255, 255, 0.1)",
+                        padding: "24px",
+                        borderRadius: "12px",
+                        border: "1px dashed #2a9d8f",
+                        backdropFilter: "blur(4px)"
+                      }}
+                    >
+                      <h3 style={{ color: "#ffd447", marginBottom: "15px" }}>Owner Management Panel</h3>
+                      
+                      <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", alignItems: "flex-end" }}>
+                        <div style={{ flex: "1", minWidth: "260px" }}>
+                          <label className="label" style={{ color: "#f2e8cf", display: "block", marginBottom: "6px" }}>Add Photo to Media Gallery</label>
                           <input
-                            className="edit-input"
-                            placeholder="Paste YouTube link here"
-                            value={musicianVideoLink}
-                            onChange={(e) =>
-                              setMusicianVideoLink(e.target.value)
-                            }
-                          />
-                          <button
-                            className="secondary-btn"
-                            onClick={addMusicianVideo}
-                          >
-                            Add
-                          </button>
-                        </div>
-                        <div className="profile-row upload-row">
-                          <span className="label">Add photo</span>
-                          <input
-                            className="edit-input"
                             type="file"
-                            onChange={(e) =>
-                              handleMusicianGalleryUpload(e.target.files[0])
-                            }
+                            className="edit-input"
+                            style={{ width: "100%" }}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleMusicianGalleryUpload(file);
+                            }}
                           />
+                        </div>
+
+                        <div style={{ flex: "1", minWidth: "260px" }}>
+                          <label className="label" style={{ color: "#f2e8cf", display: "block", marginBottom: "6px" }}>Embed YouTube Video Link</label>
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <input
+                              type="text"
+                              className="edit-input"
+                              placeholder="Paste link..."
+                              style={{ flex: "1" }}
+                              value={musicianVideoLink}
+                              onChange={(e) => setMusicianVideoLink(e.target.value)}
+                            />
+                            <button type="button" className="primary-btn" style={{ margin: 0, width: "auto", padding: "10px 20px" }} onClick={addMusicianVideo}>
+                              Add
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    )}
+                      {musicianUploadMessage && (
+                        <p style={{ marginTop: "12px", color: "#ffd447", fontWeight: "bold" }}>{musicianUploadMessage}</p>
+                      )}
+                    </div>
+                  )}
 
-                    <h3>Videos</h3>
-                    <div className="video-grid">
-                      {musicianDetails.video_urls?.map((vidId) => (
-                        <div key={vidId} className="video-item">
-                          <iframe
-                            src={`https://www.youtube.com/embed/${vidId}`}
-                            frameBorder="0"
-                            allowFullScreen
-                          ></iframe>
-                          {musicianId === pathMusicianId && (
+                  <section className="band-section" id="musician-bio-section">
+                    <h3>About the Musician</h3>
+                    
+                    {canManageCurrentMusicianPage ? (
+                      <div>
+                        {editingBio ? (
+                          <>
+                            <textarea
+                              className="create-band-textarea"
+                              style={{ width: "100%", minHeight: "100px", marginBottom: "12px", background: "#fff", color: "#3a0f3a", padding: "12px", borderRadius: "8px" }}
+                              value={tempBio}
+                              onChange={(e) => setTempBio(e.target.value)}
+                            />
+                            <div style={{ display: "flex", gap: "10px" }}>
+                              <button 
+                                type="button" 
+                                className="primary-btn" 
+                                style={{ width: "auto", margin: 0 }}
+                                onClick={async () => {
+                                  try {
+                                    const response = await authFetch(`/musicians/${musicianId}`, {
+                                      method: "PUT",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ bio: tempBio })
+                                    });
+                                    
+                                    if (response.ok) {
+                                      const payload = await response.json();
+                                      setMusicianDetails(payload.data);
+                                      setEditingBio(false);
+                                      setMusicianUploadMessage("Bio updated successfully!");
+                                    } else {
+                                      const payload = await response.json();
+                                      setMusicianUploadMessage(payload.error || "Failed to save profile changes.");
+                                    }
+                                  } catch (err) {
+                                    setMusicianUploadMessage("Error communicating with database.");
+                                  }
+                                }}
+                              >
+                                Save Bio
+                              </button>
+                              <button type="button" className="secondary-btn" style={{ width: "auto", margin: 0 }} onClick={() => setEditingBio(false)}>
+                                Cancel
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="band-bio" id="musician-bio-text">
+                              {musicianDetails.bio || "No biography added yet."}
+                            </p>
                             <button
+                              type="button"
                               className="secondary-btn"
-                              onClick={() => removeMusicianVideo(vidId)}
+                              style={{ width: "auto", marginTop: "10px" }}
+                              onClick={() => {
+                                setTempBio(musicianDetails.bio || "");
+                                setEditingBio(true);
+                              }}
                             >
-                              Remove Video
+                              Edit Bio
                             </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                          </>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="band-bio" id="musician-bio-text">
+                        {musicianDetails.bio || "No biography added yet."}
+                      </p>
+                    )}
+                  </section>
 
+                  <section className="band-section" id="musician-photos-section">
                     <h3>Photos</h3>
-                    <div className="gallery-grid">
-                      {musicianDetails.gallery_images?.map((url) => (
-                        <div className="gallery-item" key={url}>
-                          <img src={url} />
-                        </div>
-                      ))}
+                    <div className="horizontal-scroll-container">
+                      {musicianDetails.gallery_images?.length > 0 ? (
+                        musicianDetails.gallery_images.map((url, index) => (
+                          <div key={index} style={{ flexShrink: 0, position: "relative" }}>
+                            <img src={url} alt="Gallery item" className="scroll-img" />
+                            
+                            {canManageCurrentMusicianPage && (
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                style={{
+                                  position: "absolute",
+                                  bottom: "10px",
+                                  left: "10px",
+                                  width: "calc(100% - 20px)",
+                                  background: "rgba(90, 15, 46, 0.9)",
+                                  color: "white",
+                                  border: "none",
+                                  fontWeight: "bold",
+                                  margin: 0,
+                                  padding: "4px 8px",
+                                  fontSize: "12px"
+                                }}
+                                onClick={() => removeMusicianGalleryImage(url)}
+                              >
+                                Remove Photo
+                              </button>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <p style={{ fontStyle: "italic", opacity: 0.8 }}>No photos uploaded to the gallery yet.</p>
+                      )}
                     </div>
-                  </>
-                )}
-              </div>
+                  </section>
+
+                  <section className="band-section" id="musician-videos-section">
+                    <h3>Featured Videos</h3>
+                    <div className="horizontal-scroll-container">
+                      {musicianDetails.video_urls?.length > 0 ? (
+                        musicianDetails.video_urls.map((videoUrl, index) => {
+                          const videoId = videoUrl.includes("v=") 
+                            ? videoUrl.split("v=")[1].split("&")[0] 
+                            : videoUrl.split("/").pop();
+                            
+                          return (
+                            <div key={index} className="scroll-video" style={{ position: "relative" }}>
+                              <iframe
+                                src={`https://www.youtube.com/embed/${videoId}`}
+                                title="YouTube player"
+                                frameBorder="0"
+                                allowFullScreen
+                              ></iframe>
+                              {canManageCurrentMusicianPage && (
+                                <button
+                                  type="button"
+                                  className="secondary-btn"
+                                  style={{
+                                    position: "absolute",
+                                    bottom: "10px",
+                                    left: "10px",
+                                    width: "calc(100% - 20px)",
+                                    background: "rgba(90, 15, 46, 0.9)",
+                                    color: "white",
+                                    border: "none",
+                                    fontWeight: "bold"
+                                  }}
+                                  onClick={() => removeMusicianVideo(videoUrl)}
+                                >
+                                  Delete Video
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p style={{ fontStyle: "italic", opacity: 0.8 }}>No videos available.</p>
+                      )}
+                    </div>
+                  </section>
+                </>
+              )}
             </section>
           }
         />
@@ -2020,6 +2386,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist", "Venue"]}
               redirectTo="/dashboard"
             >
@@ -2116,12 +2483,13 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
-              allowedRoles={["Artist"]}
+              needsEmailVerification={needsEmailVerification}
+              allowedRoles={["Artist", "Venue"]}
               redirectTo="/dashboard"
             >
               <section id="profile" className="page active">
                 <div className="profile-popup">
-                  <h2>User Profile</h2>
+                  <h2>Edit User Info</h2>
 
                   <img
                     className="profile-image"
@@ -2138,7 +2506,7 @@ export default function App() {
                       onChange={(event) => {
                         const file = event.target.files?.[0];
                         if (file) {
-                          uploadMusicianProfilePicture(file);
+                          uploadUserProfilePicture(file);
                         }
                       }}
                     />
@@ -2207,7 +2575,29 @@ export default function App() {
                       <button
                         type="button"
                         className="primary-btn"
-                        onClick={() => setIsEditing(false)}
+                        onClick={async () => {
+                          setIsEditing(false);
+                          const combinedName = `${profile.first} ${profile.last}`.trim();
+                          if (profile.role === "Artist" && musicianId) {
+                            try {
+                              const response = await authFetch(`/musicians/${musicianId}`, {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ name: combinedName || profile.email }),
+                              });
+
+                              if (response.ok) {
+                                const payload = await response.json();
+                                if (payload.data) {
+                                  setMusicianDetails(payload.data);
+                                }
+                                setMusicianUploadMessage("Name changes synced to public profile!");
+                              }
+                            } catch (err) {
+                              console.error("Failed to sync name changes:", err);
+                            }
+                          }
+                        }}
                       >
                         Save Changes
                       </button>
@@ -2262,6 +2652,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Venue"]}
               redirectTo="/gigs"
             >
@@ -2458,7 +2849,11 @@ export default function App() {
         <Route
           path="/messages"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+            >
               <section id="messages" className="page active">
                 <div className="messages-shell">
                   <aside className="conversation-list">

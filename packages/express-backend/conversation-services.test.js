@@ -1,6 +1,8 @@
 import { expect, jest } from "@jest/globals";
 import conversationModel from "./conversation.js";
 import conversationServices from "./conversation-services.js";
+import userModel from "./user.js";
+import gigModel from "./gig.js";
 
 describe("Conversation Services Test Suite", () => {
 
@@ -14,6 +16,18 @@ describe("Conversation Services Test Suite", () => {
     conversationModel.findByIdAndDelete = jest.fn();
 
     jest.spyOn(conversationModel.prototype, "save").mockReturnThis();
+
+    userModel.find = jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([]),
+      }),
+    });
+
+    gigModel.find = jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([]),
+      }),
+    });
   });
 
   describe("Conversation Retrieval and Filtering", () => {

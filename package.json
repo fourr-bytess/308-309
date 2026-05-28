@@ -25,7 +25,9 @@
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "build": "npm run build --workspaces --if-present",
     "lint": "npx eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -43,6 +45,7 @@
     "@babel/preset-env": "^7.29.5",
     "babel-jest": "^30.4.1",
     "concurrently": "^9.2.1",
+    "cypress": "^15.16.0",
     "jest": "^30.3.0",
     "jest-environment-jsdom": "^30.3.0",
     "nodemon": "^3.1.11",

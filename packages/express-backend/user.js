@@ -29,6 +29,14 @@ const UserSchema = new mongoose.Schema(
       enum: VALID_ROLES,
       required: true,
     },
+    email_verified: {
+      type: Boolean,
+      default: false,
+    },
+    email_verified_at: {
+      type: Date,
+      default: null,
+    },
   },
   {
     collection: "users",

@@ -12,6 +12,22 @@ let mockConnect;
 let mockNotificationServices;
 let mockConversationServices;
 let mockMessageServices;
+let mockEmailVerificationServices;
+
+const ORIGINAL_EMAIL_VERIFICATION_BYPASS = process.env.EMAIL_VERIFICATION_BYPASS;
+
+beforeAll(() => {
+  // Ensure local developer .env doesn't change test behavior.
+  process.env.EMAIL_VERIFICATION_BYPASS = "false";
+});
+
+afterAll(() => {
+  if (ORIGINAL_EMAIL_VERIFICATION_BYPASS === undefined) {
+    delete process.env.EMAIL_VERIFICATION_BYPASS;
+  } else {
+    process.env.EMAIL_VERIFICATION_BYPASS = ORIGINAL_EMAIL_VERIFICATION_BYPASS;
+  }
+});
 
 mockNotificationServices = {
     getNotificationsByUser: jest.fn().mockResolvedValue([]),
@@ -58,6 +74,40 @@ function findRoute(method, path) {
     throw new Error(`Route not found: ${method} ${path}`);
   }
   return route.handler;
+}
+
+function composeHandlers(handlers) {
+  const list = handlers.flat().filter(Boolean);
+  return async (req, res) => {
+    let idx = 0;
+    const run = async () => {
+      const handler = list[idx];
+      idx += 1;
+      if (!handler) return;
+
+      // Middleware signature: (req, res, next)
+      if (handler.length >= 3) {
+        await new Promise((resolve, reject) => {
+          try {
+            handler(req, res, (err) => {
+              if (err) reject(err);
+              else resolve();
+            });
+          } catch (e) {
+            reject(e);
+          }
+        });
+        if (res.headersSent) return;
+        return run();
+      }
+
+      await handler(req, res);
+      if (res.headersSent) return;
+      return run();
+    };
+
+    return run();
+  };
 }
 
 async function loadBackend({ connectShouldReject = false } = {}) {
@@ -124,23 +174,30 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     verifyAccessToken: jest.fn(),
   };
 
+  mockEmailVerificationServices = {
+    sendVerificationForUser: jest.fn().mockResolvedValue({ ok: true }),
+    sendVerificationForEmail: jest.fn().mockResolvedValue({ ok: true }),
+    verifyCodeForEmail: jest.fn().mockResolvedValue({ ok: true }),
+    devBypassVerifyEmail: jest.fn().mockResolvedValue({ ok: true }),
+  };
+
   mockApp = {
     use: jest.fn(),
   
-    get: jest.fn((path, handler) => {
-      routes.push({ method: "get", path, handler });
+    get: jest.fn((path, ...handlers) => {
+      routes.push({ method: "get", path, handler: composeHandlers(handlers) });
     }),
   
-    post: jest.fn((path, handler) => {
-      routes.push({ method: "post", path, handler });
+    post: jest.fn((path, ...handlers) => {
+      routes.push({ method: "post", path, handler: composeHandlers(handlers) });
     }),
   
-    put: jest.fn((path, handler) => {
-      routes.push({ method: "put", path, handler });
+    put: jest.fn((path, ...handlers) => {
+      routes.push({ method: "put", path, handler: composeHandlers(handlers) });
     }),
   
-    delete: jest.fn((path, handler) => {
-      routes.push({ method: "delete", path, handler });
+    delete: jest.fn((path, ...handlers) => {
+      routes.push({ method: "delete", path, handler: composeHandlers(handlers) });
     }),
   
     listen: jest.fn(),
@@ -215,6 +272,10 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     default: mockMessageServices,
   }));
 
+  await jest.unstable_mockModule("./email-verification-services.js", () => ({
+    default: mockEmailVerificationServices,
+  }));
+
   const backend = await import("./backend.js");
   await Promise.resolve();
   return backend;
@@ -234,6 +295,21 @@ async function invokeAuthenticatedHandler(handler, req, authPayload) {
   const res = createMockRes();
 
   try {
+    await handler(req, res);
+    return res;
+  } finally {
+    process.env.NODE_ENV = originalNodeEnv;
+  }
+}
+
+async function invokeUnauthenticatedHandler(handler, req) {
+  const originalNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "development";
+
+  const res = createMockRes();
+  try {
+    req.headers = { ...(req.headers || {}) };
+    req.get = jest.fn((headerName) => req.headers?.[headerName]);
     await handler(req, res);
     return res;
   } finally {
@@ -969,6 +1045,7 @@ describe("auth routes", () => {
       email: "person@test.com",
       display_name: "Person",
       role: "musician",
+      email_verified: false,
       createdAt: new Date().toISOString(),
     };
     mockAuthServices.registerUser.mockResolvedValue(created);
@@ -1001,9 +1078,11 @@ describe("auth routes", () => {
           email: "person@test.com",
           display_name: "Person",
           role: "musician",
+          email_verified: false,
         }),
       })
     );
+    expect(mockEmailVerificationServices.sendVerificationForUser).toHaveBeenCalled();
   });
 
   test("POST /auth/register returns 400 when required fields missing", async () => {
@@ -1092,6 +1171,173 @@ describe("auth routes", () => {
     await handler(req, res);
 
     expect(res.statusCode).toBe(409);
+  });
+
+  test("POST /auth/email/send success", async () => {
+    const handler = findRoute("post", "/auth/email/send");
+    mockEmailVerificationServices.sendVerificationForEmail.mockResolvedValue({
+      ok: true,
+    });
+
+    const req = { body: { email: "person@test.com" } };
+    const res = createMockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(mockEmailVerificationServices.sendVerificationForEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "person@test.com" })
+    );
+  });
+
+  test("POST /auth/email/send returns 400 on invalid email", async () => {
+    const handler = findRoute("post", "/auth/email/send");
+    const req = { body: { email: "bad-email" } };
+    const res = createMockRes();
+    await handler(req, res);
+    expect(res.statusCode).toBe(400);
+  });
+
+  test("POST /auth/email/verify success", async () => {
+    const handler = findRoute("post", "/auth/email/verify");
+    mockEmailVerificationServices.verifyCodeForEmail.mockResolvedValue({ ok: true });
+
+    const req = { body: { email: "person@test.com", code: "123456" } };
+    const res = createMockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(mockEmailVerificationServices.verifyCodeForEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "person@test.com", code: "123456" })
+    );
+  });
+
+  test("POST /auth/email/verify returns 400 on invalid code", async () => {
+    const handler = findRoute("post", "/auth/email/verify");
+    mockEmailVerificationServices.verifyCodeForEmail.mockResolvedValue({
+      ok: false,
+      error: "Invalid code",
+    });
+
+    const req = { body: { email: "person@test.com", code: "000000" } };
+    const res = createMockRes();
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(400);
+  });
+
+  test("POST /auth/email/verify supports dev bypass code", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalBypass = process.env.EMAIL_VERIFICATION_BYPASS;
+    process.env.NODE_ENV = "development";
+    process.env.EMAIL_VERIFICATION_BYPASS = "true";
+
+    const handler = findRoute("post", "/auth/email/verify");
+    const req = { body: { email: "person@test.com", code: "000000" } };
+    const res = createMockRes();
+
+    await handler(req, res);
+
+    expect(res.statusCode).toBe(200);
+    expect(mockEmailVerificationServices.devBypassVerifyEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "person@test.com" })
+    );
+
+    process.env.NODE_ENV = originalNodeEnv;
+    process.env.EMAIL_VERIFICATION_BYPASS = originalBypass;
+  });
+});
+
+describe("messaging routes auth + access control", () => {
+  beforeAll(async () => {
+    await loadBackend();
+  });
+
+  test("GET /conversations returns 401 when unauthenticated", async () => {
+    const handler = findRoute("get", "/conversations");
+    const res = await invokeUnauthenticatedHandler(handler, { query: { userId: "u1" } });
+    expect(res.statusCode).toBe(401);
+  });
+
+  test("GET /conversations returns 403 when userId does not match token", async () => {
+    const handler = findRoute("get", "/conversations");
+    const res = await invokeAuthenticatedHandler(
+      handler,
+      { query: { userId: "other" } },
+      { sub: "u1", email: "x@test.com", role: "musician" },
+    );
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("GET /conversations uses token user id", async () => {
+    const handler = findRoute("get", "/conversations");
+    await invokeAuthenticatedHandler(
+      handler,
+      { query: { userId: "u1" } },
+      { sub: "u1", email: "x@test.com", role: "musician" },
+    );
+    expect(mockConversationServices.getConversationsByUser).toHaveBeenCalledWith("u1");
+  });
+
+  test("GET /conversations/:id/messages returns 403 for non-participant", async () => {
+    const handler = findRoute("get", "/conversations/:id/messages");
+    mockConversationServices.findConversationById.mockResolvedValue({
+      bandUserId: "b1",
+      venueUserId: "v1",
+    });
+    const res = await invokeAuthenticatedHandler(
+      handler,
+      { params: { id: "c1" } },
+      { sub: "u-not-in-thread", email: "x@test.com", role: "musician" },
+    );
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("POST /conversations/:id/messages ignores senderUserId and uses token", async () => {
+    const handler = findRoute("post", "/conversations/:id/messages");
+    mockConversationServices.findConversationById.mockResolvedValue({
+      _id: "c1",
+      bandUserId: "u1",
+      venueUserId: "u2",
+    });
+    mockMessageServices.addMessage.mockResolvedValue({ _id: "m1", text: "hi" });
+
+    const res = await invokeAuthenticatedHandler(
+      handler,
+      {
+        params: { id: "c1" },
+        body: { senderUserId: "attacker", senderRole: "venue", text: "hi" },
+      },
+      { sub: "u1", email: "x@test.com", role: "musician" },
+    );
+
+    expect(res.statusCode).toBe(201);
+    expect(mockMessageServices.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "c1",
+        senderUserId: "u1",
+        senderRole: "band",
+        text: "hi",
+      }),
+    );
+  });
+});
+
+describe("rate limiting", () => {
+  beforeAll(async () => {
+    await loadBackend();
+  });
+
+  test("POST /auth/login rate limits after too many requests", async () => {
+    const handler = findRoute("post", "/auth/login");
+    const req = { body: { email: "a@test.com", password: "password123" } };
+    mockAuthServices.authenticateUser.mockResolvedValue(null);
+
+    let lastRes;
+    for (let i = 0; i < 20; i += 1) {
+      lastRes = await invokeUnauthenticatedHandler(handler, { ...req, body: req.body });
+    }
+
+    expect(lastRes.statusCode).toBe(429);
   });
 });
 

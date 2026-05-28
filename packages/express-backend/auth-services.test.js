@@ -89,6 +89,7 @@ describe("Auth Services Test Suite", () => {
       email: "test@gmail.com",
       display_name: "Tester",
       role: "musician",
+      email_verified: false,
     };
 
     const token = authServices.createAccessToken(user);

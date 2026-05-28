@@ -19,6 +19,8 @@ import {
   register as apiRegister,
   saveSearchArea,
   verifyAuth as apiVerifyAuth,
+  sendEmailVerificationCode,
+  verifyEmailCode,
   updateBand,
   getNotifications,
   getUnreadNotificationCount,
@@ -49,6 +51,7 @@ const DEFAULT_PLACEHOLDER_IMAGE =
 function ProtectedRoute({
   isLoggedIn,
   userRole,
+  needsEmailVerification = false,
   allowedRoles = [],
   redirectTo = "/",
   children,
@@ -57,6 +60,10 @@ function ProtectedRoute({
 
   if (!isLoggedIn) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (needsEmailVerification && location.pathname !== "/verify-email") {
+    return <Navigate to="/verify-email" replace />;
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
@@ -92,6 +99,10 @@ export default function App() {
   const [authTokenChecked, setAuthTokenChecked] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authUser, setAuthUser] = useState(null);
+  const [needsEmailVerification, setNeedsEmailVerification] = useState(false);
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifyMessage, setVerifyMessage] = useState("");
+  const [verifySending, setVerifySending] = useState(false);
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -321,11 +332,14 @@ export default function App() {
       const data = await apiLogin({ email, password });
       const backendRole = data?.user?.role;
       const frontendRole = toFrontendRole(backendRole);
+      const isEmailVerified = Boolean(data?.user?.email_verified);
       setAuthUser({
         id: String(data?.user?.id || data?.user?._id || ""),
         email: data?.user?.email || email,
         displayName: data?.user?.display_name || "",
+        emailVerified: isEmailVerified,
       });
+      setNeedsEmailVerification(!isEmailVerified);
 
       setProfile((prev) => ({
         ...prev,
@@ -337,6 +351,11 @@ export default function App() {
       setIsNotificationMenuOpen(false);
       setIsNotificationModalOpen(false);
       setIsLoggedIn(true);
+
+      if (!isEmailVerified) {
+        navigate("/verify-email", { replace: true });
+        return;
+      }
 
       if (frontendRole === "Artist") {
         const musicianRecord = await createOrLoadMusicianProfile(email);
@@ -371,6 +390,10 @@ export default function App() {
   function handleLogout() {
     setIsLoggedIn(false);
     setAuthUser(null);
+    setNeedsEmailVerification(false);
+    setVerifyCode("");
+    setVerifyMessage("");
+    setVerifySending(false);
     setNotifications([]);
     setUnreadCount(0);
     setNotificationError("");
@@ -937,17 +960,25 @@ export default function App() {
         const verifiedUser = data?.user || {};
         const backendRole = verifiedUser.role;
         const frontendRole = toFrontendRole(backendRole);
+        const isEmailVerified = Boolean(verifiedUser.email_verified);
         setAuthUser({
           id: String(verifiedUser.id || verifiedUser._id || ""),
           email: verifiedUser.email || "",
           displayName: verifiedUser.display_name || "",
+          emailVerified: isEmailVerified,
         });
+        setNeedsEmailVerification(!isEmailVerified);
         setProfile((prev) => ({
           ...prev,
           email: verifiedUser.email || prev.email,
           role: frontendRole,
         }));
         setIsLoggedIn(true);
+
+        if (!isEmailVerified && location.pathname !== "/verify-email") {
+          navigate("/verify-email", { replace: true });
+          return;
+        }
 
         if (frontendRole === "Artist" && verifiedUser.email) {
           const musicianRecord = await createOrLoadMusicianProfile(
@@ -1597,10 +1628,125 @@ export default function App() {
             </section>
           }
         />
+
+        <Route
+          path="/verify-email"
+          element={
+            <section id="verify-email" className="page active">
+              <div className="form-card">
+                <h2>Verify your email</h2>
+                <p style={{ marginTop: 0 }}>
+                  Enter the 6-digit code we sent to{" "}
+                  <strong>{authUser?.email || loginEmail}</strong>.
+                </p>
+
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Verification code"
+                  value={verifyCode}
+                  onChange={(e) =>
+                    setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                />
+
+                {verifyMessage && (
+                  <p className={`upload-message ${verifyMessage.includes("Success") ? "" : "error"}`}>
+                    {verifyMessage}
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  className="primary-btn"
+                  disabled={verifySending || verifyCode.length !== 6}
+                  onClick={async () => {
+                    const email = String(authUser?.email || loginEmail || "")
+                      .trim()
+                      .toLowerCase();
+                    if (!email) {
+                      setVerifyMessage("Missing email. Please log in again.");
+                      return;
+                    }
+                    try {
+                      setVerifySending(true);
+                      setVerifyMessage("");
+                      await verifyEmailCode({ email, code: verifyCode });
+                      setVerifyMessage("Success! Email verified.");
+                      setNeedsEmailVerification(false);
+
+                      const refreshed = await apiVerifyAuth();
+                      const verifiedUser = refreshed?.user || {};
+                      setAuthUser((prev) => ({
+                        ...(prev || {}),
+                        emailVerified: Boolean(verifiedUser.email_verified),
+                      }));
+
+                      const backendRole = verifiedUser.role;
+                      const frontendRole = toFrontendRole(backendRole);
+                      if (frontendRole === "Venue") {
+                        navigate("/dashboard", { replace: true });
+                      } else {
+                        navigate("/gigs", { replace: true });
+                      }
+                    } catch (err) {
+                      setVerifyMessage(err?.message || "Invalid code.");
+                    } finally {
+                      setVerifySending(false);
+                    }
+                  }}
+                >
+                  Verify
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={verifySending}
+                  onClick={async () => {
+                    const email = String(authUser?.email || loginEmail || "")
+                      .trim()
+                      .toLowerCase();
+                    if (!email) {
+                      setVerifyMessage("Missing email. Please log in again.");
+                      return;
+                    }
+                    try {
+                      setVerifySending(true);
+                      setVerifyMessage("");
+                      await sendEmailVerificationCode({ email });
+                      setVerifyMessage("Code sent. Check your inbox.");
+                    } catch (err) {
+                      setVerifyMessage(err?.message || "Failed to resend code.");
+                    } finally {
+                      setVerifySending(false);
+                    }
+                  }}
+                >
+                  Resend code
+                </button>
+
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  disabled={verifySending}
+                  onClick={handleLogout}
+                >
+                  Log out
+                </button>
+              </div>
+            </section>
+          }
+        />
         <Route
           path="/location"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+            >
               <Location
                 userRole={profile.role}
                 initialSearchArea={searchArea}
@@ -1613,7 +1759,11 @@ export default function App() {
         <Route
           path="/bands"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+            >
               <BandsPage
                 bands={bands}
                 navigate={navigate}
@@ -1631,6 +1781,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist"]}
               redirectTo="/bands"
             >
@@ -1685,6 +1836,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist"]}
               redirectTo="/bands"
             >
@@ -1792,6 +1944,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist"]}
               redirectTo="/bands"
             >
@@ -2226,6 +2379,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist", "Venue"]}
               redirectTo="/dashboard"
             >
@@ -2322,6 +2476,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Artist", "Venue"]}
               redirectTo="/dashboard"
             >
@@ -2490,6 +2645,7 @@ export default function App() {
             <ProtectedRoute
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
               allowedRoles={["Venue"]}
               redirectTo="/gigs"
             >
@@ -2686,7 +2842,11 @@ export default function App() {
         <Route
           path="/messages"
           element={
-            <ProtectedRoute isLoggedIn={isLoggedIn} userRole={profile.role}>
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+            >
               <section id="messages" className="page active">
                 <div className="messages-shell">
                   <aside className="conversation-list">

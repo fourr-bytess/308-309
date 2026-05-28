@@ -118,6 +118,34 @@ export async function verifyAuth() {
   return payload?.data;
 }
 
+export async function sendEmailVerificationCode({ email }) {
+  const res = await fetch(`${API_URL}/auth/email/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = payload?.error || "Failed to send code";
+    throw new Error(message);
+  }
+  return payload?.data;
+}
+
+export async function verifyEmailCode({ email, code }) {
+  const res = await fetch(`${API_URL}/auth/email/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code }),
+  });
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message = payload?.error || "Invalid code";
+    throw new Error(message);
+  }
+  return payload?.data;
+}
+
 /* ---------------- BANDS ---------------- */
 
 export async function getBands() {

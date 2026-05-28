@@ -28,6 +28,11 @@ function findUserByEmail(email) {
     email: String(email || "").trim().toLowerCase(),
   });
 }
+
+function findUserById(id) {
+  if (!id) return Promise.resolve(null);
+  return userModel.findById(id);
+}
 async function authenticateUser({ email, password }) {
   const normalizedEmail = normalizeEmail(email);
   const user = await userModel.findOne({ email: normalizedEmail });
@@ -66,4 +71,5 @@ export default {
   verifyAccessToken,
   hashPassword,
   findUserByEmail,
+  findUserById,
 };

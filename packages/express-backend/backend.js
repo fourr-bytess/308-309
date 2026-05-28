@@ -28,10 +28,20 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: [
-      "https://witty-mud-06aba3e10.7.azurestaticapps.net",
-      "http://localhost:5173",
-    ],
+    origin(origin, callback) {
+      const allowedStaticOrigins = [
+        "https://witty-mud-06aba3e10.7.azurestaticapps.net",
+      ];
+      if (
+        !origin ||
+        allowedStaticOrigins.includes(origin) ||
+        /^http:\/\/localhost:\d+$/.test(origin)
+      ) {
+        callback(null, origin || true);
+        return;
+      }
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
   }),
@@ -293,6 +303,34 @@ function toAuthUserResponse(authUser) {
     role: authUser?.role || "",
     email_verified: Boolean(authUser?.email_verified),
   };
+}
+
+async function resolveAuthUserFromDatabase(jwtPayload) {
+  const userId = jwtPayload?.sub || jwtPayload?.id || jwtPayload?._id;
+  if (!userId) {
+    return jwtPayload;
+  }
+
+  const user = await authServices.findUserById(userId);
+  if (!user) {
+    return jwtPayload;
+  }
+
+  return {
+    sub: String(user._id),
+    email: user.email,
+    display_name: user.display_name,
+    role: user.role,
+    email_verified: Boolean(user.email_verified),
+  };
+}
+
+async function issueTokenForEmail(email) {
+  const user = await authServices.findUserByEmail(email);
+  if (!user) {
+    return null;
+  }
+  return authServices.createAccessToken(user);
 }
 
 function isOwnedByUser(document, authUserId) {
@@ -586,11 +624,12 @@ app.post("/auth/login", authRateLimit, async (req, res) => {
 app.get(
   "/auth/verify",
   requireAuth(async (req, res) => {
-    const profiles = await getAuthProfiles(req.auth);
+    const authUser = await resolveAuthUserFromDatabase(req.auth);
+    const profiles = await getAuthProfiles(authUser);
     return res.status(200).json({
       data: {
         valid: true,
-        user: toAuthUserResponse(req.auth),
+        user: toAuthUserResponse(authUser),
         profiles,
       },
     });
@@ -627,8 +666,9 @@ app.post("/auth/email/verify", authRateLimit, async (req, res) => {
       String(code).trim() === "000000"
     ) {
       await emailVerificationServices.devBypassVerifyEmail({ email });
+      const token = await issueTokenForEmail(email);
       return res.status(200).json({
-        data: { ok: true, bypassed: true },
+        data: { ok: true, bypassed: true, ...(token ? { token } : {}) },
       });
     }
 
@@ -641,7 +681,10 @@ app.post("/auth/email/verify", authRateLimit, async (req, res) => {
       return res.status(400).json({ error: result.error || "Invalid code" });
     }
 
-    return res.status(200).json({ data: { ok: true } });
+    const token = await issueTokenForEmail(email);
+    return res.status(200).json({
+      data: { ok: true, ...(token ? { token } : {}) },
+    });
   } catch (_err) {
     return res.status(500).json({ error: "Failed to verify code" });
   }

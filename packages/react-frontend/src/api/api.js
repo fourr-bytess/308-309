@@ -71,11 +71,22 @@ export function clearAuthToken() {
 
 export async function authFetch(path, options = {}) {
   const token = getAuthToken();
-  const headers = new Headers(options.headers || {});
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (!token) {
+    throw new Error("Your session expired. Please log in again.");
   }
-  return fetch(`${API_URL}${path}`, { ...options, headers });
+  const headers = new Headers(options.headers || {});
+  headers.set("Authorization", `Bearer ${token}`);
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  if (response.status === 401) {
+    clearAuthToken();
+    const payload = await response.clone().json().catch(() => ({}));
+    const message =
+      payload?.error === "Invalid or expired token"
+        ? "Your session expired. Please log in again."
+        : payload?.error || "Please log in again.";
+    throw new Error(message);
+  }
+  return response;
 }
 
 export async function login({ email, password }) {

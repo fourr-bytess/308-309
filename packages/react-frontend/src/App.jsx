@@ -14,6 +14,7 @@ import {
   authFetch,
   clearAuthToken,
   getAuthToken,
+  setAuthToken,
   loadSearchArea,
   login as apiLogin,
   register as apiRegister,
@@ -360,11 +361,6 @@ export default function App() {
       setIsNotificationModalOpen(false);
       setIsLoggedIn(true);
 
-      if (!isEmailVerified) {
-        navigate("/verify-email", { replace: true });
-        return;
-      }
-
       if (frontendRole === "Artist") {
         const musicianRecord = await createOrLoadMusicianProfile(email);
         setMusicianId(musicianRecord._id);
@@ -380,6 +376,11 @@ export default function App() {
           ...prev,
           profilePictureUrl: venueRecord.profile_picture_url || "",
         }));
+      }
+
+      if (!isEmailVerified) {
+        navigate("/verify-email", { replace: true });
+        return;
       }
 
       const from = location.state?.from?.pathname;
@@ -820,36 +821,46 @@ export default function App() {
       bio: createBandForm.bio,
     };
 
-    const response = await authFetch(`/bands`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await response.json();
+    try {
+      const response = await authFetch(`/bands`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
 
-    if (!response.ok) {
-      setCreateBandMessage(data.error || "Failed to create band.");
-      return;
+      if (!response.ok) {
+        setCreateBandMessage(data.error || "Failed to create band.");
+        return;
+      }
+
+      if (!data.data?._id) {
+        setCreateBandMessage("Band API returned an unexpected response.");
+        return;
+      }
+
+      setCreateBandMessage("Band created.");
+      setBands((prev) => [
+        data.data,
+        ...prev.filter((band) => band._id !== data.data._id),
+      ]);
+      setCreateBandForm({
+        name: "",
+        genre: "",
+        location: "",
+        rate: "",
+        bio: "",
+      });
+      navigate("/my-band");
+    } catch (err) {
+      const message = err?.message || "Failed to create band.";
+      setCreateBandMessage(message);
+      if (message.toLowerCase().includes("log in")) {
+        setIsLoggedIn(false);
+        clearAuthToken();
+        navigate("/login", { replace: true });
+      }
     }
-
-    if (!data.data?._id) {
-      setCreateBandMessage("Band API returned an unexpected response.");
-      return;
-    }
-
-    setCreateBandMessage("Band created.");
-    setBands((prev) => [
-      data.data,
-      ...prev.filter((band) => band._id !== data.data._id),
-    ]);
-    setCreateBandForm({
-      name: "",
-      genre: "",
-      location: "",
-      rate: "",
-      bio: "",
-    });
-    navigate("/my-band");
   }
 
   async function createGigFromForm(event) {
@@ -1830,7 +1841,13 @@ export default function App() {
                     try {
                       setVerifySending(true);
                       setVerifyMessage("");
-                      await verifyEmailCode({ email, code: verifyCode });
+                      const verifyResult = await verifyEmailCode({
+                        email,
+                        code: verifyCode,
+                      });
+                      if (verifyResult?.token) {
+                        setAuthToken(verifyResult.token);
+                      }
                       setVerifyMessage("Success! Email verified.");
                       setNeedsEmailVerification(false);
 
@@ -1843,6 +1860,13 @@ export default function App() {
 
                       const backendRole = verifiedUser.role;
                       const frontendRole = toFrontendRole(backendRole);
+                      const verifiedEmail =
+                        verifiedUser.email || authUser?.email || loginEmail;
+                      if (frontendRole === "Artist" && verifiedEmail) {
+                        const musicianRecord =
+                          await createOrLoadMusicianProfile(verifiedEmail);
+                        setMusicianId(musicianRecord._id || "");
+                      }
                       if (frontendRole === "Venue") {
                         navigate("/dashboard", { replace: true });
                       } else {
@@ -2103,7 +2127,7 @@ export default function App() {
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
               needsEmailVerification={needsEmailVerification}
-              allowedRoles={["Artist"]}
+              allowedRoles={["Artist", "Venue"]}
               redirectTo="/bands"
             >
               <section id="bands" className="page active">

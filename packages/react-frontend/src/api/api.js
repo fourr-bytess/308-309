@@ -184,14 +184,31 @@ export async function updateBand(id, updateData) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updateData),
   });
-  
+
   if (!res.ok) {
     throw new Error("Failed to update band");
   }
-  
+
   return res.json();
 }
 
+export async function addBandMember(bandId, memberInfo) {
+  const res = await authFetch(`/bands/${bandId}/members`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(memberInfo),
+  });
+
+  return res.json();
+}
+
+export async function removeBandMember(bandId, musicianId) {
+  const res = await authFetch(`/bands/${bandId}/members/${musicianId}`, {
+    method: "DELETE",
+  });
+
+  return res.json();
+}
 
 /* ---------------- VENUES ---------------- */
 
@@ -219,7 +236,6 @@ export async function deleteVenue(id) {
   return res.json();
 }
 
-
 /* ---------------- MUSICIANS ---------------- */
 
 export async function getMusicians() {
@@ -237,7 +253,6 @@ export async function createMusician(musician) {
 
   return res.json();
 }
-
 
 /* ---------------- REVIEWS ---------------- */
 
@@ -259,7 +274,7 @@ export async function createReview(review) {
 
 export async function getNotifications(userId) {
   const res = await authFetch(
-    `/notifications?userId=${encodeURIComponent(userId)}`
+    `/notifications?userId=${encodeURIComponent(userId)}`,
   );
   const payload = await res.json();
 
@@ -272,7 +287,7 @@ export async function getNotifications(userId) {
 
 export async function getUnreadNotificationCount(userId) {
   const res = await authFetch(
-    `/notifications/unread-count?userId=${encodeURIComponent(userId)}`
+    `/notifications/unread-count?userId=${encodeURIComponent(userId)}`,
   );
   const payload = await res.json();
 
@@ -321,7 +336,7 @@ export async function deleteNotification(id) {
 
 export async function getConversations(userId) {
   const res = await authFetch(
-    `/conversations?userId=${encodeURIComponent(userId)}`
+    `/conversations?userId=${encodeURIComponent(userId)}`,
   );
   const payload = await res.json();
 

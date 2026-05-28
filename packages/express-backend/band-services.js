@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import bandModel from "./band.js";
 
 const BAND_SELECT =
-  "name members genres locations price_range profile_picture_url gallery_images";
+  "name members genres locations price_range profile_picture_url gallery_images video_urls owner_user bio";
 
 /** Builds a MongoDB query from filter options (shared by getBands, getBandsCount, getBandsPaginated). */
 function buildBandsQuery(filters = {}) {
@@ -66,6 +66,22 @@ function addBand(band) {
   return bandToAdd.save();
 }
 
+function addBandMember(bandId, musicianId) {
+  return bandModel.findByIdAndUpdate(
+    bandId,
+    { $addToSet: { members: musicianId } },
+    { new: true },
+  );
+}
+
+function removeBandMember(bandId, musicianId) {
+  return bandModel.findByIdAndUpdate(
+    bandId,
+    { $pull: { members: musicianId } },
+    { new: true },
+  );
+}
+
 function findBandByIdAndDelete(id) {
   return bandModel.findByIdAndDelete(id);
 }
@@ -117,6 +133,8 @@ export default {
   getBandsPaginated,
   findBandById,
   findBandByIdAndDelete,
+  addBandMember,
+  removeBandMember,
   updateBandProfilePicture,
   addBandGalleryImage,
   removeBandGalleryImage,

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Circle } from "react-leaflet";
 
+
 function getDistanceInMiles(lat1, lng1, lat2, lng2) {
   const earthRadiusMiles = 3958.8;
 
@@ -20,20 +21,33 @@ function getDistanceInMiles(lat1, lng1, lat2, lng2) {
 }
 
 async function getCoordsFromZip(zipCode) {
-  if (!zipCode) return null;
+  const cleanZip = String(zipCode || "").trim();
 
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zipCode}&country=USA`,
-  );
+  if (!cleanZip) return null;
 
-  const data = await res.json();
+  try {
+    const res = await fetch(
+      `https://api.zippopotam.us/us/${encodeURIComponent(cleanZip)}`,
+    );
 
-  if (!data.length) return null;
+    if (!res.ok) {
+      console.error("ZIP lookup failed:", res.status);
+      return null;
+    }
 
-  return {
-    lat: parseFloat(data[0].lat),
-    lng: parseFloat(data[0].lon),
-  };
+    const data = await res.json();
+    const place = data.places?.[0];
+
+    if (!place) return null;
+
+    return {
+      lat: parseFloat(place.latitude),
+      lng: parseFloat(place.longitude),
+    };
+  } catch (err) {
+    console.error("ZIP lookup error:", err);
+    return null;
+  }
 }
 
 export default function BandsPage({
@@ -92,27 +106,14 @@ export default function BandsPage({
     distance <= 5 ? 10 : distance <= 10 ? 9.5 : distance <= 15 ? 9 : 8;
 
   async function handleZipSearch() {
-    if (!zipCode) return;
+    const coordinates = await getCoordsFromZip(zipCode);
 
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zipCode}&country=USA`,
-      );
-      const data = await res.json();
-
-      if (data.length === 0) {
-        alert("ZIP code not found");
-        return;
-      }
-
-      const lat = parseFloat(data[0].lat);
-      const lng = parseFloat(data[0].lon);
-
-      setCoords({ lat, lng });
-    } catch (err) {
-      console.error(err);
-      alert("Error fetching location");
+    if (!coordinates) {
+      alert("ZIP code not found");
+      return;
     }
+
+    setCoords(coordinates);
   }
 
   const filteredBands = bands.filter((band) => {
@@ -282,7 +283,7 @@ export default function BandsPage({
                   </div>
 
                   <button
-                    className="primary-btn band-profile-btn"
+                    className="band-profile-btn"
                     onClick={() => navigate(`/bands/${band._id}`)}
                   >
                     Open Profile

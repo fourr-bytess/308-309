@@ -23,7 +23,11 @@ function registerUser({ email, password, display_name, role }) {
   });
   return userToAdd.save();
 }
-
+function findUserByEmail(email) {
+  return userModel.findOne({
+    email: String(email || "").trim().toLowerCase(),
+  });
+}
 async function authenticateUser({ email, password }) {
   const normalizedEmail = normalizeEmail(email);
   const user = await userModel.findOne({ email: normalizedEmail });
@@ -61,4 +65,5 @@ export default {
   createAccessToken,
   verifyAccessToken,
   hashPassword,
+  findUserByEmail,
 };

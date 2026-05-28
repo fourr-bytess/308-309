@@ -348,6 +348,10 @@ export default function App() {
       } else {
         const venueRecord = await createOrLoadVenueProfile(email);
         setVenueId(venueRecord._id || "");
+        setProfile((prev) => ({
+          ...prev,
+          profilePictureUrl: venueRecord.profile_picture_url || "",
+        }));
       }
 
       const from = location.state?.from?.pathname;
@@ -380,6 +384,14 @@ export default function App() {
     setMusicianUploadMessage("");
     setBandUploadMessage("");
     setAuthError("");
+    setProfile({
+      first: "First Name",
+      last: "Last Name",
+      email: "hello@email.com",
+      password: "12345",
+      role: "Artist",
+      profilePictureUrl: "",
+    });
     clearAuthToken();
     navigate("/", { replace: true });
   }
@@ -955,6 +967,10 @@ export default function App() {
           );
           setVenueId(data?.profiles?.venueId || venueRecord._id || "");
           setMusicianId("");
+          setProfile((prev) => ({
+            ...prev,
+            profilePictureUrl: venueRecord.profile_picture_url || "",
+          }));
         }
       })
       .catch(() => {

@@ -35,6 +35,7 @@ import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
 import Location from "./components/location.jsx";
 import BandsPage from "./components/Bands.jsx";
+import BandManager from "./components/BandManager.jsx";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
@@ -1802,6 +1803,12 @@ export default function App() {
                           </>
                         )}
                       </div>
+
+                      <BandManager
+                        bandDetails={bandDetails}
+                        currentUserId={currentUserId}
+                        onBandUpdated={setBandDetails}
+                      />
 
                       <div className="profile-row upload-row">
                         <span className="label">Add Gallery Photo</span>

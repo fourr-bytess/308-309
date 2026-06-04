@@ -40,9 +40,11 @@ import {
 } from "./api/api.js";
 import "./App.css";
 import BandPublicProfile from "./components/BandPublicProfile.jsx";
+import GigPublicProfile from "./components/GigPublicProfile.jsx";
 import Location from "./components/location.jsx";
 import BandsPage from "./components/Bands.jsx";
 import BandManager from "./components/BandManager.jsx";
+import ManageGig from "./components/ManageGig.jsx";
 import AvailabilityCalendar from "./components/AvailabilityCalendar.jsx";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -728,6 +730,50 @@ export default function App() {
     setBandDetails(payload.data);
     setBandUploadMessage("Gallery image removed.");
   }
+
+  const uploadGigGalleryImage = async (gigId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await authFetch(`/gigs/${gigId}/gallery`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Failed to upload image");
+
+    setGigs((prevGigs) =>
+      prevGigs.map((g) => (String(g._id) === String(gigId) ? result.data : g))
+    );
+
+    return result.data;
+  } catch (err) {
+    console.error("Error uploading gig image:", err);
+  }
+};
+
+const removeGigGalleryImage = async (gigId, imageUrl) => {
+  try {
+    const response = await authFetch(`/gigs/${gigId}/gallery`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Failed to remove image");
+
+    setGigs((prevGigs) =>
+      prevGigs.map((g) => (String(g._id) === String(gigId) ? result.data : g))
+    );
+
+    return result.data;
+  } catch (err) {
+    console.error("Error removing gig image:", err);
+  }
+};
 
   const [bandVideoLink, setBandVideoLink] = useState("");
   async function addBandVideo() {
@@ -1657,6 +1703,9 @@ export default function App() {
               <button type="button" onClick={() => navigate("/dashboard")}>
                 Dashboard
               </button>
+              <button type="button" onClick={() => navigate("/manage-gigs")}>
+                Manage Gigs
+              </button>
               <button type="button" onClick={() => navigate("/calendar")}>
                 Calendar
               </button>
@@ -2324,6 +2373,18 @@ export default function App() {
         />
 
         <Route
+          path="/gig/:id/public"
+          element={
+            <GigPublicProfile
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              venueId={venueId}
+              onStartConversation={handleStartGigConversation}
+            />
+          }
+        />
+
+        <Route
           path="/musicians/:id"
           element={
             <section className="band-profile-page" id="musician-public-profile" style={{ minHeight: "100vh" }}>
@@ -2670,6 +2731,73 @@ export default function App() {
                 </button>
               </div>
             </section>
+          }
+        />
+
+        <Route
+          path="/manage-gigs"
+          element={
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+              allowedRoles={["Venue"]}
+              redirectTo="/gigs"
+            >
+              <section id="bands" className="page active" style={{ paddingTop: "120px" }}>
+                <h2>Manage My Posted Gigs</h2>
+                <p style={{ color: "#ffd447", marginBottom: "20px" }}>Select a posted gig listing below to alter logistics, pictures, or videos.</p>
+                
+                <div className="card-grid">
+                  {gigs
+                    .filter((gig) => String(gig.host) === String(venueId))
+                    .map((gig) => (
+                      <div key={gig._id} className="card band-card">
+                        <h3 style={{ textTransform: "capitalize" }}>{gig.name}</h3>
+                        <p><strong>Date:</strong> {gig.date ? new Date(gig.date).toLocaleDateString() : "TBD"}</p>
+                        <p><strong>Location:</strong> {gig.location || "No ZIP"}</p>
+                        <div className="band-card-buttons">
+                          <Link to={`/gig/${gig._id}/public`} className="view-public-btn">
+                            View Public Page
+                          </Link>
+                          <button
+                            type="button"
+                            className="secondary-btn"
+                            onClick={() => navigate(`/manage-gigs/${gig._id}`)}
+                          >
+                            Manage / Edit Details
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  {gigs.filter((gig) => String(gig.host) === String(venueId)).length === 0 && (
+                    <p style={{ fontStyle: "italic", padding: "20px", color: "#f2e8cf" }}>You haven't posted any gigs yet. Create one on your Dashboard!</p>
+                  )}
+                </div>
+              </section>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/manage-gigs/:id"
+          element={
+            <ProtectedRoute
+              isLoggedIn={isLoggedIn}
+              userRole={profile.role}
+              needsEmailVerification={needsEmailVerification}
+              allowedRoles={["Venue"]}
+              redirectTo="/gigs"
+            >
+              <ManageGig 
+                venueId={venueId} 
+                gigs={gigs}
+                navigate={navigate} 
+                authFetch={authFetch}
+                onUploadGallery={uploadGigGalleryImage}
+                onRemoveGallery={removeGigGalleryImage}
+              />
+            </ProtectedRoute>
           }
         />
 

@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { Link } from "react-router-dom";
+
 function getDistanceInMiles(lat1, lng1, lat2, lng2) {
   const earthRadiusMiles = 3958.8;
 
@@ -255,8 +257,15 @@ export default function Gigs({
             ) : (
               filteredGigs.map((gig) => (
                 <div key={gig._id} className="card band-card">
-                  <h3>{gig.name}</h3>
-                  <p>{gig.location || "No location"}</p>
+                  <h3 style={{ textTransform: "capitalize", marginBottom: "8px" }}>
+                      <Link 
+                        to={`/gig/${gig._id}/public`} 
+                        style={{ color: "#5a0f2e", textDecoration: "underline", cursor: "pointer" }}
+                      >
+                        {gig.name}
+                      </Link>
+                    </h3>
+                    <p>{gig.location || "No location"}</p>
                   <p>
                     {gig.date
                       ? new Date(gig.date).toLocaleDateString()

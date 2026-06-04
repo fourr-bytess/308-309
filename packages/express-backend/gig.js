@@ -91,6 +91,14 @@ const GigSchema = new mongoose.Schema(
       type: [mongoose.Schema.Types.ObjectId],
       ref: "Band",
     },
+    gallery_images: {
+      type: [String],
+      default: [],
+    },
+    video_urls: {
+      type: [String],
+      default: [],
+    },
   },
   { collection: "gigs_list" }
 );

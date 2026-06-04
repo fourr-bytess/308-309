@@ -1299,7 +1299,93 @@ app.get("/musicians", async (req, res) => {
   }
 });
 
-// GET /musicians/:id ...
+app.put("/gigs/:id", async (req, res) => {
+  try {
+    const gigId = req.params.id;
+    const updateData = req.body;
+
+    if (updateData.name) updateData.name = updateData.name.toLowerCase();
+
+    const updatedGig = await gigServices.updateGigProfile(gigId, updateData);
+
+    if (!updatedGig) {
+      return res.status(404).json({ error: "Gig profile not found." });
+    }
+
+    res.status(200).json({ data: updatedGig });
+  } catch (err) {
+    res.status(400).json({ error: err.message || "Failed to update gig details" });
+  }
+});
+
+app.post(
+  "/gigs/:id/gallery",
+  async (req, res) => {
+    imageUpload.single("image")(req, res, async (uploadErr) => {
+      if (uploadErr) {
+        if (
+          uploadErr instanceof multer.MulterError &&
+          uploadErr.code === "LIMIT_FILE_SIZE"
+        ) {
+          return res
+            .status(400)
+            .json({ error: "Image must be 5MB or smaller" });
+        }
+        return res
+          .status(400)
+          .json({ error: uploadErr.message || "Upload failed" });
+      }
+
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: "Image file is required" });
+        }
+
+        const imageUrl = makeUploadedImageUrl(
+          req,
+          "band-gallery",
+          req.file.filename
+        );
+
+        const updatedGig = await gigServices.addGigGalleryImage(
+          req.params.id,
+          imageUrl
+        );
+
+        if (!updatedGig) {
+          return res.status(404).json({ error: "Gig not found" });
+        }
+        res.status(200).json({ data: updatedGig });
+      } catch (err) {
+        res.status(400).json({ error: "Failed to upload gig gallery image" });
+      }
+    });
+  }
+);
+
+app.delete(
+  "/gigs/:id/gallery",
+  async (req, res) => {
+    try {
+      const { imageUrl } = req.body;
+      if (!imageUrl) {
+        return res.status(400).json({ error: "imageUrl is required" });
+      }
+
+      const updatedGig = await gigServices.removeGigGalleryImage(
+        req.params.id,
+        imageUrl
+      );
+
+      if (!updatedGig) {
+        return res.status(404).json({ error: "Gig not found" });
+      }
+      res.status(200).json({ data: updatedGig });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to remove gig gallery image" });
+    }
+  }
+);
 
 app.get("/musicians/:id", async (req, res) => {
   try {
@@ -1313,7 +1399,6 @@ app.get("/musicians/:id", async (req, res) => {
   }
 });
 
-// POST /musicians
 app.post(
   "/musicians",
   requireRole(["musician", "band"], async (req, res) => {

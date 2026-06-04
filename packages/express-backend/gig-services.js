@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import gigModel from "./gig.js";
 
 const GIG_SELECT =
-  "name description genres location address capacity price_range date time host owner_user booked bands_hired";
+  "name description genres location address capacity price_range date time host owner_user booked bands_hired gallery_images video_urls";
 function buildGigsQuery(filters = {}) {
   const query = {};
   if (filters.name) {
@@ -102,6 +102,46 @@ function findGigByIdAndDelete(id) {
   return gigModel.findByIdAndDelete(id);
 }
 
+function addGigGalleryImage(id, imageUrl) {
+  return gigModel.findByIdAndUpdate(
+    id,
+    { $push: { gallery_images: imageUrl } },
+    { new: true, runValidators: true }
+  );
+}
+
+function removeGigGalleryImage(id, imageUrl) {
+  return gigModel.findByIdAndUpdate(
+    id,
+    { $pull: { gallery_images: imageUrl } },
+    { new: true, runValidators: true }
+  );
+}
+
+function addGigVideo(id, videoId) {
+  return gigModel.findByIdAndUpdate(
+    id,
+    { $push: { video_urls: videoId } },
+    { new: true }
+  );
+}
+
+function removeGigVideo(id, videoId) {
+  return gigModel.findByIdAndUpdate(
+    id,
+    { $pull: { video_urls: videoId } },
+    { new: true }
+  );
+}
+
+function updateGigProfile(id, updateData) {
+  return gigModel.findByIdAndUpdate(
+    id,
+    { $set: updateData },
+    { new: true, runValidators: true }
+  );
+}
+
 export default {
   addGig,
   getGigs,
@@ -109,4 +149,9 @@ export default {
   getGigsPaginated,
   findGigById,
   findGigByIdAndDelete,
+  addGigGalleryImage,
+  removeGigGalleryImage,
+  addGigVideo,
+  removeGigVideo,
+  updateGigProfile
 };

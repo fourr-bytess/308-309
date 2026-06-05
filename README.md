@@ -25,3 +25,9 @@ https://docs.google.com/document/d/1Xtt1MT7StFop-lRBg0szp9H1J78By5OY3adYs6CLTwg/
 To run the code locally: command "npm run dev" in root folder of repository
 
 To run testing: command "npm run test" in root folder of repository
+
+**Continuous Integration Workflow Badges:**
+[![Azure Static Web Apps CI/CD](https://github.com/fourr-bytess/308-309/actions/workflows/azure-static-web-apps-witty-mud-06aba3e10.yml/badge.svg?branch=main)](https://github.com/fourr-bytess/308-309/actions/workflows/azure-static-web-apps-witty-mud-06aba3e10.yml)
+[![Deploy Express Backend](https://github.com/fourr-bytess/308-309/actions/workflows/main_giggly.yml/badge.svg?branch=main)](https://github.com/fourr-bytess/308-309/actions/workflows/main_giggly.yml)
+
+

@@ -4,7 +4,7 @@
 [![Azure Static Web Apps CI/CD](https://github.com/fourr-bytess/308-309/actions/workflows/azure-static-web-apps-witty-mud-06aba3e10.yml/badge.svg?branch=main)](https://github.com/fourr-bytess/308-309/actions/workflows/azure-static-web-apps-witty-mud-06aba3e10.yml)
 [![Deploy Express Backend](https://github.com/fourr-bytess/308-309/actions/workflows/main_giggly.yml/badge.svg?branch=main)](https://github.com/fourr-bytess/308-309/actions/workflows/main_giggly.yml)
 
-**Style guide:** https://airbnb.io/javascript/react/
+**Style guide:** https://airbnb.io/javascript/react/ 
 
 **IDE plugins instructions:** Installed Prettier and ESLint under extensions in VS Code. Set to automatically format file on save by checking "Format On Save" in User Settings.
 

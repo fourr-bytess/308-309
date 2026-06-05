@@ -35,6 +35,7 @@ import {
   markConversationAsRead,
   getGigRequests,
   createGigRequest,
+  createVenueBandRequest,
   acceptGigRequest,
   declineGigRequest,
 } from "./api/api.js";
@@ -1330,6 +1331,31 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
     }
   }
 
+  async function handleInviteBandToGig(band, gigId) {
+    if (!currentUserId || profile.role !== "Venue") {
+      setMessageError("Please log in as a venue to book this band.");
+      return;
+    }
+
+    if (!band?._id || !gigId) {
+      setMessageError("Missing band or gig information.");
+      return;
+    }
+
+    try {
+      setMessageError("");
+      setGigRequestMessage("");
+
+      await createVenueBandRequest({ gigId, bandId: band._id });
+
+      const requests = await getGigRequests();
+      setGigRequests(requests || []);
+      setGigRequestMessage(`Booking request sent to ${band.name}.`);
+    } catch (err) {
+      setMessageError(err?.message || "Failed to send booking request.");
+    }
+  }
+
   async function handleAcceptGigRequest(id) {
     try {
       setGigRequestMessage("");
@@ -1339,7 +1365,11 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
       );
       const requests = await getGigRequests();
       setGigRequests(requests || []);
-      const refreshedGigs = await fetch(`${API_URL}/gigs?host=${venueId}&limit=50`)
+      const gigQuery =
+        profile.role === "Venue" && venueId
+          ? `${API_URL}/gigs?host=${venueId}&limit=50`
+          : `${API_URL}/gigs?limit=50`;
+      const refreshedGigs = await fetch(gigQuery)
         .then((res) => res.json())
         .then((data) => data.data || []);
       setGigs(refreshedGigs);
@@ -1439,6 +1469,19 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
     }
 
     if (
+      location.pathname.startsWith("/band/") &&
+      location.pathname.endsWith("/public") &&
+      venueId
+    ) {
+      fetch(`${API_URL}/gigs?host=${venueId}&limit=50`)
+        .then((res) => res.json())
+        .then((data) => {
+          setGigs(data.data || []);
+        })
+        .catch((err) => console.error("Failed to load venue gigs:", err));
+    }
+
+    if (
       location.pathname === "/gigs" ||
       (location.pathname === "/calendar" && profile.role === "Artist")
     ) {
@@ -1525,7 +1568,23 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
   const pendingVenueRequests = gigRequests.filter(
     (request) =>
       String(request.venueId?._id || request.venueId) === String(venueId) &&
-      request.status === "pending",
+      request.status === "pending" &&
+      (request.initiatedBy || "band") === "band",
+  );
+  const pendingBandInvitations = gigRequests.filter(
+    (request) =>
+      request.status === "pending" &&
+      request.initiatedBy === "venue" &&
+      String(request.bandUserId) === String(currentUserId),
+  );
+  const pendingVenueSentInvitations = gigRequests.filter(
+    (request) =>
+      String(request.venueId?._id || request.venueId) === String(venueId) &&
+      request.status === "pending" &&
+      request.initiatedBy === "venue",
+  );
+  const venueOpenGigs = gigs.filter(
+    (gig) => !gig.booked && String(gig.host) === String(venueId),
   );
 
   if (!authTokenChecked) {
@@ -2367,7 +2426,11 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
               isLoggedIn={isLoggedIn}
               userRole={profile.role}
               venueId={venueId}
+              venueGigs={venueOpenGigs}
               onStartConversation={handleStartBandConversation}
+              onInviteToGig={handleInviteBandToGig}
+              inviteMessage={gigRequestMessage}
+              inviteError={messageError}
             />
           }
         />
@@ -2980,6 +3043,58 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
             >
               <section id="calendar" className="page active">
                 <div className="dashboard-card">
+                  {profile.role === "Artist" && (
+                    <section className="request-list">
+                      <h3>Booking Invitations from Venues</h3>
+                      {gigRequestMessage && (
+                        <p className="upload-message">{gigRequestMessage}</p>
+                      )}
+                      {pendingBandInvitations.length === 0 ? (
+                        <p>No pending booking invitations.</p>
+                      ) : (
+                        pendingBandInvitations.map((request) => (
+                          <div key={request._id} className="request-card">
+                            <h4>{request.gigId?.name || "Gig invitation"}</h4>
+                            <p>
+                              <strong>Venue:</strong>{" "}
+                              {request.venueId?.name || "Unknown venue"}
+                            </p>
+                            <p>
+                              <strong>Date:</strong>{" "}
+                              {request.gigId?.date
+                                ? new Date(
+                                    request.gigId.date,
+                                  ).toLocaleDateString()
+                                : "No date"}
+                            </p>
+                            <p>
+                              <strong>Status:</strong> {request.status}
+                            </p>
+                            <div className="request-card-actions">
+                              <button
+                                type="button"
+                                className="primary-btn"
+                                onClick={() =>
+                                  handleAcceptGigRequest(request._id)
+                                }
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                className="secondary-btn"
+                                onClick={() =>
+                                  handleDeclineGigRequest(request._id)
+                                }
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </section>
+                  )}
                   {calendarOwnerId ? (
                     <AvailabilityCalendar
                       ownerType={calendarOwnerType}
@@ -3015,12 +3130,12 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
 
                   <p>Your registered venues</p>
                   <section className="request-list">
-                    <h3>Pending Gig Requests</h3>
+                    <h3>Incoming Band Requests</h3>
                     {gigRequestMessage && (
                       <p className="upload-message">{gigRequestMessage}</p>
                     )}
                     {pendingVenueRequests.length === 0 ? (
-                      <p>No pending gig requests.</p>
+                      <p>No pending band requests.</p>
                     ) : (
                       pendingVenueRequests.map((request) => (
                         <div key={request._id} className="request-card">
@@ -3058,6 +3173,31 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                               Decline
                             </button>
                           </div>
+                        </div>
+                      ))
+                    )}
+                  </section>
+                  <section className="request-list">
+                    <h3>Sent Booking Invitations</h3>
+                    {pendingVenueSentInvitations.length === 0 ? (
+                      <p>No pending invitations sent.</p>
+                    ) : (
+                      pendingVenueSentInvitations.map((request) => (
+                        <div key={request._id} className="request-card">
+                          <h4>{request.gigId?.name || "Gig invitation"}</h4>
+                          <p>
+                            <strong>Band:</strong>{" "}
+                            {request.bandId?.name || "Unknown band"}
+                          </p>
+                          <p>
+                            <strong>Date:</strong>{" "}
+                            {request.gigId?.date
+                              ? new Date(request.gigId.date).toLocaleDateString()
+                              : "No date"}
+                          </p>
+                          <p>
+                            <strong>Status:</strong> {request.status}
+                          </p>
                         </div>
                       ))
                     )}

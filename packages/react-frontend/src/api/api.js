@@ -473,6 +473,21 @@ export async function getGigRequests(params = {}) {
   return payload.data || [];
 }
 
+export async function createVenueBandRequest({ gigId, bandId }) {
+  const response = await authFetch("/gig-requests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ gigId, bandId }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Failed to send booking request");
+  }
+
+  return payload.data;
+}
+
 export async function createGigRequest(request) {
   const response = await authFetch("/gig-requests", {
     method: "POST",

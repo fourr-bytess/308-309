@@ -2094,47 +2094,109 @@ app.get(
 
 app.post(
   "/gig-requests",
-  requireRole(["musician", "band"], async (req, res) => {
+  requireAuth(async (req, res) => {
     try {
-      const { gigId, bandId, venueId, venueUserId } = req.body;
+      const role = req.auth?.role;
 
-      if (!gigId || !bandId || !venueId || !venueUserId) {
-        return res.status(400).json({
-          error: "gigId, bandId, venueId, and venueUserId are required",
+      if (role === "musician" || role === "band") {
+        const { gigId, bandId, venueId, venueUserId } = req.body;
+
+        if (!gigId || !bandId || !venueId || !venueUserId) {
+          return res.status(400).json({
+            error: "gigId, bandId, venueId, and venueUserId are required",
+          });
+        }
+
+        const band = await ensureBandAccess(req, res, bandId);
+        if (!band) return;
+
+        const gig = await gigServices.findGigById(gigId);
+        if (!gig) {
+          return res.status(404).json({ error: "Gig not found" });
+        }
+        if (gig.booked) {
+          return res.status(400).json({ error: "This gig is already booked" });
+        }
+        if (String(gig.host) !== String(venueId)) {
+          return res.status(400).json({ error: "Gig does not belong to venue" });
+        }
+
+        const request = await gigRequestServices.createGigRequest({
+          gigId,
+          bandId,
+          venueId,
+          bandUserId: getAuthUserId(req),
+          venueUserId: String(venueUserId),
+          initiatedBy: "band",
         });
+
+        await notificationServices.createNotification({
+          userId: String(venueUserId),
+          type: "booking-request",
+          title: "New gig request",
+          body: `${band.name} requested your gig.`,
+          relatedId: String(request._id),
+        });
+
+        return res.status(201).json({ data: request });
       }
 
-      const band = await ensureBandAccess(req, res, bandId);
-      if (!band) return;
+      if (role === "venue") {
+        const { gigId, bandId } = req.body;
 
-      const gig = await gigServices.findGigById(gigId);
-      if (!gig) {
-        return res.status(404).json({ error: "Gig not found" });
-      }
-      if (gig.booked) {
-        return res.status(400).json({ error: "This gig is already booked" });
-      }
-      if (String(gig.host) !== String(venueId)) {
-        return res.status(400).json({ error: "Gig does not belong to venue" });
+        if (!gigId || !bandId) {
+          return res.status(400).json({
+            error: "gigId and bandId are required",
+          });
+        }
+
+        if (!(await ensureGigAccess(req, res, gigId))) {
+          return;
+        }
+
+        const gig = await gigServices.findGigById(gigId);
+        if (gig.booked) {
+          return res.status(400).json({ error: "This gig is already booked" });
+        }
+
+        const band = await bandServices.findBandById(bandId);
+        if (!band) {
+          return res.status(404).json({ error: "Band not found" });
+        }
+        if (!band.owner_user) {
+          return res
+            .status(400)
+            .json({ error: "This band does not have an owner to notify" });
+        }
+
+        const ownedVenue = await resolveOwnedVenueForAuth(req.auth);
+        if (!ownedVenue) {
+          return res.status(403).json({ error: "Venue profile not found" });
+        }
+
+        const request = await gigRequestServices.createGigRequest({
+          gigId,
+          bandId,
+          venueId: ownedVenue._id,
+          bandUserId: String(band.owner_user),
+          venueUserId: getAuthUserId(req),
+          initiatedBy: "venue",
+        });
+
+        await notificationServices.createNotification({
+          userId: String(band.owner_user),
+          type: "booking-request",
+          title: "Booking invitation",
+          body: `${ownedVenue.name} invited your band to play a gig.`,
+          relatedId: String(request._id),
+        });
+
+        return res.status(201).json({ data: request });
       }
 
-      const request = await gigRequestServices.createGigRequest({
-        gigId,
-        bandId,
-        venueId,
-        bandUserId: getAuthUserId(req),
-        venueUserId: String(venueUserId),
+      return res.status(403).json({
+        error: "This action requires musician, band, or venue role",
       });
-
-      await notificationServices.createNotification({
-        userId: String(venueUserId),
-        type: "booking-request",
-        title: "New gig request",
-        body: `${band.name} requested your gig.`,
-        relatedId: String(request._id),
-      });
-
-      res.status(201).json({ data: request });
     } catch (err) {
       res
         .status(400)
@@ -2145,7 +2207,7 @@ app.post(
 
 app.put(
   "/gig-requests/:id/accept",
-  requireRole(["venue"], async (req, res) => {
+  requireAuth(async (req, res) => {
     try {
       const existing = await gigRequestServices.findGigRequestById(
         req.params.id,
@@ -2153,17 +2215,40 @@ app.put(
       if (!existing) {
         return res.status(404).json({ error: "Gig request not found" });
       }
-      if (String(existing.venueUserId) !== getAuthUserId(req)) {
-        return res.status(403).json({ error: "Forbidden" });
+
+      const authUserId = getAuthUserId(req);
+      const initiatedBy = existing.initiatedBy || "band";
+
+      if (initiatedBy === "band") {
+        if (req.auth?.role !== "venue") {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+        if (String(existing.venueUserId) !== authUserId) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+      } else {
+        if (!["musician", "band"].includes(req.auth?.role)) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+        if (String(existing.bandUserId) !== authUserId) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
       }
 
       const request = await gigRequestServices.acceptGigRequest(req.params.id);
 
+      const notifyUserId =
+        initiatedBy === "band" ? request.bandUserId : request.venueUserId;
+      const notifyBody =
+        initiatedBy === "band"
+          ? "Your gig request was accepted."
+          : "Your booking invitation was accepted.";
+
       await notificationServices.createNotification({
-        userId: String(request.bandUserId),
+        userId: String(notifyUserId),
         type: "gig-booked",
-        title: "Gig request accepted",
-        body: "Your gig request was accepted.",
+        title: "Gig booked",
+        body: notifyBody,
         relatedId: String(request._id),
       });
 
@@ -2176,7 +2261,7 @@ app.put(
 
 app.put(
   "/gig-requests/:id/decline",
-  requireRole(["venue"], async (req, res) => {
+  requireAuth(async (req, res) => {
     try {
       const existing = await gigRequestServices.findGigRequestById(
         req.params.id,
@@ -2184,9 +2269,26 @@ app.put(
       if (!existing) {
         return res.status(404).json({ error: "Gig request not found" });
       }
-      if (String(existing.venueUserId) !== getAuthUserId(req)) {
-        return res.status(403).json({ error: "Forbidden" });
+
+      const authUserId = getAuthUserId(req);
+      const initiatedBy = existing.initiatedBy || "band";
+
+      if (initiatedBy === "band") {
+        if (req.auth?.role !== "venue") {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+        if (String(existing.venueUserId) !== authUserId) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+      } else {
+        if (!["musician", "band"].includes(req.auth?.role)) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
+        if (String(existing.bandUserId) !== authUserId) {
+          return res.status(403).json({ error: "Forbidden" });
+        }
       }
+
       const request = await gigRequestServices.declineGigRequest(req.params.id);
       res.status(200).json({ data: request });
     } catch (err) {

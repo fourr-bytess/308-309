@@ -2,7 +2,7 @@ import GigRequest from "./gig-request.js";
 import Gig from "./gig.js";
 
 const REQUEST_SELECT =
-  "gigId bandId venueId bandUserId venueUserId status createdAt updatedAt";
+  "gigId bandId venueId bandUserId venueUserId status initiatedBy createdAt updatedAt";
 
 function withRequestDetails(query) {
   return query

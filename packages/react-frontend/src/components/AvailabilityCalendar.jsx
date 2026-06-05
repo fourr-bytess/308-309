@@ -59,9 +59,11 @@ export default function AvailabilityCalendar({
 
   const requestEvents = gigRequests.map((request) => {
     const gig = request.gigId;
+    const directionLabel =
+      request.initiatedBy === "venue" ? "Venue invite" : "Band request";
     return {
       id: `request-${request._id}`,
-      title: `${formatStatusLabel(request.status)}: ${gig?.name || "Gig request"}`,
+      title: `${formatStatusLabel(request.status)} (${directionLabel}): ${gig?.name || "Gig request"}`,
       start: getGigStart(gig),
       end: getGigEnd(gig),
       backgroundColor: getStatusColor(request.status),

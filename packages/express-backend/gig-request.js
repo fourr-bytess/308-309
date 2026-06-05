@@ -36,6 +36,12 @@ const gigRequestSchema = new mongoose.Schema(
       default: "pending",
       index: true,
     },
+    initiatedBy: {
+      type: String,
+      enum: ["band", "venue"],
+      default: "band",
+      index: true,
+    },
   },
   { timestamps: true },
 );

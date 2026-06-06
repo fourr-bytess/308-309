@@ -54,7 +54,7 @@ function getGigs(
   time,
   host,
   booked,
-  bands_hired
+  bands_hired,
 ) {
   const query = buildGigsQuery({
     name,
@@ -68,7 +68,7 @@ function getGigs(
     booked,
     bands_hired,
   });
-  return gigModel.find(query).select(GIG_SELECT);
+  return gigModel.find(query).select(GIG_SELECT).populate("host", "name");
 }
 
 function getGigsCount(filters = {}) {
@@ -81,7 +81,8 @@ function getGigsPaginated(limit, offset, filters = {}) {
     .find(query)
     .skip(offset)
     .limit(limit)
-    .select(GIG_SELECT);
+    .select(GIG_SELECT)
+    .populate("host", "name");
   const countPromise = gigModel.countDocuments(query);
   return Promise.all([gigsPromise, countPromise]).then(([gigs, total]) => ({
     gigs,
@@ -90,7 +91,7 @@ function getGigsPaginated(limit, offset, filters = {}) {
 }
 
 function findGigById(id) {
-  return gigModel.findById(id);
+  return gigModel.findById(id).populate("host", "name");
 }
 
 function addGig(gig) {
@@ -106,7 +107,7 @@ function addGigGalleryImage(id, imageUrl) {
   return gigModel.findByIdAndUpdate(
     id,
     { $push: { gallery_images: imageUrl } },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 }
 
@@ -114,7 +115,7 @@ function removeGigGalleryImage(id, imageUrl) {
   return gigModel.findByIdAndUpdate(
     id,
     { $pull: { gallery_images: imageUrl } },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 }
 
@@ -122,7 +123,7 @@ function addGigVideo(id, videoId) {
   return gigModel.findByIdAndUpdate(
     id,
     { $push: { video_urls: videoId } },
-    { new: true }
+    { new: true },
   );
 }
 
@@ -130,7 +131,7 @@ function removeGigVideo(id, videoId) {
   return gigModel.findByIdAndUpdate(
     id,
     { $pull: { video_urls: videoId } },
-    { new: true }
+    { new: true },
   );
 }
 
@@ -138,7 +139,7 @@ function updateGigProfile(id, updateData) {
   return gigModel.findByIdAndUpdate(
     id,
     { $set: updateData },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 }
 
@@ -153,5 +154,5 @@ export default {
   removeGigGalleryImage,
   addGigVideo,
   removeGigVideo,
-  updateGigProfile
+  updateGigProfile,
 };

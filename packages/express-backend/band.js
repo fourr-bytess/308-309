@@ -6,8 +6,19 @@ const BandSchema = new mongoose.Schema(
     owner_user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null,
     },
+
+    admin_user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    co_admin_users: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     name: {
       type: String,
       required: true,
@@ -34,7 +45,7 @@ const BandSchema = new mongoose.Schema(
     },
     video_urls: [{ type: String }],
   },
-  { collection: "bands_list" }
+  { collection: "bands_list" },
 );
 
 const Band = mongoose.model("Band", BandSchema);

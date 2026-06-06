@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 import bandModel from "./band.js";
 
 const BAND_SELECT =
-  "name members genres locations price_range profile_picture_url gallery_images video_urls owner_user bio";
+  "name members genres locations price_range profile_picture_url gallery_images video_urls owner_user admin_user co_admin_users bio";
 
-/** Builds a MongoDB query from filter options (shared by getBands, getBandsCount, getBandsPaginated). */
+  /** Builds a MongoDB query from filter options (shared by getBands, getBandsCount, getBandsPaginated). */
 function buildBandsQuery(filters = {}) {
   const query = {};
   if (filters.name) {
@@ -61,6 +61,7 @@ function findBandById(id) {
   return bandModel.findById(id);
 }
 
+
 function addBand(band) {
   const bandToAdd = new bandModel(band);
   return bandToAdd.save();
@@ -90,7 +91,7 @@ function updateBandProfilePicture(id, profile_picture_url) {
   return bandModel.findByIdAndUpdate(
     id,
     { profile_picture_url },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 }
 
@@ -98,7 +99,7 @@ function addBandGalleryImage(id, imageUrl) {
   return bandModel.findByIdAndUpdate(
     id,
     { $push: { gallery_images: imageUrl } },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 }
 
@@ -106,7 +107,7 @@ function removeBandGalleryImage(id, imageUrl) {
   return bandModel.findByIdAndUpdate(
     id,
     { $pull: { gallery_images: imageUrl } },
-    { new: true, runValidators: true }
+    { new: true, runValidators: true },
   );
 }
 
@@ -114,7 +115,7 @@ function addBandVideo(id, videoId) {
   return bandModel.findByIdAndUpdate(
     id,
     { $push: { video_urls: videoId } },
-    { new: true }
+    { new: true },
   );
 }
 
@@ -122,7 +123,34 @@ function removeBandVideo(id, videoId) {
   return bandModel.findByIdAndUpdate(
     id,
     { $pull: { video_urls: videoId } },
-    { new: true }
+    { new: true },
+  );
+}
+function addBandCoAdmin(bandId, userId) {
+  return bandModel.findByIdAndUpdate(
+    bandId,
+    { $addToSet: { co_admin_users: userId } },
+    { new: true },
+  );
+}
+
+function removeBandCoAdmin(bandId, userId) {
+  return bandModel.findByIdAndUpdate(
+    bandId,
+    { $pull: { co_admin_users: userId } },
+    { new: true },
+  );
+}
+
+function transferBandAdmin(bandId, userId) {
+  return bandModel.findByIdAndUpdate(
+    bandId,
+    {
+      admin_user: userId,
+      owner_user: userId,
+      $pull: { co_admin_users: userId },
+    },
+    { new: true },
   );
 }
 
@@ -140,4 +168,7 @@ export default {
   removeBandGalleryImage,
   addBandVideo,
   removeBandVideo,
+  addBandCoAdmin,
+  removeBandCoAdmin,
+  transferBandAdmin,
 };

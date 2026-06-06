@@ -79,7 +79,10 @@ export async function authFetch(path, options = {}) {
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (response.status === 401) {
     clearAuthToken();
-    const payload = await response.clone().json().catch(() => ({}));
+    const payload = await response
+      .clone()
+      .json()
+      .catch(() => ({}));
     const message =
       payload?.error === "Invalid or expired token"
         ? "Your session expired. Please log in again."
@@ -419,7 +422,7 @@ export async function deleteConversation(id) {
 
 export async function getAvailability(ownerType, ownerId) {
   const response = await authFetch(
-    `/availability?ownerType=${ownerType}&ownerId=${ownerId}`
+    `/availability?ownerType=${ownerType}&ownerId=${ownerId}`,
   );
 
   if (!response.ok) {
@@ -537,6 +540,40 @@ export async function cancelGigRequest(id) {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload.error || "Failed to cancel gig request");
+  }
+
+  return payload.data;
+}
+export async function addBandCoAdmin(bandId, musicianId) {
+  const res = await authFetch(`/bands/${bandId}/co-admins/${musicianId}`, {
+    method: "PUT",
+  });
+
+  return res.json();
+}
+
+export async function removeBandCoAdmin(bandId, musicianId) {
+  const res = await authFetch(`/bands/${bandId}/co-admins/${musicianId}`, {
+    method: "DELETE",
+  });
+
+  return res.json();
+}
+
+export async function transferBandAdmin(bandId, musicianId) {
+  const res = await authFetch(`/bands/${bandId}/admin/${musicianId}`, {
+    method: "PUT",
+  });
+
+  return res.json();
+}
+
+export async function getBandMembers(bandId) {
+  const res = await fetch(`${API_URL}/bands/${bandId}/members`);
+  const payload = await res.json();
+
+  if (!res.ok) {
+    throw new Error(payload?.error || "Failed to fetch band members");
   }
 
   return payload.data;

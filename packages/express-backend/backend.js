@@ -244,7 +244,9 @@ function createInMemoryRateLimiter({ windowMs, max, keyFn }) {
 function getRequestIp(req) {
   return (
     String(req.ip || "").trim() ||
-    String(req.headers?.["x-forwarded-for"] || "").split(",")[0].trim() ||
+    String(req.headers?.["x-forwarded-for"] || "")
+      .split(",")[0]
+      .trim() ||
     String(req.socket?.remoteAddress || "").trim() ||
     "unknown"
   );
@@ -253,7 +255,8 @@ function getRequestIp(req) {
 const authRateLimit = createInMemoryRateLimiter({
   windowMs: 60 * 1000,
   max: 15,
-  keyFn: (req) => `${getRequestIp(req)}:${String(req.path || "").toLowerCase()}`,
+  keyFn: (req) =>
+    `${getRequestIp(req)}:${String(req.path || "").toLowerCase()}`,
 });
 
 const messageSendRateLimit = createInMemoryRateLimiter({
@@ -290,11 +293,17 @@ function passesBasicSpamChecks({ senderUserId, conversationId, text }) {
   }
 
   // Duplicate suppression: same message repeated within 10 seconds
-  if (last?.lastFingerprint === fingerprint && now - (last?.lastSentMs || 0) < 10_000) {
+  if (
+    last?.lastFingerprint === fingerprint &&
+    now - (last?.lastSentMs || 0) < 10_000
+  ) {
     return { ok: false, status: 429, error: "Duplicate message detected" };
   }
 
-  recentMessageFingerprint.set(key, { lastSentMs: now, lastFingerprint: fingerprint });
+  recentMessageFingerprint.set(key, {
+    lastSentMs: now,
+    lastFingerprint: fingerprint,
+  });
   return { ok: true };
 }
 
@@ -356,8 +365,9 @@ async function resolveOwnedMusicianForAuth(authUser) {
     return null;
   }
 
-  const ownedMusician =
-    await musicianServices.findOwnedMusicianByUserId(authUserId);
+  const ownedMusician = await musicianServices.findOwnedMusicianByUserId(
+    authUserId,
+  );
   if (ownedMusician) {
     return ownedMusician;
   }
@@ -367,8 +377,9 @@ async function resolveOwnedMusicianForAuth(authUser) {
     return null;
   }
 
-  const unclaimedMusician =
-    await musicianServices.findMusicianByName(fallbackName);
+  const unclaimedMusician = await musicianServices.findMusicianByName(
+    fallbackName,
+  );
   if (!unclaimedMusician || unclaimedMusician.owner_user) {
     return null;
   }
@@ -394,8 +405,9 @@ async function resolveOwnedVenueForAuth(authUser) {
     .trim()
     .toLowerCase();
   if (normalizedEmail) {
-    const venueByEmail =
-      await venueServices.findVenueByContactEmail(normalizedEmail);
+    const venueByEmail = await venueServices.findVenueByContactEmail(
+      normalizedEmail,
+    );
     if (venueByEmail && !venueByEmail.owner_user) {
       return venueServices.claimVenueOwnership(venueByEmail._id, authUserId);
     }
@@ -433,6 +445,16 @@ async function getAuthProfiles(authUser) {
     venueId: ownedVenue?._id ? String(ownedVenue._id) : "",
   };
 }
+function canManageBandAdmins(band, authUserId) {
+  const isAdmin =
+    String(band.admin_user || band.owner_user || "") === String(authUserId);
+
+  const isCoAdmin = (band.co_admin_users || []).some(
+    (userId) => String(userId) === String(authUserId),
+  );
+
+  return isAdmin || isCoAdmin;
+}
 
 async function ensureBandAccess(req, res, bandId) {
   const band = await bandServices.findBandById(bandId);
@@ -441,7 +463,16 @@ async function ensureBandAccess(req, res, bandId) {
     return null;
   }
 
-  if (isOwnedByUser(band, req.auth?.sub)) {
+  const authUserId = getAuthUserId(req);
+
+  const isBandAdmin =
+    String(band.admin_user || band.owner_user || "") === String(authUserId);
+
+  const isBandCoAdmin = (band.co_admin_users || []).some(
+    (userId) => String(userId) === String(authUserId),
+  );
+
+  if (isOwnedByUser(band, authUserId) || isBandAdmin || isBandCoAdmin) {
     return band;
   }
 
@@ -557,16 +588,16 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
     });
 
     try {
-  await notificationServices.createNotification({
-    userId: String(created.id || created._id),
-    type: "welcome",
-    title: "Welcome to Giggly",
-    body: `Welcome to Giggly, ${created.display_name || display_name}!`,
-    relatedId: String(created.id || created._id),
-  });
-} catch (notificationErr) {
-  console.error("Failed to create welcome notification:", notificationErr);
-}
+      await notificationServices.createNotification({
+        userId: String(created.id || created._id),
+        type: "welcome",
+        title: "Welcome to Giggly",
+        body: `Welcome to Giggly, ${created.display_name || display_name}!`,
+        relatedId: String(created.id || created._id),
+      });
+    } catch (notificationErr) {
+      console.error("Failed to create welcome notification:", notificationErr);
+    }
 
     if (!isEmailVerificationBypassEnabled()) {
       try {
@@ -578,7 +609,6 @@ app.post("/auth/register", authRateLimit, async (req, res) => {
         console.error("Failed to send verification email:", verificationErr);
       }
     }
-
 
     return res.status(201).json({
       data: {
@@ -753,6 +783,32 @@ app.get("/bands/:id", async (req, res) => {
   }
 });
 
+app.get("/bands/:id/members", async (req, res) => {
+  try {
+    const band = await bandServices.findBandById(req.params.id);
+
+    if (!band) {
+      return res.status(404).json({ error: "Band not found" });
+    }
+
+    const memberDetails = await Promise.all(
+      (band.members || []).map((memberId) =>
+        musicianServices.findMusicianById(memberId),
+      ),
+    );
+
+    return res.status(200).json({
+      data: memberDetails.filter(Boolean).map((member) => ({
+        _id: member._id,
+        name: member.name,
+        owner_user: member.owner_user,
+      })),
+    });
+  } catch (err) {
+    return res.status(400).json({ error: "Failed to fetch band members" });
+  }
+});
+
 app.post(
   "/bands",
   requireRole(["musician", "band"], async (req, res) => {
@@ -779,6 +835,8 @@ app.post(
       const created = await bandServices.addBand({
         ...req.body,
         owner_user: req.auth.sub,
+        admin_user: req.auth.sub,
+        co_admin_users: [],
         members: Array.from(memberIds),
       });
       res.status(201).json({ data: created });
@@ -798,10 +856,10 @@ app.post(
         return res.status(404).json({ error: "Band not found" });
       }
 
-      if (String(band.owner_user) !== String(req.auth.sub)) {
+      if (!canManageBandAdmins(band, getAuthUserId(req))) {
         return res
           .status(403)
-          .json({ error: "Only the band admin can add members" });
+          .json({ error: "Only a band admin or co-admin can add members" });
       }
 
       const { musicianId, email } = req.body;
@@ -811,8 +869,9 @@ app.post(
       if (!memberMusicianId && email) {
         const normalizedEmail = String(email).trim().toLowerCase();
 
-        const musicianUser =
-          await authServices.findUserByEmail(normalizedEmail);
+        const musicianUser = await authServices.findUserByEmail(
+          normalizedEmail,
+        );
 
         if (!musicianUser) {
           return res
@@ -849,6 +908,131 @@ app.post(
     }
   }),
 );
+app.put(
+  "/bands/:id/co-admins/:musicianId",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      const band = await bandServices.findBandById(req.params.id);
+
+      if (!band) {
+        return res.status(404).json({ error: "Band not found" });
+      }
+
+      const authUserId = getAuthUserId(req);
+      const isAdmin =
+        String(band.admin_user || band.owner_user || "") === String(authUserId);
+
+      if (!isAdmin) {
+        return res
+          .status(403)
+          .json({ error: "Only the band admin can manage co-admins" });
+      }
+
+      const musician = await musicianServices.findMusicianById(
+        req.params.musicianId,
+      );
+
+      if (!musician || !musician.owner_user) {
+        return res
+          .status(404)
+          .json({ error: "That member does not have an owner user account" });
+      }
+
+      const updatedBand = await bandServices.addBandCoAdmin(
+        req.params.id,
+        musician.owner_user,
+      );
+
+      return res.status(200).json({ data: updatedBand });
+    } catch (err) {
+      return res.status(400).json({ error: "Failed to add co-admin" });
+    }
+  }),
+);
+
+app.delete(
+  "/bands/:id/co-admins/:musicianId",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      const band = await bandServices.findBandById(req.params.id);
+
+      if (!band) {
+        return res.status(404).json({ error: "Band not found" });
+      }
+
+      const authUserId = getAuthUserId(req);
+      const isAdmin =
+        String(band.admin_user || band.owner_user || "") === String(authUserId);
+
+      if (!isAdmin) {
+        return res
+          .status(403)
+          .json({ error: "Only the band admin can manage co-admins" });
+      }
+
+      const musician = await musicianServices.findMusicianById(
+        req.params.musicianId,
+      );
+
+      if (!musician || !musician.owner_user) {
+        return res
+          .status(404)
+          .json({ error: "That member does not have an owner user account" });
+      }
+
+      const updatedBand = await bandServices.removeBandCoAdmin(
+        req.params.id,
+        musician.owner_user,
+      );
+
+      return res.status(200).json({ data: updatedBand });
+    } catch (err) {
+      return res.status(400).json({ error: "Failed to remove co-admin" });
+    }
+  }),
+);
+
+app.put(
+  "/bands/:id/admin/:musicianId",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      const band = await bandServices.findBandById(req.params.id);
+
+      if (!band) {
+        return res.status(404).json({ error: "Band not found" });
+      }
+
+      const authUserId = getAuthUserId(req);
+      const isAdmin =
+        String(band.admin_user || band.owner_user || "") === String(authUserId);
+
+      if (!isAdmin) {
+        return res.status(403).json({
+          error: "Only the current band admin can transfer admin rights",
+        });
+      }
+
+      const musician = await musicianServices.findMusicianById(
+        req.params.musicianId,
+      );
+
+      if (!musician || !musician.owner_user) {
+        return res
+          .status(404)
+          .json({ error: "That member does not have an owner user account" });
+      }
+
+      const updatedBand = await bandServices.transferBandAdmin(
+        req.params.id,
+        musician.owner_user,
+      );
+
+      return res.status(200).json({ data: updatedBand });
+    } catch (err) {
+      return res.status(400).json({ error: "Failed to transfer admin rights" });
+    }
+  }),
+);
 
 app.delete(
   "/bands/:id/members/:musicianId",
@@ -860,10 +1044,10 @@ app.delete(
         return res.status(404).json({ error: "Band not found" });
       }
 
-      if (String(band.owner_user) !== String(req.auth.sub)) {
+      if (!canManageBandAdmins(band, getAuthUserId(req))) {
         return res
           .status(403)
-          .json({ error: "Only the band admin can remove members" });
+          .json({ error: "Only a band admin or co-admin can remove members" });
       }
 
       const adminMusician = await resolveOwnedMusicianForAuth(req.auth);
@@ -1204,8 +1388,8 @@ app.get("/gigs", async (req, res) => {
         req.query.booked === "true"
           ? true
           : req.query.booked === "false"
-            ? false
-            : undefined,
+          ? false
+          : undefined,
     };
 
     const total = await gigServices.getGigsCount(filters);
@@ -1324,67 +1508,40 @@ app.put("/gigs/:id", async (req, res) => {
 
     res.status(200).json({ data: updatedGig });
   } catch (err) {
-    res.status(400).json({ error: err.message || "Failed to update gig details" });
+    res
+      .status(400)
+      .json({ error: err.message || "Failed to update gig details" });
   }
 });
 
-app.post(
-  "/gigs/:id/gallery",
-  async (req, res) => {
-    imageUpload.single("image")(req, res, async (uploadErr) => {
-      if (uploadErr) {
-        if (
-          uploadErr instanceof multer.MulterError &&
-          uploadErr.code === "LIMIT_FILE_SIZE"
-        ) {
-          return res
-            .status(400)
-            .json({ error: "Image must be 5MB or smaller" });
-        }
-        return res
-          .status(400)
-          .json({ error: uploadErr.message || "Upload failed" });
+app.post("/gigs/:id/gallery", async (req, res) => {
+  imageUpload.single("image")(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      if (
+        uploadErr instanceof multer.MulterError &&
+        uploadErr.code === "LIMIT_FILE_SIZE"
+      ) {
+        return res.status(400).json({ error: "Image must be 5MB or smaller" });
       }
+      return res
+        .status(400)
+        .json({ error: uploadErr.message || "Upload failed" });
+    }
 
-      try {
-        if (!req.file) {
-          return res.status(400).json({ error: "Image file is required" });
-        }
-
-        const imageUrl = makeUploadedImageUrl(
-          req,
-          "band-gallery",
-          req.file.filename
-        );
-
-        const updatedGig = await gigServices.addGigGalleryImage(
-          req.params.id,
-          imageUrl
-        );
-
-        if (!updatedGig) {
-          return res.status(404).json({ error: "Gig not found" });
-        }
-        res.status(200).json({ data: updatedGig });
-      } catch (err) {
-        res.status(400).json({ error: "Failed to upload gig gallery image" });
-      }
-    });
-  }
-);
-
-app.delete(
-  "/gigs/:id/gallery",
-  async (req, res) => {
     try {
-      const { imageUrl } = req.body;
-      if (!imageUrl) {
-        return res.status(400).json({ error: "imageUrl is required" });
+      if (!req.file) {
+        return res.status(400).json({ error: "Image file is required" });
       }
 
-      const updatedGig = await gigServices.removeGigGalleryImage(
+      const imageUrl = makeUploadedImageUrl(
+        req,
+        "band-gallery",
+        req.file.filename,
+      );
+
+      const updatedGig = await gigServices.addGigGalleryImage(
         req.params.id,
-        imageUrl
+        imageUrl,
       );
 
       if (!updatedGig) {
@@ -1392,10 +1549,31 @@ app.delete(
       }
       res.status(200).json({ data: updatedGig });
     } catch (err) {
-      res.status(400).json({ error: "Failed to remove gig gallery image" });
+      res.status(400).json({ error: "Failed to upload gig gallery image" });
     }
+  });
+});
+
+app.delete("/gigs/:id/gallery", async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    if (!imageUrl) {
+      return res.status(400).json({ error: "imageUrl is required" });
+    }
+
+    const updatedGig = await gigServices.removeGigGalleryImage(
+      req.params.id,
+      imageUrl,
+    );
+
+    if (!updatedGig) {
+      return res.status(404).json({ error: "Gig not found" });
+    }
+    res.status(200).json({ data: updatedGig });
+  } catch (err) {
+    res.status(400).json({ error: "Failed to remove gig gallery image" });
   }
-);
+});
 
 app.get("/musicians/:id", async (req, res) => {
   try {
@@ -1519,7 +1697,7 @@ app.put(
       if (!(await ensureMusicianAccess(req, res, req.params.id))) {
         return;
       }
-      
+
       const { name, bio } = req.body;
       const updates = {};
       if (name !== undefined) updates.name = name;
@@ -1527,7 +1705,7 @@ app.put(
 
       const updatedMusician = await musicianServices.updateMusicianProfile(
         req.params.id,
-        updates
+        updates,
       );
 
       if (!updatedMusician) {
@@ -1538,7 +1716,7 @@ app.put(
     } catch (err) {
       res.status(400).json({ error: "Failed to update musician profile" });
     }
-  })
+  }),
 );
 
 app.post(
@@ -1568,12 +1746,12 @@ app.post(
         const imageUrl = makeUploadedImageUrl(
           req,
           "musicians",
-          req.file.filename
+          req.file.filename,
         );
-        
+
         const updatedMusician = await musicianServices.addMusicianGalleryImage(
           req.params.id,
-          imageUrl
+          imageUrl,
         );
         if (!updatedMusician) {
           return res.status(404).json({ error: "Musician not found" });
@@ -1583,7 +1761,7 @@ app.post(
         res.status(400).json({ error: "Failed to upload gallery image" });
       }
     });
-  })
+  }),
 );
 
 app.delete(
@@ -1597,19 +1775,21 @@ app.delete(
       if (!imageUrl) {
         return res.status(400).json({ error: "imageUrl is required" });
       }
-      
+
       const updatedMusician = await musicianServices.removeMusicianGalleryImage(
         req.params.id,
-        imageUrl
+        imageUrl,
       );
       if (!updatedMusician) {
         return res.status(404).json({ error: "Musician not found" });
       }
       res.status(200).json({ data: updatedMusician });
     } catch (err) {
-      res.status(400).json({ error: "Failed to remove musician gallery image" });
+      res
+        .status(400)
+        .json({ error: "Failed to remove musician gallery image" });
     }
-  })
+  }),
 );
 
 app.post(
@@ -1762,8 +1942,9 @@ app.get("/notifications", async (req, res) => {
       return res.status(400).json({ error: "userId is required" });
     }
 
-    const notifications =
-      await notificationServices.getNotificationsByUser(userId);
+    const notifications = await notificationServices.getNotificationsByUser(
+      userId,
+    );
 
     res.status(200).json({ data: notifications });
   } catch (err) {
@@ -1862,45 +2043,58 @@ app.delete("/notifications/:id", async (req, res) => {
 app.get(
   "/conversations",
   requireAuth(async (req, res) => {
-  try {
-    const authUserId = getAuthUserId(req);
-    const requestedUserId = req.query?.userId ? String(req.query.userId) : "";
-    if (requestedUserId && requestedUserId !== authUserId) {
-      return res.status(403).json({ error: "Forbidden" });
+    try {
+      const authUserId = getAuthUserId(req);
+      const requestedUserId = req.query?.userId ? String(req.query.userId) : "";
+      if (requestedUserId && requestedUserId !== authUserId) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const conversations = await conversationServices.getConversationsByUser(
+        String(authUserId),
+      );
+
+      res.status(200).json({ data: conversations });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch conversations" });
     }
-
-    const conversations =
-      await conversationServices.getConversationsByUser(String(authUserId));
-
-    res.status(200).json({ data: conversations });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch conversations" });
-  }
-})
+  }),
 );
 
 app.post(
   "/conversations",
   requireAuth(async (req, res) => {
-  try {
-    const { gigId, bandId, venueId, bandUserId, venueUserId } = req.body;
+    try {
+      const { gigId, bandId, venueId, bandUserId, venueUserId } = req.body;
 
-    if (!bandId || !venueId || !bandUserId || !venueUserId) {
-      return res.status(400).json({
-        error: "bandId, venueId, bandUserId, and venueUserId are required",
-      });
-    }
+      if (!bandId || !venueId || !bandUserId || !venueUserId) {
+        return res.status(400).json({
+          error: "bandId, venueId, bandUserId, and venueUserId are required",
+        });
+      }
 
-    const authUserId = getAuthUserId(req);
-    if (
-      String(bandUserId) !== String(authUserId) &&
-      String(venueUserId) !== String(authUserId)
-    ) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+      const authUserId = getAuthUserId(req);
+      if (
+        String(bandUserId) !== String(authUserId) &&
+        String(venueUserId) !== String(authUserId)
+      ) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
 
-    const existing =
-      await conversationServices.findConversationByParticipants({
+      const existing =
+        await conversationServices.findConversationByParticipants({
+          gigId,
+          bandId,
+          venueId,
+          bandUserId: String(bandUserId),
+          venueUserId: String(venueUserId),
+        });
+
+      if (existing) {
+        return res.status(200).json({ data: existing });
+      }
+
+      const conversation = await conversationServices.addConversation({
         gigId,
         bandId,
         venueId,
@@ -1908,171 +2102,161 @@ app.post(
         venueUserId: String(venueUserId),
       });
 
-    if (existing) {
-      return res.status(200).json({ data: existing });
+      res.status(201).json({ data: conversation });
+    } catch (err) {
+      console.error("Failed to create conversation:", err);
+      res.status(400).json({
+        error: err.message || "Failed to create conversation",
+      });
     }
-
-    const conversation = await conversationServices.addConversation({
-      gigId,
-      bandId,
-      venueId,
-      bandUserId: String(bandUserId),
-      venueUserId: String(venueUserId),
-    });
-
-    res.status(201).json({ data: conversation });
-  } catch (err) {
-    console.error("Failed to create conversation:", err);
-    res.status(400).json({
-      error: err.message || "Failed to create conversation",
-    });
-  }
-})
+  }),
 );
 
 app.get(
   "/conversations/:id/messages",
   requireAuth(async (req, res) => {
-  try {
-    const authUserId = getAuthUserId(req);
-    const conversation = await conversationServices.findConversationById(
-      req.params.id
-    );
+    try {
+      const authUserId = getAuthUserId(req);
+      const conversation = await conversationServices.findConversationById(
+        req.params.id,
+      );
 
-    if (!conversation) {
-      return res.status(404).json({ error: "Conversation not found" });
-    }
-    if (!isConversationParticipant(conversation, authUserId)) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      if (!isConversationParticipant(conversation, authUserId)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
 
-    const messages = await messageServices.getMessages(req.params.id);
-    res.status(200).json({ data: messages });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch messages" });
-  }
-})
+      const messages = await messageServices.getMessages(req.params.id);
+      res.status(200).json({ data: messages });
+    } catch (err) {
+      res.status(500).json({ error: "Failed to fetch messages" });
+    }
+  }),
 );
 
 app.post(
   "/conversations/:id/messages",
   requireAuthWith([messageSendRateLimit], async (req, res) => {
-  try {
-    const authUserId = getAuthUserId(req);
-    const { text } = req.body || {};
+    try {
+      const authUserId = getAuthUserId(req);
+      const { text } = req.body || {};
 
-    const conversation = await conversationServices.findConversationById(
-      req.params.id,
-    );
+      const conversation = await conversationServices.findConversationById(
+        req.params.id,
+      );
 
-    if (!conversation) {
-      return res.status(404).json({ error: "Conversation not found" });
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      if (!isConversationParticipant(conversation, authUserId)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const senderRole =
+        String(conversation.bandUserId) === String(authUserId)
+          ? "band"
+          : "venue";
+
+      const spamCheck = passesBasicSpamChecks({
+        senderUserId: authUserId,
+        conversationId: req.params.id,
+        text,
+      });
+      if (!spamCheck.ok) {
+        return res
+          .status(spamCheck.status || 429)
+          .json({ error: spamCheck.error || "Blocked" });
+      }
+
+      const message = await messageServices.addMessage({
+        conversationId: req.params.id,
+        senderUserId: String(authUserId),
+        senderRole,
+        text,
+        readByUserIds: [String(authUserId)],
+      });
+
+      await conversationServices.updateConversationLastMessage(
+        req.params.id,
+        text,
+      );
+
+      const receiverUserId =
+        String(authUserId) === String(conversation.bandUserId)
+          ? String(conversation.venueUserId)
+          : String(conversation.bandUserId);
+
+      await notificationServices.createNotification({
+        userId: receiverUserId,
+        type: "message",
+        title: "New message",
+        body: "You have a new message.",
+        relatedId: String(conversation._id),
+      });
+
+      res.status(201).json({ data: message });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to send message" });
     }
-
-    if (!isConversationParticipant(conversation, authUserId)) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    const senderRole =
-      String(conversation.bandUserId) === String(authUserId) ? "band" : "venue";
-
-    const spamCheck = passesBasicSpamChecks({
-      senderUserId: authUserId,
-      conversationId: req.params.id,
-      text,
-    });
-    if (!spamCheck.ok) {
-      return res
-        .status(spamCheck.status || 429)
-        .json({ error: spamCheck.error || "Blocked" });
-    }
-
-    const message = await messageServices.addMessage({
-      conversationId: req.params.id,
-      senderUserId: String(authUserId),
-      senderRole,
-      text,
-      readByUserIds: [String(authUserId)],
-    });
-
-    await conversationServices.updateConversationLastMessage(
-      req.params.id,
-      text,
-    );
-
-    const receiverUserId =
-      String(authUserId) === String(conversation.bandUserId)
-        ? String(conversation.venueUserId)
-        : String(conversation.bandUserId);
-
-    await notificationServices.createNotification({
-      userId: receiverUserId,
-      type: "message",
-      title: "New message",
-      body: "You have a new message.",
-      relatedId: String(conversation._id),
-    });
-
-    res.status(201).json({ data: message });
-  } catch (err) {
-    res.status(400).json({ error: "Failed to send message" });
-  }
-})
+  }),
 );
 
 app.put(
   "/conversations/:id/read",
   requireAuth(async (req, res) => {
-  try {
-    const authUserId = getAuthUserId(req);
+    try {
+      const authUserId = getAuthUserId(req);
 
-    const conversation = await conversationServices.findConversationById(
-      req.params.id
-    );
-    if (!conversation) {
-      return res.status(404).json({ error: "Conversation not found" });
+      const conversation = await conversationServices.findConversationById(
+        req.params.id,
+      );
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      if (!isConversationParticipant(conversation, authUserId)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      await messageServices.markMessagesRead(req.params.id, String(authUserId));
+
+      res.status(200).json({ data: { success: true } });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to mark conversation as read" });
     }
-    if (!isConversationParticipant(conversation, authUserId)) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
-
-    await messageServices.markMessagesRead(req.params.id, String(authUserId));
-
-    res.status(200).json({ data: { success: true } });
-  } catch (err) {
-    res.status(400).json({ error: "Failed to mark conversation as read" });
-  }
-})
+  }),
 );
 
 app.delete(
   "/conversations/:id",
   requireAuth(async (req, res) => {
-  try {
-    const authUserId = getAuthUserId(req);
-    const conversation = await conversationServices.findConversationById(
-      req.params.id
-    );
-    if (!conversation) {
-      return res.status(404).json({ error: "Conversation not found" });
-    }
-    if (!isConversationParticipant(conversation, authUserId)) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+    try {
+      const authUserId = getAuthUserId(req);
+      const conversation = await conversationServices.findConversationById(
+        req.params.id,
+      );
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      if (!isConversationParticipant(conversation, authUserId)) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
 
-    const deleted = await conversationServices.findConversationByIdAndDelete(
-      req.params.id,
-    );
+      const deleted = await conversationServices.findConversationByIdAndDelete(
+        req.params.id,
+      );
 
-    if (!deleted) {
-      return res.status(404).json({ error: "Conversation not found" });
+      if (!deleted) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      res.status(200).json({ data: deleted });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to delete conversation" });
     }
-
-    res.status(200).json({ data: deleted });
-  } catch (err) {
-    res.status(400).json({ error: "Failed to delete conversation" });
-  }
-})
+  }),
 );
 
 app.get(

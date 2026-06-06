@@ -22,6 +22,7 @@ https://docs.google.com/document/d/1Xtt1MT7StFop-lRBg0szp9H1J78By5OY3adYs6CLTwg/
 
 **Acceptance Criteria - API & UI/E2E Tests**
 https://docs.google.com/document/d/1bylotgPd9UL3PM8XDtkKGMD65V_D-IS8DdGuXkWm3EU/edit?usp=sharing
+
 **Acceptance Criteria - Team Assignment**
 https://docs.google.com/document/d/1eethGUZGfJSdf3gnqVkCcFw_MZnoc0tDoG30lf3kX2Y/edit?usp=sharing
 

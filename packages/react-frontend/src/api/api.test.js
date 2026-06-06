@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-/* global describe, beforeEach, test, expect */
-import { jest } from '@jest/globals';
+/* global describe, beforeEach, test, expect, localStorage, Headers */
+import { jest } from "@jest/globals";
 
 import {
   getBands,
@@ -22,9 +22,35 @@ import {
 
 globalThis.fetch = jest.fn();
 
+const API_URL = "http://localhost:3001";
+
+function mockJsonResponse(payload, extra = {}) {
+  return {
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve(payload),
+    clone: () => ({
+      json: () => Promise.resolve(payload),
+    }),
+    ...extra,
+  };
+}
+
+function setTestToken() {
+  localStorage.setItem("giggly_access_token", "test-token");
+}
+
+function expectAuthHeaderWasSent(callIndex = 0) {
+  const options = fetch.mock.calls[callIndex][1];
+
+  expect(options.headers).toBeInstanceOf(Headers);
+  expect(options.headers.get("Authorization")).toBe("Bearer test-token");
+}
+
 describe("search area persistence", () => {
   beforeEach(() => {
     localStorage.clear();
+    fetch.mockClear();
   });
 
   test("loadSearchArea returns defaults when nothing is stored", () => {
@@ -66,189 +92,210 @@ describe("search area persistence", () => {
 
 describe("API Service Tests", () => {
   beforeEach(() => {
-    globalThis.fetch.mockClear();
+    fetch.mockClear();
+    localStorage.clear();
   });
-
-  /*  Bands... */
 
   test("getBands fetches band list", async () => {
     const mockData = { data: [{ name: "Test Band" }] };
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(mockData),
-    });
+    fetch.mockResolvedValue(mockJsonResponse(mockData));
 
     const bands = await getBands();
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:3001/bands");
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/bands`);
     expect(bands).toEqual(mockData.data);
   });
 
   test("getBandById fetches one band", async () => {
     const mockData = { data: { name: "Band 1" } };
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(mockData),
-    });
+    fetch.mockResolvedValue(mockJsonResponse(mockData));
 
     const band = await getBandById("123");
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:3001/bands/123");
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/bands/123`);
     expect(band).toEqual(mockData.data);
   });
 
-  test("createBand sends POST request", async () => {
-    const newBand = { name: "New Band" };
+  test("createBand sends authenticated POST request", async () => {
+    setTestToken();
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(newBand),
-    });
+    const newBand = { name: "New Band" };
+    const mockResponse = { data: newBand };
+
+    fetch.mockResolvedValue(mockJsonResponse(mockResponse));
 
     const result = await createBand(newBand);
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/bands",
+      `${API_URL}/bands`,
       expect.objectContaining({
         method: "POST",
+        body: JSON.stringify(newBand),
       })
     );
 
-    expect(result).toEqual(newBand);
+    expectAuthHeaderWasSent();
+    expect(fetch.mock.calls[0][1].headers.get("Content-Type")).toBe(
+      "application/json"
+    );
+    expect(result).toEqual(mockResponse);
   });
 
-  test("deleteBand sends DELETE request", async () => {
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve({ success: true }),
-    });
+  test("createBand throws when no auth token exists", async () => {
+    await expect(createBand({ name: "No Token Band" })).rejects.toThrow(
+      "Your session expired. Please log in again."
+    );
+
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  test("deleteBand sends authenticated DELETE request", async () => {
+    setTestToken();
+
+    const mockResponse = { success: true };
+
+    fetch.mockResolvedValue(mockJsonResponse(mockResponse));
 
     const result = await deleteBand("123");
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/bands/123",
+      `${API_URL}/bands/123`,
       expect.objectContaining({
         method: "DELETE",
       })
     );
 
-    expect(result).toEqual({ success: true });
+    expectAuthHeaderWasSent();
+    expect(result).toEqual(mockResponse);
   });
-
-  /*  Venues... */
 
   test("getVenues fetches venues", async () => {
     const mockData = { data: [{ name: "Venue A" }] };
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(mockData),
-    });
+    fetch.mockResolvedValue(mockJsonResponse(mockData));
 
     const venues = await getVenues();
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:3001/venues");
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/venues`);
     expect(venues).toEqual(mockData.data);
   });
 
-  test("createVenue sends POST request", async () => {
-    const venue = { name: "Venue A" };
+  test("createVenue sends authenticated POST request", async () => {
+    setTestToken();
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(venue),
-    });
+    const venue = { name: "Venue A" };
+    const mockResponse = { data: venue };
+
+    fetch.mockResolvedValue(mockJsonResponse(mockResponse));
 
     const result = await createVenue(venue);
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/venues",
+      `${API_URL}/venues`,
       expect.objectContaining({
         method: "POST",
+        body: JSON.stringify(venue),
       })
     );
 
-    expect(result).toEqual(venue);
+    expectAuthHeaderWasSent();
+    expect(fetch.mock.calls[0][1].headers.get("Content-Type")).toBe(
+      "application/json"
+    );
+    expect(result).toEqual(mockResponse);
   });
 
-  test("deleteVenue sends DELETE request", async () => {
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve({ success: true }),
-    });
+  test("deleteVenue sends authenticated DELETE request", async () => {
+    setTestToken();
+
+    const mockResponse = { success: true };
+
+    fetch.mockResolvedValue(mockJsonResponse(mockResponse));
 
     const result = await deleteVenue("123");
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/venues/123",
+      `${API_URL}/venues/123`,
       expect.objectContaining({
         method: "DELETE",
       })
     );
 
-    expect(result).toEqual({ success: true });
+    expectAuthHeaderWasSent();
+    expect(result).toEqual(mockResponse);
   });
-
-  /*  Musicians... */
 
   test("getMusicians fetches musicians", async () => {
     const mockData = { data: [{ name: "Musician A" }] };
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(mockData),
-    });
+    fetch.mockResolvedValue(mockJsonResponse(mockData));
 
     const musicians = await getMusicians();
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:3001/musicians");
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/musicians`);
     expect(musicians).toEqual(mockData.data);
   });
 
-  test("createMusician sends POST request", async () => {
-    const musician = { name: "John Guitar" };
+  test("createMusician sends authenticated POST request", async () => {
+    setTestToken();
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(musician),
-    });
+    const musician = { name: "John Guitar" };
+    const mockResponse = { data: musician };
+
+    fetch.mockResolvedValue(mockJsonResponse(mockResponse));
 
     const result = await createMusician(musician);
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/musicians",
+      `${API_URL}/musicians`,
       expect.objectContaining({
         method: "POST",
+        body: JSON.stringify(musician),
       })
     );
 
-    expect(result).toEqual(musician);
+    expectAuthHeaderWasSent();
+    expect(fetch.mock.calls[0][1].headers.get("Content-Type")).toBe(
+      "application/json"
+    );
+    expect(result).toEqual(mockResponse);
   });
-
-  /*  Reviews... */
 
   test("getReviews fetches reviews", async () => {
     const mockData = { data: [{ rating: 5 }] };
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(mockData),
-    });
+    fetch.mockResolvedValue(mockJsonResponse(mockData));
 
     const reviews = await getReviews();
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:3001/reviews");
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/reviews`);
     expect(reviews).toEqual(mockData.data);
   });
 
-  test("createReview sends POST request", async () => {
-    const review = { rating: 5, comment: "Great band!" };
+  test("createReview sends authenticated POST request", async () => {
+    setTestToken();
 
-    fetch.mockResolvedValue({
-      json: () => Promise.resolve(review),
-    });
+    const review = { rating: 5, comment: "Great band!" };
+    const mockResponse = { data: review };
+
+    fetch.mockResolvedValue(mockJsonResponse(mockResponse));
 
     const result = await createReview(review);
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3001/reviews",
+      `${API_URL}/reviews`,
       expect.objectContaining({
         method: "POST",
+        body: JSON.stringify(review),
       })
     );
 
-    expect(result).toEqual(review);
+    expectAuthHeaderWasSent();
+    expect(fetch.mock.calls[0][1].headers.get("Content-Type")).toBe(
+      "application/json"
+    );
+    expect(result).toEqual(mockResponse);
   });
 });

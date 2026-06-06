@@ -13,6 +13,8 @@ let mockNotificationServices;
 let mockConversationServices;
 let mockMessageServices;
 let mockEmailVerificationServices;
+let mockAvailabilityService;
+let mockGigRequestServices;
 
 const ORIGINAL_EMAIL_VERIFICATION_BYPASS = process.env.EMAIL_VERIFICATION_BYPASS;
 
@@ -57,12 +59,22 @@ function createMockRes() {
   return {
     statusCode: 200,
     body: null,
+    headersSent: false,
+
     status: jest.fn(function (code) {
       this.statusCode = code;
       return this;
     }),
+
     json: jest.fn(function (body) {
       this.body = body;
+      this.headersSent = true;
+      return this;
+    }),
+
+    send: jest.fn(function (body) {
+      this.body = body;
+      this.headersSent = true;
       return this;
     }),
   };
@@ -89,14 +101,23 @@ function composeHandlers(handlers) {
       if (handler.length >= 3) {
         await new Promise((resolve, reject) => {
           try {
-            handler(req, res, (err) => {
+            const maybePromise = handler(req, res, (err) => {
               if (err) reject(err);
               else resolve();
             });
+
+            if (res.headersSent) {
+              resolve();
+            }
+
+            if (maybePromise && typeof maybePromise.then === "function") {
+              maybePromise.then(resolve).catch(reject);
+            }
           } catch (e) {
             reject(e);
           }
         });
+
         if (res.headersSent) return;
         return run();
       }
@@ -121,6 +142,8 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     findBandById: jest.fn(),
     addBand: jest.fn(),
     findBandByIdAndDelete: jest.fn(),
+    addBandMember: jest.fn(),
+    removeBandMember: jest.fn(),
     updateBandProfilePicture: jest.fn(),
     addBandGalleryImage: jest.fn(),
     removeBandGalleryImage: jest.fn(),
@@ -165,13 +188,47 @@ async function loadBackend({ connectShouldReject = false } = {}) {
     findGigById: jest.fn(),
     addGig: jest.fn(),
     findGigByIdAndDelete: jest.fn(),
+    updateGigProfile: jest.fn(),
+    addGigGalleryImage: jest.fn(),
+    removeGigGalleryImage: jest.fn(),
+    addGigVideo: jest.fn(),
+    removeGigVideo: jest.fn(),
+  };
+
+  mockGigServices.updateGigProfile = jest.fn();
+  mockGigServices.addGigGalleryImage = jest.fn();
+  mockGigServices.removeGigGalleryImage = jest.fn();
+  mockGigServices.addGigVideo = jest.fn();
+  mockGigServices.removeGigVideo = jest.fn();
+
+  mockAvailabilityService = {
+    getSlots: jest.fn().mockResolvedValue([]),
+    createAvailability: jest.fn().mockResolvedValue({}),
+    deleteAvailability: jest.fn().mockResolvedValue({}),
+  };
+
+  mockGigRequestServices = {
+    getGigRequests: jest.fn().mockResolvedValue([]),
+    createGigRequest: jest.fn().mockResolvedValue({ _id: "request1" }),
+    findGigRequestById: jest.fn().mockResolvedValue(null),
+    acceptGigRequest: jest.fn().mockResolvedValue({ _id: "request1" }),
+    declineGigRequest: jest.fn().mockResolvedValue({ _id: "request1" }),
+    cancelGigRequest: jest.fn().mockResolvedValue({ _id: "request1" }),
   };
 
   mockAuthServices = {
     registerUser: jest.fn(),
     authenticateUser: jest.fn(),
-    createAccessToken: jest.fn(),
+    createAccessToken: jest.fn(() => "test-token"),
     verifyAccessToken: jest.fn(),
+    findUserByEmail: jest.fn().mockResolvedValue({
+      _id: "u1",
+      email: "person@test.com",
+      display_name: "Person",
+      role: "musician",
+      email_verified: true,
+    }),
+    findUserById: jest.fn().mockResolvedValue(null),
   };
 
   mockEmailVerificationServices = {
@@ -219,8 +276,16 @@ async function loadBackend({ connectShouldReject = false } = {}) {
   await jest.unstable_mockModule("mongoose", () => {
     class MockSchema {
       constructor(_definition, _options) {}
-      index() {}
+
+      index() {
+        return this;
+      }
+
+      pre() {
+        return this;
+      }
     }
+
     MockSchema.Types = { ObjectId: class MockObjectId {} };
 
     return {
@@ -274,6 +339,14 @@ async function loadBackend({ connectShouldReject = false } = {}) {
 
   await jest.unstable_mockModule("./email-verification-services.js", () => ({
     default: mockEmailVerificationServices,
+  }));
+
+  await jest.unstable_mockModule("./availability-service.js", () => ({
+    default: mockAvailabilityService,
+  }));
+
+  await jest.unstable_mockModule("./gig-request-services.js", () => ({
+    default: mockGigRequestServices,
   }));
 
   const backend = await import("./backend.js");
@@ -1424,5 +1497,1668 @@ describe("role guards", () => {
 
     expect(res.statusCode).toBe(403);
     expect(mockMusicianServices.removeMusicianVideo).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("extra backend route coverage", () => {
+  beforeAll(async () => {
+    await loadBackend();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("availability routes", () => {
+    test("GET /availability success", async () => {
+      const handler = findRoute("get", "/availability");
+      mockAvailabilityService.getSlots.mockResolvedValue([{ id: "slot1" }]);
+
+      const req = {
+        query: {
+          ownerType: "band",
+          ownerId: "band1",
+          start: "2026-06-01",
+          end: "2026-06-02",
+          status: "available",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(mockAvailabilityService.getSlots).toHaveBeenCalledWith({
+        ownerType: "band",
+        ownerId: "band1",
+        start: "2026-06-01",
+        end: "2026-06-02",
+        status: "available",
+      });
+      expect(res.json).toHaveBeenCalledWith({ data: [{ id: "slot1" }] });
+    });
+
+    test("GET /availability returns 400 when ownerType or ownerId is missing", async () => {
+      const handler = findRoute("get", "/availability");
+
+      const req = { query: { ownerType: "band" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(mockAvailabilityService.getSlots).not.toHaveBeenCalled();
+    });
+
+    test("POST /availability success", async () => {
+      const handler = findRoute("post", "/availability");
+      const slot = { id: "slot1", ownerType: "band" };
+      mockAvailabilityService.createAvailability.mockResolvedValue(slot);
+
+      const req = {
+        body: {
+          ownerType: "band",
+          ownerId: "band1",
+          start: "2026-06-01T10:00:00Z",
+          end: "2026-06-01T11:00:00Z",
+          status: "available",
+          notes: "Practice",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(201);
+      expect(mockAvailabilityService.createAvailability).toHaveBeenCalledWith({
+        ownerType: "band",
+        ownerId: "band1",
+        start: "2026-06-01T10:00:00Z",
+        end: "2026-06-01T11:00:00Z",
+        status: "available",
+        notes: "Practice",
+      });
+      expect(res.json).toHaveBeenCalledWith({ data: slot });
+    });
+
+    test("POST /availability returns 400 when required fields are missing", async () => {
+      const handler = findRoute("post", "/availability");
+
+      const req = {
+        body: {
+          ownerType: "band",
+          ownerId: "band1",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(mockAvailabilityService.createAvailability).not.toHaveBeenCalled();
+    });
+
+    test("DELETE /availability/:id success", async () => {
+      const handler = findRoute("delete", "/availability/:id");
+      const deleted = { id: "slot1" };
+      mockAvailabilityService.deleteAvailability.mockResolvedValue(deleted);
+
+      const req = { params: { id: "slot1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(mockAvailabilityService.deleteAvailability).toHaveBeenCalledWith("slot1");
+      expect(res.json).toHaveBeenCalledWith({ data: deleted });
+    });
+
+    test("DELETE /availability/:id returns 404 when slot is missing", async () => {
+      const handler = findRoute("delete", "/availability/:id");
+      mockAvailabilityService.deleteAvailability.mockResolvedValue(null);
+
+      const req = { params: { id: "missing" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("notification routes", () => {
+    test("GET /notifications success", async () => {
+      const handler = findRoute("get", "/notifications");
+      mockNotificationServices.getNotificationsByUser.mockResolvedValue([
+        { id: "n1" },
+      ]);
+
+      const req = { query: { userId: "user1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(mockNotificationServices.getNotificationsByUser).toHaveBeenCalledWith(
+        "user1"
+      );
+      expect(res.json).toHaveBeenCalledWith({ data: [{ id: "n1" }] });
+    });
+
+    test("GET /notifications returns 400 when userId is missing", async () => {
+      const handler = findRoute("get", "/notifications");
+
+      const req = { query: {} };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(mockNotificationServices.getNotificationsByUser).not.toHaveBeenCalled();
+    });
+
+    test("GET /notifications/unread-count success", async () => {
+      const handler = findRoute("get", "/notifications/unread-count");
+      mockNotificationServices.getUnreadCount.mockResolvedValue(7);
+
+      const req = { query: { userId: "user1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json).toHaveBeenCalledWith({ data: { count: 7 } });
+    });
+
+    test("POST /notifications success", async () => {
+      const handler = findRoute("post", "/notifications");
+      const notification = { id: "n1" };
+      mockNotificationServices.createNotification.mockResolvedValue(notification);
+
+      const req = {
+        body: {
+          userId: "user1",
+          type: "welcome",
+          title: "Welcome",
+          body: "Hello",
+          relatedId: "rel1",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(201);
+      expect(mockNotificationServices.createNotification).toHaveBeenCalledWith({
+        userId: "user1",
+        type: "welcome",
+        title: "Welcome",
+        body: "Hello",
+        relatedId: "rel1",
+      });
+      expect(res.json).toHaveBeenCalledWith({ data: notification });
+    });
+
+    test("POST /notifications returns 400 when required fields are missing", async () => {
+      const handler = findRoute("post", "/notifications");
+
+      const req = { body: { userId: "user1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(mockNotificationServices.createNotification).not.toHaveBeenCalled();
+    });
+
+    test("PUT /notifications/:id/read success", async () => {
+      const handler = findRoute("put", "/notifications/:id/read");
+      const notification = { id: "n1", read: true };
+      mockNotificationServices.markNotificationAsRead.mockResolvedValue(notification);
+
+      const req = { params: { id: "n1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(mockNotificationServices.markNotificationAsRead).toHaveBeenCalledWith(
+        "n1"
+      );
+    });
+
+    test("DELETE /notifications/:id success", async () => {
+      const handler = findRoute("delete", "/notifications/:id");
+      const deleted = { id: "n1" };
+      mockNotificationServices.deleteNotification.mockResolvedValue(deleted);
+
+      const req = { params: { id: "n1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(mockNotificationServices.deleteNotification).toHaveBeenCalledWith(
+        "n1"
+      );
+    });
+  });
+
+  describe("extra gig routes", () => {
+    test("GET /gigs success", async () => {
+      const handler = findRoute("get", "/gigs");
+      mockGigServices.getGigsCount.mockResolvedValue(1);
+      mockGigServices.getGigsPaginated.mockResolvedValue({
+        gigs: [{ id: "g1" }],
+      });
+
+      const req = {
+        query: {
+          limit: "10",
+          offset: "0",
+          name: "Show",
+          genres: "rock,jazz",
+          booked: "false",
+          min_price: "100",
+          max_price: "200",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: [{ id: "g1" }],
+          meta: expect.objectContaining({ total: 1 }),
+        })
+      );
+    });
+
+    test("GET /gigs/:id success", async () => {
+      const handler = findRoute("get", "/gigs/:id");
+      const gig = { id: "g1" };
+      mockGigServices.findGigById.mockResolvedValue(gig);
+
+      const req = { params: { id: "g1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json).toHaveBeenCalledWith({ data: gig });
+    });
+
+    test("GET /gigs/:id returns 404 when missing", async () => {
+      const handler = findRoute("get", "/gigs/:id");
+      mockGigServices.findGigById.mockResolvedValue(null);
+
+      const req = { params: { id: "missing" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    test("PUT /gigs/:id lowercases name and updates gig", async () => {
+      const handler = findRoute("put", "/gigs/:id");
+      const updated = { id: "g1", name: "rock night" };
+      mockGigServices.updateGigProfile.mockResolvedValue(updated);
+
+      const req = {
+        params: { id: "g1" },
+        body: { name: "Rock Night", location: "SLO" },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(mockGigServices.updateGigProfile).toHaveBeenCalledWith(
+        "g1",
+        expect.objectContaining({
+          name: "rock night",
+          location: "SLO",
+        })
+      );
+      expect(res.json).toHaveBeenCalledWith({ data: updated });
+    });
+
+    test("PUT /gigs/:id returns 404 when gig is missing", async () => {
+      const handler = findRoute("put", "/gigs/:id");
+      mockGigServices.updateGigProfile.mockResolvedValue(null);
+
+      const req = { params: { id: "missing" }, body: { name: "Missing" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("gig request routes", () => {
+    test("GET /gig-requests uses venueUserId for venue user", async () => {
+      const handler = findRoute("get", "/gig-requests");
+      mockGigRequestServices.getGigRequests.mockResolvedValue([{ id: "r1" }]);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        { query: {} },
+        { sub: "venueUser1", role: "venue" }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockGigRequestServices.getGigRequests).toHaveBeenCalledWith(
+        expect.objectContaining({
+          venueUserId: "venueUser1",
+        })
+      );
+    });
+
+    test("GET /gig-requests uses bandUserId for band user", async () => {
+      const handler = findRoute("get", "/gig-requests");
+      mockGigRequestServices.getGigRequests.mockResolvedValue([{ id: "r1" }]);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        { query: {} },
+        { sub: "bandUser1", role: "band" }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockGigRequestServices.getGigRequests).toHaveBeenCalledWith(
+        expect.objectContaining({
+          bandUserId: "bandUser1",
+        })
+      );
+    });
+
+    test("POST /gig-requests returns 400 for missing band request fields", async () => {
+      const handler = findRoute("post", "/gig-requests");
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        { body: { gigId: "g1" } },
+        { sub: "bandUser1", role: "band" }
+      );
+
+      expect(res.statusCode).toBe(400);
+      expect(mockGigRequestServices.createGigRequest).not.toHaveBeenCalled();
+    });
+
+    test("POST /gig-requests returns 403 for unsupported role", async () => {
+      const handler = findRoute("post", "/gig-requests");
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        { body: {} },
+        { sub: "admin1", role: "admin" }
+      );
+
+      expect(res.statusCode).toBe(403);
+    });
+
+    test("PUT /gig-requests/:id/accept returns 404 when request is missing", async () => {
+      const handler = findRoute("put", "/gig-requests/:id/accept");
+      mockGigRequestServices.findGigRequestById.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        { params: { id: "missing" } },
+        { sub: "venueUser1", role: "venue" }
+      );
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    test("PUT /gig-requests/:id/accept success for venue accepting band request", async () => {
+      const handler = findRoute("put", "/gig-requests/:id/accept");
+
+      mockGigRequestServices.findGigRequestById.mockResolvedValue({
+        _id: "request1",
+        initiatedBy: "band",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      mockGigRequestServices.acceptGigRequest.mockResolvedValue({
+        _id: "request1",
+        initiatedBy: "band",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        { params: { id: "request1" } },
+        { sub: "venueUser1", role: "venue" }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockGigRequestServices.acceptGigRequest).toHaveBeenCalledWith(
+        "request1"
+      );
+    });
+
+    test("PUT /gig-requests/:id/decline returns 403 for wrong user", async () => {
+      const handler = findRoute("put", "/gig-requests/:id/decline");
+
+      mockGigRequestServices.findGigRequestById.mockResolvedValue({
+        _id: "request1",
+        initiatedBy: "band",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        { params: { id: "request1" } },
+        { sub: "otherVenue", role: "venue" }
+      );
+
+      expect(res.statusCode).toBe(403);
+      expect(mockGigRequestServices.declineGigRequest).not.toHaveBeenCalled();
+    });
+  });
+});
+
+
+describe("deeper backend route coverage", () => {
+  beforeAll(async () => {
+    await loadBackend();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("more notification route branches", () => {
+    test("PUT /notifications/read-all success", async () => {
+      const handler = findRoute("put", "/notifications/read-all");
+      mockNotificationServices.markAllNotificationsAsRead.mockResolvedValue({
+        modifiedCount: 2,
+      });
+
+      const req = { body: { userId: "user1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(mockNotificationServices.markAllNotificationsAsRead).toHaveBeenCalledWith(
+        "user1"
+      );
+      expect(res.json).toHaveBeenCalledWith({
+        data: { success: true },
+      });
+    });
+
+    test("PUT /notifications/read-all returns 400 when userId is missing", async () => {
+      const handler = findRoute("put", "/notifications/read-all");
+
+      const req = { body: {} };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(mockNotificationServices.markAllNotificationsAsRead).not.toHaveBeenCalled();
+    });
+
+    test("PUT /notifications/:id/read returns 404 when notification is missing", async () => {
+      const handler = findRoute("put", "/notifications/:id/read");
+      mockNotificationServices.markNotificationAsRead.mockResolvedValue(null);
+
+      const req = { params: { id: "missing" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    test("DELETE /notifications/:id returns 404 when notification is missing", async () => {
+      const handler = findRoute("delete", "/notifications/:id");
+      mockNotificationServices.deleteNotification.mockResolvedValue(null);
+
+      const req = { params: { id: "missing" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe("more conversation route branches", () => {
+    test("POST /conversations returns 400 when required fields are missing", async () => {
+      const handler = findRoute("post", "/conversations");
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          body: {
+            bandId: "band1",
+            venueId: "venue1",
+          },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(400);
+      expect(mockConversationServices.findConversationByParticipants).not.toHaveBeenCalled();
+    });
+
+    test("POST /conversations returns 403 when auth user is not a participant", async () => {
+      const handler = findRoute("post", "/conversations");
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          body: {
+            gigId: "gig1",
+            bandId: "band1",
+            venueId: "venue1",
+            bandUserId: "bandUser1",
+            venueUserId: "venueUser1",
+          },
+        },
+        {
+          sub: "randomUser",
+          email: "random@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(403);
+      expect(mockConversationServices.findConversationByParticipants).not.toHaveBeenCalled();
+    });
+
+    test("POST /conversations returns existing conversation when found", async () => {
+      const handler = findRoute("post", "/conversations");
+      const existing = { _id: "conversation1" };
+
+      mockConversationServices.findConversationByParticipants.mockResolvedValue(existing);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          body: {
+            gigId: "gig1",
+            bandId: "band1",
+            venueId: "venue1",
+            bandUserId: "bandUser1",
+            venueUserId: "venueUser1",
+          },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json).toHaveBeenCalledWith({ data: existing });
+    });
+
+    test("POST /conversations creates conversation when no existing conversation exists", async () => {
+      const handler = findRoute("post", "/conversations");
+      const created = { _id: "conversation2" };
+
+      mockConversationServices.findConversationByParticipants.mockResolvedValue(null);
+      mockConversationServices.addConversation.mockResolvedValue(created);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          body: {
+            gigId: "gig1",
+            bandId: "band1",
+            venueId: "venue1",
+            bandUserId: "bandUser1",
+            venueUserId: "venueUser1",
+          },
+        },
+        {
+          sub: "venueUser1",
+          email: "venue@test.com",
+          role: "venue",
+        }
+      );
+
+      expect(res.statusCode).toBe(201);
+      expect(mockConversationServices.addConversation).toHaveBeenCalledWith({
+        gigId: "gig1",
+        bandId: "band1",
+        venueId: "venue1",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+      expect(res.json).toHaveBeenCalledWith({ data: created });
+    });
+
+    test("GET /conversations/:id/messages returns 404 when conversation is missing", async () => {
+      const handler = findRoute("get", "/conversations/:id/messages");
+
+      mockConversationServices.findConversationById.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "missingConversation" },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(404);
+      expect(mockMessageServices.getMessages).not.toHaveBeenCalled();
+    });
+
+    test("GET /conversations/:id/messages success for participant", async () => {
+      const handler = findRoute("get", "/conversations/:id/messages");
+
+      mockConversationServices.findConversationById.mockResolvedValue({
+        _id: "conversation1",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      mockMessageServices.getMessages.mockResolvedValue([
+        { _id: "message1", text: "hello" },
+      ]);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "conversation1" },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockMessageServices.getMessages).toHaveBeenCalledWith("conversation1");
+      expect(res.json).toHaveBeenCalledWith({
+        data: [{ _id: "message1", text: "hello" }],
+      });
+    });
+
+    test("POST /conversations/:id/messages returns 404 when conversation is missing", async () => {
+      const handler = findRoute("post", "/conversations/:id/messages");
+
+      mockConversationServices.findConversationById.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "missingConversation" },
+          body: { text: "hello" },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(404);
+      expect(mockMessageServices.addMessage).not.toHaveBeenCalled();
+    });
+
+    test("POST /conversations/:id/messages returns 400 when text is missing", async () => {
+      const handler = findRoute("post", "/conversations/:id/messages");
+
+      mockConversationServices.findConversationById.mockResolvedValue({
+        _id: "conversation1",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "conversation1" },
+          body: {},
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(400);
+      expect(mockMessageServices.addMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("more gig request route branches", () => {
+    test("PUT /gig-requests/:id/decline success for venue declining band request", async () => {
+      const handler = findRoute("put", "/gig-requests/:id/decline");
+
+      mockGigRequestServices.findGigRequestById.mockResolvedValue({
+        _id: "request1",
+        initiatedBy: "band",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      mockGigRequestServices.declineGigRequest.mockResolvedValue({
+        _id: "request1",
+        status: "declined",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "request1" },
+        },
+        {
+          sub: "venueUser1",
+          email: "venue@test.com",
+          role: "venue",
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockGigRequestServices.declineGigRequest).toHaveBeenCalledWith(
+        "request1"
+      );
+    });
+
+    test("PUT /gig-requests/:id/decline success for band declining venue invitation", async () => {
+      const handler = findRoute("put", "/gig-requests/:id/decline");
+
+      mockGigRequestServices.findGigRequestById.mockResolvedValue({
+        _id: "request2",
+        initiatedBy: "venue",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      mockGigRequestServices.declineGigRequest.mockResolvedValue({
+        _id: "request2",
+        status: "declined",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "request2" },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockGigRequestServices.declineGigRequest).toHaveBeenCalledWith(
+        "request2"
+      );
+    });
+
+    test("PUT /gig-requests/:id/decline returns 404 when request is missing", async () => {
+      const handler = findRoute("put", "/gig-requests/:id/decline");
+
+      mockGigRequestServices.findGigRequestById.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "missingRequest" },
+        },
+        {
+          sub: "venueUser1",
+          email: "venue@test.com",
+          role: "venue",
+        }
+      );
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    test("DELETE /gig-requests/:id success when band user owns request", async () => {
+      const handler = findRoute("delete", "/gig-requests/:id");
+
+      mockGigRequestServices.cancelGigRequest.mockResolvedValue({
+        _id: "request1",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "request1" },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockGigRequestServices.cancelGigRequest).toHaveBeenCalledWith(
+        "request1"
+      );
+    });
+
+    test("DELETE /gig-requests/:id returns 404 when request is missing", async () => {
+      const handler = findRoute("delete", "/gig-requests/:id");
+
+      mockGigRequestServices.cancelGigRequest.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "missingRequest" },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    test("DELETE /gig-requests/:id returns 403 when user is not related to request", async () => {
+      const handler = findRoute("delete", "/gig-requests/:id");
+
+      mockGigRequestServices.cancelGigRequest.mockResolvedValue({
+        _id: "request1",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "request1" },
+        },
+        {
+          sub: "randomUser",
+          email: "random@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(403);
+    });
+  });
+});
+
+
+describe("backend branch coverage boost", () => {
+  beforeAll(async () => {
+    await loadBackend();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("extra auth branches", () => {
+    test("POST /auth/login returns 400 when email is missing", async () => {
+      const handler = findRoute("post", "/auth/login");
+      const req = { body: { password: "password123" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(mockAuthServices.authenticateUser).not.toHaveBeenCalled();
+    });
+
+    test("POST /auth/login returns 401 for invalid credentials", async () => {
+      const handler = findRoute("post", "/auth/login");
+      mockAuthServices.authenticateUser.mockResolvedValue(null);
+
+      const req = {
+        body: {
+          email: "person@test.com",
+          password: "password123",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json).toHaveBeenCalledWith({ error: "Invalid credentials" });
+    });
+
+    test("POST /auth/login success returns token and user", async () => {
+      const handler = findRoute("post", "/auth/login");
+
+      mockAuthServices.authenticateUser.mockResolvedValue({
+        _id: "u1",
+        email: "person@test.com",
+        display_name: "Person",
+        role: "musician",
+        email_verified: true,
+      });
+
+      mockMusicianServices.findOwnedMusicianByUserId.mockResolvedValue({
+        _id: "musician1",
+      });
+
+      const req = {
+        body: {
+          email: "person@test.com",
+          password: "password123",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(200);
+      expect(mockAuthServices.createAccessToken).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            token: "test-token",
+            user: expect.objectContaining({
+              email: "person@test.com",
+              role: "musician",
+              email_verified: true,
+            }),
+            profiles: expect.objectContaining({
+              musicianId: "musician1",
+            }),
+          }),
+        })
+      );
+    });
+
+    test("POST /auth/login returns 500 on service error", async () => {
+      const handler = findRoute("post", "/auth/login");
+      mockAuthServices.authenticateUser.mockRejectedValue(new Error("boom"));
+
+      const req = {
+        body: {
+          email: "person@test.com",
+          password: "password123",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(500);
+    });
+
+    test("GET /auth/verify success", async () => {
+      const handler = findRoute("get", "/auth/verify");
+
+      mockAuthServices.findUserById.mockResolvedValue({
+        _id: "u1",
+        email: "person@test.com",
+        display_name: "Person",
+        role: "venue",
+        email_verified: true,
+      });
+
+      mockVenueServices.findOwnedVenueByUserId.mockResolvedValue({
+        _id: "venue1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {},
+        {
+          sub: "u1",
+          email: "person@test.com",
+          display_name: "Person",
+          role: "venue",
+          email_verified: true,
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            valid: true,
+            user: expect.objectContaining({
+              email: "person@test.com",
+              role: "venue",
+            }),
+            profiles: expect.objectContaining({
+              venueId: "venue1",
+            }),
+          }),
+        })
+      );
+    });
+  });
+
+  describe("extra notification error branches", () => {
+    test("GET /notifications returns 500 on service error", async () => {
+      const handler = findRoute("get", "/notifications");
+      mockNotificationServices.getNotificationsByUser.mockRejectedValue(
+        new Error("boom")
+      );
+
+      const req = { query: { userId: "user1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(500);
+    });
+
+    test("GET /notifications/unread-count returns 400 when userId is missing", async () => {
+      const handler = findRoute("get", "/notifications/unread-count");
+
+      const req = { query: {} };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(mockNotificationServices.getUnreadCount).not.toHaveBeenCalled();
+    });
+
+    test("GET /notifications/unread-count returns 500 on service error", async () => {
+      const handler = findRoute("get", "/notifications/unread-count");
+      mockNotificationServices.getUnreadCount.mockRejectedValue(
+        new Error("boom")
+      );
+
+      const req = { query: { userId: "user1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(500);
+    });
+
+    test("POST /notifications returns 400 on service error", async () => {
+      const handler = findRoute("post", "/notifications");
+      mockNotificationServices.createNotification.mockRejectedValue(
+        new Error("boom")
+      );
+
+      const req = {
+        body: {
+          userId: "user1",
+          type: "welcome",
+          title: "Welcome",
+          body: "Hello",
+          relatedId: "rel1",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    test("PUT /notifications/:id/read returns 400 on service error", async () => {
+      const handler = findRoute("put", "/notifications/:id/read");
+      mockNotificationServices.markNotificationAsRead.mockRejectedValue(
+        new Error("boom")
+      );
+
+      const req = { params: { id: "n1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    test("PUT /notifications/read-all returns 400 on service error", async () => {
+      const handler = findRoute("put", "/notifications/read-all");
+      mockNotificationServices.markAllNotificationsAsRead.mockRejectedValue(
+        new Error("boom")
+      );
+
+      const req = { body: { userId: "user1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    test("DELETE /notifications/:id returns 400 on service error", async () => {
+      const handler = findRoute("delete", "/notifications/:id");
+      mockNotificationServices.deleteNotification.mockRejectedValue(
+        new Error("boom")
+      );
+
+      const req = { params: { id: "n1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+    });
+  });
+
+  describe("extra availability error branches", () => {
+    test("GET /availability returns 500 on service error", async () => {
+      const handler = findRoute("get", "/availability");
+      mockAvailabilityService.getSlots.mockRejectedValue(new Error("boom"));
+
+      const req = {
+        query: {
+          ownerType: "band",
+          ownerId: "band1",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(500);
+    });
+
+    test("POST /availability returns service error message", async () => {
+      const handler = findRoute("post", "/availability");
+      mockAvailabilityService.createAvailability.mockRejectedValue(
+        new Error("Availability overlaps existing time slot")
+      );
+
+      const req = {
+        body: {
+          ownerType: "band",
+          ownerId: "band1",
+          start: "2026-06-01T10:00:00Z",
+          end: "2026-06-01T11:00:00Z",
+        },
+      };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Availability overlaps existing time slot",
+      });
+    });
+
+    test("DELETE /availability/:id returns 500 on service error", async () => {
+      const handler = findRoute("delete", "/availability/:id");
+      mockAvailabilityService.deleteAvailability.mockRejectedValue(
+        new Error("boom")
+      );
+
+      const req = { params: { id: "slot1" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(500);
+    });
+  });
+});
+
+
+describe("final backend route coverage boost", () => {
+  beforeAll(async () => {
+    await loadBackend();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("root and middleware branches", () => {
+    test("GET / returns API running message", async () => {
+      const handler = findRoute("get", "/");
+      const req = {};
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.send).toHaveBeenCalledWith("Giggly API is running !!");
+    });
+
+
+  });
+
+  describe("auth guard branches", () => {
+    test("GET /auth/verify returns 401 when authorization header is missing", async () => {
+      const handler = findRoute("get", "/auth/verify");
+
+      const res = await invokeUnauthenticatedHandler(handler, {});
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Missing or invalid Authorization header",
+      });
+    });
+
+    test("GET /auth/verify returns 401 when token verification throws", async () => {
+      const handler = findRoute("get", "/auth/verify");
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "development";
+
+      mockAuthServices.verifyAccessToken.mockImplementation(() => {
+        throw new Error("bad token");
+      });
+
+      const req = {
+        headers: {
+          authorization: "Bearer bad-token",
+        },
+        get: jest.fn((headerName) => {
+          if (headerName === "authorization") return "Bearer bad-token";
+          return undefined;
+        }),
+      };
+      const res = createMockRes();
+
+      try {
+        await handler(req, res);
+      } finally {
+        process.env.NODE_ENV = originalNodeEnv;
+      }
+
+      expect(res.statusCode).toBe(401);
+      expect(res.json).toHaveBeenCalledWith({
+        error: "Invalid or expired token",
+      });
+    });
+  });
+
+  describe("band member route branches", () => {
+    test("POST /bands/:id/members success with musicianId", async () => {
+      const handler = findRoute("post", "/bands/:id/members");
+
+      mockBandServices.findBandById.mockResolvedValue({
+        _id: "band1",
+        owner_user: "owner1",
+      });
+
+      mockBandServices.addBandMember.mockResolvedValue({
+        _id: "band1",
+        members: ["musician1"],
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "band1" },
+          body: { musicianId: "musician1" },
+        },
+        {
+          sub: "owner1",
+          email: "owner@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockBandServices.addBandMember).toHaveBeenCalledWith(
+        "band1",
+        "musician1"
+      );
+    });
+
+    test("POST /bands/:id/members returns 404 when band is missing", async () => {
+      const handler = findRoute("post", "/bands/:id/members");
+
+      mockBandServices.findBandById.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "missing" },
+          body: { musicianId: "musician1" },
+        },
+        {
+          sub: "owner1",
+          email: "owner@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    test("POST /bands/:id/members returns 403 when user is not band admin", async () => {
+      const handler = findRoute("post", "/bands/:id/members");
+
+      mockBandServices.findBandById.mockResolvedValue({
+        _id: "band1",
+        owner_user: "owner1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "band1" },
+          body: { musicianId: "musician1" },
+        },
+        {
+          sub: "otherUser",
+          email: "other@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(403);
+      expect(mockBandServices.addBandMember).not.toHaveBeenCalled();
+    });
+
+    test("POST /bands/:id/members returns 400 when musicianId and email are missing", async () => {
+      const handler = findRoute("post", "/bands/:id/members");
+
+      mockBandServices.findBandById.mockResolvedValue({
+        _id: "band1",
+        owner_user: "owner1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "band1" },
+          body: {},
+        },
+        {
+          sub: "owner1",
+          email: "owner@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(400);
+      expect(mockBandServices.addBandMember).not.toHaveBeenCalled();
+    });
+
+    test("DELETE /bands/:id/members/:musicianId returns 400 when admin removes themselves", async () => {
+      const handler = findRoute("delete", "/bands/:id/members/:musicianId");
+
+      mockBandServices.findBandById.mockResolvedValue({
+        _id: "band1",
+        owner_user: "owner1",
+      });
+
+      mockMusicianServices.findOwnedMusicianByUserId.mockResolvedValue({
+        _id: "adminMusician",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: {
+            id: "band1",
+            musicianId: "adminMusician",
+          },
+        },
+        {
+          sub: "owner1",
+          email: "owner@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(400);
+      expect(mockBandServices.removeBandMember).not.toHaveBeenCalled();
+    });
+
+    test("DELETE /bands/:id/members/:musicianId success", async () => {
+      const handler = findRoute("delete", "/bands/:id/members/:musicianId");
+
+      mockBandServices.findBandById.mockResolvedValue({
+        _id: "band1",
+        owner_user: "owner1",
+      });
+
+      mockMusicianServices.findOwnedMusicianByUserId.mockResolvedValue({
+        _id: "adminMusician",
+      });
+
+      mockBandServices.removeBandMember.mockResolvedValue({
+        _id: "band1",
+        members: [],
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: {
+            id: "band1",
+            musicianId: "memberToRemove",
+          },
+        },
+        {
+          sub: "owner1",
+          email: "owner@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockBandServices.removeBandMember).toHaveBeenCalledWith(
+        "band1",
+        "memberToRemove"
+      );
+    });
+  });
+
+  describe("more gig route branches", () => {
+    test("GET /gigs returns 500 on service error", async () => {
+      const handler = findRoute("get", "/gigs");
+
+      mockGigServices.getGigsCount.mockRejectedValue(new Error("boom"));
+
+      const req = { query: {} };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(500);
+    });
+
+    test("GET /gigs/:id returns 400 on service error", async () => {
+      const handler = findRoute("get", "/gigs/:id");
+
+      mockGigServices.findGigById.mockRejectedValue(new Error("boom"));
+
+      const req = { params: { id: "bad" } };
+      const res = createMockRes();
+
+      await handler(req, res);
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    test("POST /gigs success for venue owner", async () => {
+      const handler = findRoute("post", "/gigs");
+
+      mockVenueServices.findOwnedVenueByUserId.mockResolvedValue({
+        _id: "venue1",
+      });
+
+      mockGigServices.addGig.mockResolvedValue({
+        _id: "gig1",
+        name: "Rock Night",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          body: {
+            name: "Rock Night",
+            location: "SLO",
+          },
+        },
+        {
+          sub: "venueUser1",
+          email: "venue@test.com",
+          role: "venue",
+        }
+      );
+
+      expect(res.statusCode).toBe(201);
+      expect(mockGigServices.addGig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Rock Night",
+          location: "SLO",
+          host: "venue1",
+          owner_user: "venueUser1",
+        })
+      );
+    });
+
+    test("POST /gigs returns 403 when venue profile is missing", async () => {
+      const handler = findRoute("post", "/gigs");
+
+      mockVenueServices.findOwnedVenueByUserId.mockResolvedValue(null);
+      mockVenueServices.findVenueByContactEmail.mockResolvedValue(null);
+      mockVenueServices.findVenueByName.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          body: {
+            name: "Rock Night",
+          },
+        },
+        {
+          sub: "venueUser1",
+          email: "venue@test.com",
+          role: "venue",
+        }
+      );
+
+      expect(res.statusCode).toBe(403);
+      expect(mockGigServices.addGig).not.toHaveBeenCalled();
+    });
+
+    test("DELETE /gigs/:id success for owner", async () => {
+      const handler = findRoute("delete", "/gigs/:id");
+
+      mockGigServices.findGigById.mockResolvedValue({
+        _id: "gig1",
+        owner_user: "venueUser1",
+        host: "venue1",
+      });
+
+      mockGigServices.findGigByIdAndDelete.mockResolvedValue({
+        _id: "gig1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "gig1" },
+        },
+        {
+          sub: "venueUser1",
+          email: "venue@test.com",
+          role: "venue",
+        }
+      );
+
+      expect(res.statusCode).toBe(200);
+      expect(mockGigServices.findGigByIdAndDelete).toHaveBeenCalledWith("gig1");
+    });
+
+    test("DELETE /gigs/:id returns 404 when gig is missing", async () => {
+      const handler = findRoute("delete", "/gigs/:id");
+
+      mockGigServices.findGigById.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "missingGig" },
+        },
+        {
+          sub: "venueUser1",
+          email: "venue@test.com",
+          role: "venue",
+        }
+      );
+
+      expect(res.statusCode).toBe(404);
+      expect(mockGigServices.findGigByIdAndDelete).not.toHaveBeenCalled();
+    });
+
+    test("DELETE /gigs/:id returns 403 when user does not own gig", async () => {
+      const handler = findRoute("delete", "/gigs/:id");
+
+      mockGigServices.findGigById.mockResolvedValue({
+        _id: "gig1",
+        owner_user: "otherUser",
+        host: "venue1",
+      });
+
+      mockVenueServices.findOwnedVenueByUserId.mockResolvedValue(null);
+      mockVenueServices.findVenueByContactEmail.mockResolvedValue(null);
+      mockVenueServices.findVenueByName.mockResolvedValue(null);
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "gig1" },
+        },
+        {
+          sub: "venueUser1",
+          email: "venue@test.com",
+          role: "venue",
+        }
+      );
+
+      expect(res.statusCode).toBe(403);
+      expect(mockGigServices.findGigByIdAndDelete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("message spam branches", () => {
+    test("POST /conversations/:id/messages returns 400 when message is too long", async () => {
+      const handler = findRoute("post", "/conversations/:id/messages");
+
+      mockConversationServices.findConversationById.mockResolvedValue({
+        _id: "conversation-long-message",
+        bandUserId: "bandUser1",
+        venueUserId: "venueUser1",
+      });
+
+      const res = await invokeAuthenticatedHandler(
+        handler,
+        {
+          params: { id: "conversation-long-message" },
+          body: { text: "a".repeat(2001) },
+        },
+        {
+          sub: "bandUser1",
+          email: "band@test.com",
+          role: "band",
+        }
+      );
+
+      expect(res.statusCode).toBe(400);
+      expect(mockMessageServices.addMessage).not.toHaveBeenCalled();
+    });
+
   });
 });

@@ -21,8 +21,12 @@ function markMessagesRead(conversationId, userId) {
   );
 }
 
-function getUnreadMessagesCount(userId, conversationIds) {
-  return Message.countDocuments({
+function getUnreadMessagesCount(userId, conversationIds = []) {
+  if (!conversationIds || conversationIds.length === 0) {
+    return 0;
+  }
+
+  return messageModel.countDocuments({
     conversationId: { $in: conversationIds },
     senderUserId: { $ne: userId },
     readByUserIds: { $ne: userId },

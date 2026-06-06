@@ -17,6 +17,7 @@ import notificationServices from "./notification-services.js";
 import conversationServices from "./conversation-services.js";
 import messageServices from "./message-services.js";
 import emailVerificationServices from "./email-verification-services.js";
+import emailServices from "./email-services.js";
 import availabilityService from "./availability-service.js";
 import gigRequestServices from "./gig-request-services.js";
 
@@ -108,11 +109,20 @@ function isValidEmail(email) {
 }
 
 function isEmailVerificationBypassEnabled() {
-  if (process.env.NODE_ENV === "production") return false;
-  return (
+  if (
+    process.env.EMAIL_VERIFICATION_BYPASS === "false" ||
+    process.env.EMAIL_VERIFICATION_BYPASS === "0"
+  ) {
+    return false;
+  }
+  if (
     process.env.EMAIL_VERIFICATION_BYPASS === "true" ||
     process.env.EMAIL_VERIFICATION_BYPASS === "1"
-  );
+  ) {
+    return true;
+  }
+  // Demo/deploy environments without SMTP: allow code 000000
+  return !emailServices.isSmtpConfigured();
 }
 
 function extractBearerToken(req) {

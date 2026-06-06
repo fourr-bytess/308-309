@@ -62,7 +62,12 @@ async function sendVerificationCodeEmail({ to, code, minutesValid }) {
   return { delivered: true };
 }
 
+function isSmtpConfigured() {
+  return getTransportConfigFromEnv() !== null;
+}
+
 export default {
   sendVerificationCodeEmail,
+  isSmtpConfigured,
 };
 

@@ -137,8 +137,15 @@ export default function Gigs({
     const search = searchText.toLowerCase();
     const gigName = gig.name?.toLowerCase() || "";
     const gigLocation = gig.location?.toLowerCase() || "";
+    const venueName =
+      typeof gig.host === "object" ? gig.host?.name?.toLowerCase() || "" : "";
 
-    if (search && !gigName.includes(search) && !gigLocation.includes(search)) {
+    if (
+      search &&
+      !gigName.includes(search) &&
+      !gigLocation.includes(search) &&
+      !venueName.includes(search)
+    ) {
       return false;
     }
 
@@ -236,14 +243,14 @@ export default function Gigs({
           <div className="bands-content-header">
             <h2>Available Gigs This Week</h2>
             {messageError && (
-  <p className="upload-message error">{messageError}</p>
-)}
+              <p className="upload-message error">{messageError}</p>
+            )}
           </div>
 
           <div className="search-row">
             <input
               type="text"
-              placeholder="Search gigs..."
+              placeholder="Search gigs or venues..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
             />
@@ -257,15 +264,27 @@ export default function Gigs({
             ) : (
               filteredGigs.map((gig) => (
                 <div key={gig._id} className="card band-card">
-                  <h3 style={{ textTransform: "capitalize", marginBottom: "8px" }}>
-                      <Link 
-                        to={`/gig/${gig._id}/public`} 
-                        style={{ color: "#5a0f2e", textDecoration: "underline", cursor: "pointer" }}
-                      >
-                        {gig.name}
-                      </Link>
-                    </h3>
-                    <p>{gig.location || "No location"}</p>
+                  <h3
+                    style={{ textTransform: "capitalize", marginBottom: "8px" }}
+                  >
+                    <Link
+                      to={`/gig/${gig._id}/public`}
+                      style={{
+                        color: "#5a0f2e",
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {gig.name}
+                    </Link>
+                  </h3>
+                  <p>{gig.location || "No location"}</p>
+                  <p>
+                    <strong>Venue:</strong>{" "}
+                    {typeof gig.host === "object"
+                      ? gig.host?.name || "Unknown venue"
+                      : "Unknown venue"}
+                  </p>
                   <p>
                     {gig.date
                       ? new Date(gig.date).toLocaleDateString()

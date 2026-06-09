@@ -80,7 +80,7 @@ const GigSchema = new mongoose.Schema(
     },
     host: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Venue",
+      ref: "venue",
       required: true,
     },
     booked: {

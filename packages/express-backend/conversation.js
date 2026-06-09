@@ -12,7 +12,7 @@ const conversationSchema = new Schema(
     },
     venueId: {
       type: Schema.Types.ObjectId,
-      ref: "Venue",
+      ref: "venue",
       required: true,
       index: true,
     },

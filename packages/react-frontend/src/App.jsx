@@ -48,6 +48,10 @@ import BandManager from "./components/BandManager.jsx";
 import ManageGig from "./components/ManageGig.jsx";
 import AvailabilityCalendar from "./components/AvailabilityCalendar.jsx";
 
+function getGigHostId(gig) {
+  return String(gig?.host?._id ?? gig?.host ?? "");
+}
+
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -1264,7 +1268,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
       const conversation = await createConversation({
         gigId: gig._id,
         bandId: band._id,
-        venueId: gig.host,
+        venueId: getGigHostId(gig),
         bandUserId: currentUserId,
         venueUserId: String(gig.owner_user),
       });
@@ -1319,7 +1323,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
       await createGigRequest({
         gigId: gig._id,
         bandId: band._id,
-        venueId: gig.host,
+        venueId: getGigHostId(gig),
         venueUserId: String(gig.owner_user),
       });
 
@@ -1447,7 +1451,12 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
         .catch((err) => console.error("Failed to load bands:", err));
     }
 
-    if (location.pathname === "/dashboard" || location.pathname === "/calendar") {
+    if (
+      location.pathname === "/dashboard" ||
+      location.pathname === "/calendar" ||
+      location.pathname === "/manage-gigs" ||
+      location.pathname.startsWith("/manage-gigs/")
+    ) {
       if (venueId) {
         fetch(`${API_URL}/venues/${venueId}`)
           .then((res) => res.json())
@@ -1546,7 +1555,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
   const calendarOwnerId = profile.role === "Venue" ? venueId : musicianId;
   const calendarGigs =
     profile.role === "Venue"
-      ? gigs.filter((gig) => String(gig.host) === String(venueId))
+      ? gigs.filter((gig) => getGigHostId(gig) === String(venueId))
       : gigs.filter((gig) =>
           (gig.bands_hired || []).some((bandId) =>
             managedBandIds.includes(String(bandId)),
@@ -1584,7 +1593,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
       request.initiatedBy === "venue",
   );
   const venueOpenGigs = gigs.filter(
-    (gig) => !gig.booked && String(gig.host) === String(venueId),
+    (gig) => !gig.booked && getGigHostId(gig) === String(venueId),
   );
 
   if (!authTokenChecked) {
@@ -2813,7 +2822,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                 
                 <div className="card-grid">
                   {gigs
-                    .filter((gig) => String(gig.host) === String(venueId))
+                    .filter((gig) => getGigHostId(gig) === String(venueId))
                     .map((gig) => (
                       <div key={gig._id} className="card band-card">
                         <h3 style={{ textTransform: "capitalize" }}>{gig.name}</h3>
@@ -2833,7 +2842,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                         </div>
                       </div>
                     ))}
-                  {gigs.filter((gig) => String(gig.host) === String(venueId)).length === 0 && (
+                  {gigs.filter((gig) => getGigHostId(gig) === String(venueId)).length === 0 && (
                     <p style={{ fontStyle: "italic", padding: "20px", color: "#f2e8cf" }}>You haven't posted any gigs yet. Create one on your Dashboard!</p>
                   )}
                 </div>

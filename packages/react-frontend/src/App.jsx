@@ -1688,7 +1688,14 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
               >
                 Browse Bands
               </button>
-              <button type="button" onClick={() => navigate("/gigs")}>
+              <button
+                type="button"
+                onClick={() =>
+                  searchArea?.coords
+                    ? navigate("/gigs", { state: searchArea })
+                    : navigate("/location")
+                }
+              >
                 Find a Gig
               </button>
               <button type="button" onClick={() => navigate("/my-band")}>
@@ -2774,6 +2781,9 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                 onMessageVenue={handleStartGigConversation}
                 onRequestGig={handleRequestGig}
                 messageError={messageError || gigRequestMessage}
+                locationCoords={location.state?.coords || searchArea?.coords}
+                userZip={location.state?.zip || searchArea?.zip}
+                userRadius={location.state?.radius || searchArea?.radius}
               />
             </ProtectedRoute>
           }

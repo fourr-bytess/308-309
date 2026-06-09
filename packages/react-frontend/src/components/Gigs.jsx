@@ -22,20 +22,31 @@ function getDistanceInMiles(lat1, lng1, lat2, lng2) {
 }
 
 async function getCoordsFromZip(zipCode) {
-  if (!zipCode) return null;
+  const cleanZip = String(zipCode || "").trim();
 
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zipCode}&country=USA`,
-  );
+  if (!cleanZip) return null;
 
-  const data = await res.json();
+  try {
+    const res = await fetch(
+      `https://api.zippopotam.us/us/${encodeURIComponent(cleanZip)}`,
+    );
 
-  if (!data.length) return null;
+    if (!res.ok) {
+      return null;
+    }
 
-  return {
-    lat: parseFloat(data[0].lat),
-    lng: parseFloat(data[0].lon),
-  };
+    const data = await res.json();
+    const place = data.places?.[0];
+
+    if (!place) return null;
+
+    return {
+      lat: parseFloat(place.latitude),
+      lng: parseFloat(place.longitude),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function ChangeMapView({ coords, zoom }) {
@@ -56,38 +67,83 @@ export default function Gigs({
   onMessageVenue,
   onRequestGig,
   messageError = "",
+  locationCoords: initialCoords = null,
+  userZip = "",
+  userRadius = 5,
 }) {
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [maxPay, setMaxPay] = useState(4000);
   const [searchText, setSearchText] = useState("");
+  const [mapMessage, setMapMessage] = useState("");
 
-  const [locationCoords, setLocationCoords] = useState(null);
-  const [zipCode, setZip] = useState("");
-  const [radius, setRadius] = useState(5);
+  const [locationCoords, setLocationCoords] = useState(initialCoords);
+  const [zipCode, setZip] = useState(userZip);
+  const [radius, setRadius] = useState(userRadius);
   const [gigCoords, setGigCoords] = useState({});
 
-  async function handleZipSearch() {
-    if (!zipCode) return;
+  useEffect(() => {
+    setZip(userZip || "");
+  }, [userZip]);
 
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&postalcode=${zipCode}&country=USA`,
-      );
-      const data = await res.json();
+  useEffect(() => {
+    setLocationCoords(initialCoords || null);
+  }, [initialCoords]);
 
-      if (data.length === 0) {
-        alert("ZIP code not found");
-        return;
-      }
-
-      const lat = parseFloat(data[0].lat);
-      const lng = parseFloat(data[0].lon);
-
-      setLocationCoords({ lat, lng });
-    } catch (err) {
-      console.error(err);
-      alert("Error fetching location");
+  useEffect(() => {
+    if (userRadius) {
+      setRadius(userRadius);
     }
+  }, [userRadius]);
+
+  useEffect(() => {
+    if (locationCoords || !zipCode) {
+      return;
+    }
+
+    getCoordsFromZip(zipCode).then((coordinates) => {
+      if (coordinates) {
+        setLocationCoords(coordinates);
+        setMapMessage("");
+      }
+    });
+  }, [zipCode, locationCoords]);
+
+  useEffect(() => {
+    if (locationCoords) {
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocationCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setMapMessage("");
+      },
+      () => {},
+    );
+  }, [locationCoords]);
+
+  async function handleZipSearch() {
+    if (!zipCode.trim()) {
+      setMapMessage("Enter a ZIP code to search.");
+      return;
+    }
+
+    const coordinates = await getCoordsFromZip(zipCode);
+
+    if (!coordinates) {
+      setMapMessage("ZIP code not found. Try a 5-digit US ZIP.");
+      return;
+    }
+
+    setLocationCoords(coordinates);
+    setMapMessage("");
   }
   useEffect(() => {
     async function loadGigCoordinates() {
@@ -112,15 +168,6 @@ export default function Gigs({
       loadGigCoordinates();
     }
   }, [gigs]);
-
-  useEffect(() => {
-    navigator.geolocation.getCurrentPosition((position) => {
-      setLocationCoords({
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-      });
-    });
-  }, []);
 
   const zoomLevel =
     radius <= 5 ? 10 : radius <= 10 ? 9.5 : radius <= 15 ? 9 : 8;
@@ -188,11 +235,23 @@ export default function Gigs({
               placeholder="ZIP"
               value={zipCode}
               onChange={(e) => setZip(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleZipSearch();
+                }
+              }}
             />
-            <button className="zip-btn" onClick={handleZipSearch}>
+            <button type="button" className="zip-btn" onClick={handleZipSearch}>
               &gt;
             </button>
           </div>
+
+          {mapMessage && (
+            <p className="upload-message error" style={{ marginTop: "8px" }}>
+              {mapMessage}
+            </p>
+          )}
 
           <div className="mini-map">
             {locationCoords && (
@@ -297,24 +356,32 @@ export default function Gigs({
                     {gig.genres?.length ? gig.genres.join(", ") : "No genre"}
                   </p>
 
-                  {canMessageVenues && (
-                    <>
-                      <button
-                        type="button"
-                        className="view-public-btn"
-                        onClick={() => onRequestGig?.(gig)}
-                      >
-                        Request Gig
-                      </button>
-                      <button
-                        type="button"
-                        className="view-public-btn"
-                        onClick={() => onMessageVenue?.(gig)}
-                      >
-                        Message venue
-                      </button>
-                    </>
-                  )}
+                  <div className="band-card-buttons">
+                    <Link
+                      to={`/gig/${gig._id}/public`}
+                      className="view-public-btn"
+                    >
+                      View Details
+                    </Link>
+                    {canMessageVenues && (
+                      <>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => onRequestGig?.(gig)}
+                        >
+                          Request Gig
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() => onMessageVenue?.(gig)}
+                        >
+                          Message venue
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))
             )}

@@ -2126,6 +2126,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                 locationCoords={location.state?.coords || searchArea?.coords}
                 userZip={location.state?.zip || searchArea?.zip}
                 userRadius={location.state?.radius || searchArea?.radius}
+                onSearchAreaChange={updateSearchArea}
               />
             </ProtectedRoute>
           }
@@ -2784,6 +2785,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                 locationCoords={location.state?.coords || searchArea?.coords}
                 userZip={location.state?.zip || searchArea?.zip}
                 userRadius={location.state?.radius || searchArea?.radius}
+                onSearchAreaChange={updateSearchArea}
               />
             </ProtectedRoute>
           }

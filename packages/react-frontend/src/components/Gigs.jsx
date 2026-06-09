@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { Link } from "react-router-dom";
+import "../leafletIcon.js";
 
 function getDistanceInMiles(lat1, lng1, lat2, lng2) {
   const earthRadiusMiles = 3958.8;
@@ -70,6 +71,7 @@ export default function Gigs({
   locationCoords: initialCoords = null,
   userZip = "",
   userRadius = 5,
+  onSearchAreaChange,
 }) {
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [maxPay, setMaxPay] = useState(4000);
@@ -80,6 +82,17 @@ export default function Gigs({
   const [zipCode, setZip] = useState(userZip);
   const [radius, setRadius] = useState(userRadius);
   const [gigCoords, setGigCoords] = useState({});
+
+  function persistSearchArea(coords, zip, nextRadius = radius) {
+    if (!coords || !onSearchAreaChange) {
+      return;
+    }
+    onSearchAreaChange({
+      coords,
+      zip: String(zip || "").trim(),
+      radius: nextRadius,
+    });
+  }
 
   useEffect(() => {
     setZip(userZip || "");
@@ -104,6 +117,7 @@ export default function Gigs({
       if (coordinates) {
         setLocationCoords(coordinates);
         setMapMessage("");
+        persistSearchArea(coordinates, zipCode);
       }
     });
   }, [zipCode, locationCoords]);
@@ -144,6 +158,7 @@ export default function Gigs({
 
     setLocationCoords(coordinates);
     setMapMessage("");
+    persistSearchArea(coordinates, zipCode);
   }
   useEffect(() => {
     async function loadGigCoordinates() {
@@ -281,7 +296,13 @@ export default function Gigs({
             min={5}
             max={20}
             value={radius}
-            onChange={(e) => setRadius(Number(e.target.value))}
+            onChange={(e) => {
+              const nextRadius = Number(e.target.value);
+              setRadius(nextRadius);
+              if (locationCoords) {
+                persistSearchArea(locationCoords, zipCode, nextRadius);
+              }
+            }}
           />
 
           <p className="radius-label">

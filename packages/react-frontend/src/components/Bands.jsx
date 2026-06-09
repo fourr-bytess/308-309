@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, Marker, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import "../leafletIcon.js";
 
 
 function getDistanceInMiles(lat1, lng1, lat2, lng2) {
@@ -69,6 +70,7 @@ export default function BandsPage({
   locationCoords,
   userZip,
   userRadius,
+  onSearchAreaChange,
 }) {
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [maxPrice, setMaxPrice] = useState(4000);
@@ -77,6 +79,17 @@ export default function BandsPage({
   const [zipCode, setZipCode] = useState(userZip || "");
   const [coords, setCoords] = useState(locationCoords || null);
   const [bandCoords, setBandCoords] = useState({});
+
+  function persistSearchArea(nextCoords, zip, nextRadius = distance) {
+    if (!nextCoords || !onSearchAreaChange) {
+      return;
+    }
+    onSearchAreaChange({
+      coords: nextCoords,
+      zip: String(zip || "").trim(),
+      radius: nextRadius,
+    });
+  }
 
   useEffect(() => {
     setZipCode(userZip || "");
@@ -100,6 +113,7 @@ export default function BandsPage({
     getCoordsFromZip(zipCode).then((coordinates) => {
       if (coordinates) {
         setCoords(coordinates);
+        persistSearchArea(coordinates, zipCode);
       }
     });
   }, [zipCode, coords]);
@@ -160,6 +174,7 @@ export default function BandsPage({
     }
 
     setCoords(coordinates);
+    persistSearchArea(coordinates, zipCode);
   }
 
   const filteredBands = bands.filter((band) => {
@@ -252,7 +267,13 @@ export default function BandsPage({
             min="5"
             max="20"
             value={distance}
-            onChange={(e) => setDistance(Number(e.target.value))}
+            onChange={(e) => {
+              const nextDistance = Number(e.target.value);
+              setDistance(nextDistance);
+              if (coords) {
+                persistSearchArea(coords, zipCode, nextDistance);
+              }
+            }}
           />
 
           <select

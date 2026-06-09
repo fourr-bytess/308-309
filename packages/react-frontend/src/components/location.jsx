@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import "../leafletIcon.js";
 import { useNavigate } from "react-router-dom";
 
 function ChangeMapView({ coords, zoom }) {

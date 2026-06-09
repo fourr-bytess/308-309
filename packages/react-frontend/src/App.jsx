@@ -1808,7 +1808,14 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
 
           {isLoggedIn && profile.role === "Venue" && (
             <>
-              <button type="button" onClick={() => navigate("/bands")}>
+              <button
+                type="button"
+                onClick={() =>
+                  searchArea?.coords
+                    ? navigate("/bands", { state: searchArea })
+                    : navigate("/location")
+                }
+              >
                 Hire a Band
               </button>
               <button type="button" onClick={() => navigate("/dashboard")}>

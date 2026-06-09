@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Circle } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Circle, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 
 function getDistanceInMiles(lat1, lng1, lat2, lng2) {
@@ -18,6 +19,18 @@ function getDistanceInMiles(lat1, lng1, lat2, lng2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return earthRadiusMiles * c;
+}
+
+function ChangeMapView({ coords, zoom }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (coords) {
+      map.setView([coords.lat, coords.lng], zoom);
+    }
+  }, [coords, zoom, map]);
+
+  return null;
 }
 
 async function getCoordsFromZip(zipCode) {
@@ -78,6 +91,39 @@ export default function BandsPage({
       setDistance(userRadius);
     }
   }, [userRadius]);
+
+  useEffect(() => {
+    if (coords || !zipCode) {
+      return;
+    }
+
+    getCoordsFromZip(zipCode).then((coordinates) => {
+      if (coordinates) {
+        setCoords(coordinates);
+      }
+    });
+  }, [zipCode, coords]);
+
+  useEffect(() => {
+    if (coords) {
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {},
+    );
+  }, [coords]);
+
   useEffect(() => {
     async function loadBandCoordinates() {
       const coordsByBandId = {};
@@ -192,6 +238,7 @@ export default function BandsPage({
                   center={[coords.lat, coords.lng]}
                   radius={distance * 1609.34}
                 />
+                <ChangeMapView coords={coords} zoom={zoomLevel} />
               </MapContainer>
             )}
           </div>

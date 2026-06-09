@@ -522,7 +522,10 @@ async function ensureGigAccess(req, res, gigId) {
   }
 
   const ownedVenue = await resolveOwnedVenueForAuth(req.auth);
-  if (!ownedVenue || String(gig.host) !== String(ownedVenue._id)) {
+  if (
+    !ownedVenue ||
+    gigServices.getGigHostId(gig) !== String(ownedVenue._id)
+  ) {
     res
       .status(403)
       .json({ error: "You do not have permission to manage this gig" });
@@ -2312,7 +2315,7 @@ app.post(
         if (gig.booked) {
           return res.status(400).json({ error: "This gig is already booked" });
         }
-        if (String(gig.host) !== String(venueId)) {
+        if (gigServices.getGigHostId(gig) !== String(venueId)) {
           return res.status(400).json({ error: "Gig does not belong to venue" });
         }
 

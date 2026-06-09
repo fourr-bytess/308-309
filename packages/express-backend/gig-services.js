@@ -3,6 +3,17 @@ import gigModel from "./gig.js";
 
 const GIG_SELECT =
   "name description genres location address capacity price_range date time host owner_user booked bands_hired gallery_images video_urls";
+
+function getGigHostId(gig) {
+  if (!gig?.host) {
+    return "";
+  }
+  if (typeof gig.host === "object" && gig.host._id) {
+    return String(gig.host._id);
+  }
+  return String(gig.host);
+}
+
 function buildGigsQuery(filters = {}) {
   const query = {};
   if (filters.name) {
@@ -147,6 +158,7 @@ function updateGigProfile(id, updateData) {
 }
 
 export default {
+  getGigHostId,
   addGig,
   getGigs,
   getGigsCount,

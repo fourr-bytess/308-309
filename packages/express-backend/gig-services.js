@@ -35,6 +35,9 @@ function buildGigsQuery(filters = {}) {
   if (filters.host) {
     query.host = filters.host;
   }
+  if (filters.owner_user) {
+    query.owner_user = filters.owner_user;
+  }
   if (typeof filters.booked === "boolean") {
     query.booked = filters.booked;
   }

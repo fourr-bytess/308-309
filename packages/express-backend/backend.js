@@ -1384,6 +1384,7 @@ app.get("/gigs", async (req, res) => {
       location: req.query.location,
       price_range,
       host: req.query.host,
+      owner_user: req.query.owner_user,
       booked:
         req.query.booked === "true"
           ? true

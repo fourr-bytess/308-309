@@ -52,6 +52,23 @@ function getGigHostId(gig) {
   return String(gig?.host?._id ?? gig?.host ?? "");
 }
 
+function isVenueOwnedGig(gig, venueId, userId) {
+  if (userId && gig?.owner_user && String(gig.owner_user) === String(userId)) {
+    return true;
+  }
+  return Boolean(venueId) && getGigHostId(gig) === String(venueId);
+}
+
+function getVenueGigsQuery(venueId, userId) {
+  if (userId) {
+    return `${API_URL}/gigs?owner_user=${encodeURIComponent(userId)}&limit=50`;
+  }
+  if (venueId) {
+    return `${API_URL}/gigs?host=${encodeURIComponent(venueId)}&limit=50`;
+  }
+  return null;
+}
+
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
@@ -377,7 +394,9 @@ export default function App() {
         }));
       } else {
         const venueRecord = await createOrLoadVenueProfile(email);
-        setVenueId(venueRecord._id || "");
+        const resolvedVenueId =
+          data?.profiles?.venueId || venueRecord._id || "";
+        setVenueId(resolvedVenueId);
         setVenues([venueRecord]);
         setProfile((prev) => ({
           ...prev,
@@ -1000,10 +1019,23 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
     }
 
     setCreateGigMessage("Gig created.");
+    const createdHostId = getGigHostId(data.data);
+    if (createdHostId) {
+      setVenueId(createdHostId);
+    }
     setGigs((prev) => [
       data.data,
       ...prev.filter((gig) => gig._id !== data.data._id),
     ]);
+    const venueGigsQuery = getVenueGigsQuery(createdHostId, currentUserId);
+    if (venueGigsQuery) {
+      fetch(venueGigsQuery)
+        .then((res) => res.json())
+        .then((payload) => {
+          setGigs(payload.data || []);
+        })
+        .catch((err) => console.error("Failed to refresh venue gigs:", err));
+    }
     setCreateGigForm({
       name: "",
       description: "",
@@ -1370,8 +1402,9 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
       const requests = await getGigRequests();
       setGigRequests(requests || []);
       const gigQuery =
-        profile.role === "Venue" && venueId
-          ? `${API_URL}/gigs?host=${venueId}&limit=50`
+        profile.role === "Venue"
+          ? getVenueGigsQuery(venueId, currentUserId) ||
+            `${API_URL}/gigs?limit=50`
           : `${API_URL}/gigs?limit=50`;
       const refreshedGigs = await fetch(gigQuery)
         .then((res) => res.json())
@@ -1457,37 +1490,46 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
       location.pathname === "/manage-gigs" ||
       location.pathname.startsWith("/manage-gigs/")
     ) {
-      if (venueId) {
-        fetch(`${API_URL}/venues/${venueId}`)
-          .then((res) => res.json())
-          .then((data) => {
-            setVenues(data.data ? [data.data] : []);
-          })
-          .catch((err) => console.error("Failed to load venue:", err));
+      if (profile.role === "Venue") {
+        if (venueId) {
+          fetch(`${API_URL}/venues/${venueId}`)
+            .then((res) => res.json())
+            .then((data) => {
+              setVenues(data.data ? [data.data] : []);
+            })
+            .catch((err) => console.error("Failed to load venue:", err));
+        } else if (location.pathname === "/dashboard") {
+          setVenues([]);
+        }
 
-        fetch(`${API_URL}/gigs?host=${venueId}&limit=50`)
-          .then((res) => res.json())
-          .then((data) => {
-            setGigs(data.data || []);
-          })
-          .catch((err) => console.error("Failed to load venue gigs:", err));
-      } else if (location.pathname === "/dashboard") {
-        setVenues([]);
-        setGigs([]);
+        const venueGigsQuery = getVenueGigsQuery(venueId, currentUserId);
+        if (venueGigsQuery) {
+          fetch(venueGigsQuery)
+            .then((res) => res.json())
+            .then((data) => {
+              setGigs(data.data || []);
+            })
+            .catch((err) => console.error("Failed to load venue gigs:", err));
+        } else if (location.pathname === "/dashboard") {
+          setGigs([]);
+        }
       }
     }
 
     if (
       location.pathname.startsWith("/band/") &&
       location.pathname.endsWith("/public") &&
-      venueId
+      profile.role === "Venue"
     ) {
-      fetch(`${API_URL}/gigs?host=${venueId}&limit=50`)
-        .then((res) => res.json())
-        .then((data) => {
-          setGigs(data.data || []);
-        })
-        .catch((err) => console.error("Failed to load venue gigs:", err));
+      const venueGigsQuery = getVenueGigsQuery(venueId, currentUserId);
+      if (venueGigsQuery) {
+        fetch(venueGigsQuery)
+          .then((res) => res.json())
+          .then((data) => {
+            setGigs(data.data || []);
+          })
+          .catch((err) => console.error("Failed to load venue gigs:", err));
+      }
     }
 
     if (
@@ -1526,7 +1568,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
         .then((res) => res.json())
         .then((data) => setMusicianDetails(data.data));
     }
-  }, [location.pathname, pathMusicianId, venueId, profile.role]);
+  }, [location.pathname, pathMusicianId, venueId, profile.role, currentUserId]);
 
   const saveBio = async () => {
     try {
@@ -1555,7 +1597,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
   const calendarOwnerId = profile.role === "Venue" ? venueId : musicianId;
   const calendarGigs =
     profile.role === "Venue"
-      ? gigs.filter((gig) => getGigHostId(gig) === String(venueId))
+      ? gigs.filter((gig) => isVenueOwnedGig(gig, venueId, currentUserId))
       : gigs.filter((gig) =>
           (gig.bands_hired || []).some((bandId) =>
             managedBandIds.includes(String(bandId)),
@@ -1593,7 +1635,8 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
       request.initiatedBy === "venue",
   );
   const venueOpenGigs = gigs.filter(
-    (gig) => !gig.booked && getGigHostId(gig) === String(venueId),
+    (gig) =>
+      !gig.booked && isVenueOwnedGig(gig, venueId, currentUserId),
   );
 
   if (!authTokenChecked) {
@@ -2822,7 +2865,9 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                 
                 <div className="card-grid">
                   {gigs
-                    .filter((gig) => getGigHostId(gig) === String(venueId))
+                    .filter((gig) =>
+                      isVenueOwnedGig(gig, venueId, currentUserId),
+                    )
                     .map((gig) => (
                       <div key={gig._id} className="card band-card">
                         <h3 style={{ textTransform: "capitalize" }}>{gig.name}</h3>
@@ -2842,7 +2887,9 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                         </div>
                       </div>
                     ))}
-                  {gigs.filter((gig) => getGigHostId(gig) === String(venueId)).length === 0 && (
+                  {gigs.filter((gig) =>
+                    isVenueOwnedGig(gig, venueId, currentUserId),
+                  ).length === 0 && (
                     <p style={{ fontStyle: "italic", padding: "20px", color: "#f2e8cf" }}>You haven't posted any gigs yet. Create one on your Dashboard!</p>
                   )}
                 </div>

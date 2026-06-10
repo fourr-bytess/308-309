@@ -1,7 +1,10 @@
-export const API_URL =
-  window.location.hostname === "localhost"
-    ? "http://localhost:3001"
-    : "https://giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net";
+const isLocalDevHost =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1";
+
+export const API_URL = isLocalDevHost
+  ? "http://localhost:3001"
+  : "https://giggly-bmdtgwaafaf0hwa4.westus3-01.azurewebsites.net";
 
 const TOKEN_STORAGE_KEY = "giggly_access_token";
 const SEARCH_AREA_STORAGE_KEY = "giggly_search_area";
@@ -162,8 +165,13 @@ export async function verifyEmailCode({ email, code }) {
 
 /* ---------------- BANDS ---------------- */
 
-export async function getBands() {
-  const res = await fetch(`${API_URL}/bands`);
+export async function getBands({ limit = 50, members } = {}) {
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  if (members) {
+    params.set("members", members);
+  }
+  const res = await fetch(`${API_URL}/bands?${params.toString()}`);
   const data = await res.json();
   return data.data;
 }

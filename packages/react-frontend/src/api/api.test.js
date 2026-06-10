@@ -103,7 +103,7 @@ describe("API Service Tests", () => {
 
     const bands = await getBands();
 
-    expect(fetch).toHaveBeenCalledWith(`${API_URL}/bands`);
+    expect(fetch).toHaveBeenCalledWith(`${API_URL}/bands?limit=50`);
     expect(bands).toEqual(mockData.data);
   });
 

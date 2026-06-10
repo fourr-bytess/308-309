@@ -109,6 +109,25 @@ function getBandIdFromPath(pathname) {
   return match ? match[1] : null;
 }
 
+function bandIncludesMusician(band, musicianId) {
+  if (!musicianId) {
+    return false;
+  }
+  return (band.members || []).some(
+    (memberId) => String(memberId) === String(musicianId),
+  );
+}
+
+function mergeBandsById(existingBands, incomingBands) {
+  const byId = new Map(
+    (existingBands || []).map((band) => [String(band._id), band]),
+  );
+  for (const band of incomingBands || []) {
+    byId.set(String(band._id), band);
+  }
+  return Array.from(byId.values());
+}
+
 function validateImageFile(file) {
   if (!file) {
     return "Please choose an image file.";
@@ -1503,16 +1522,32 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
   }
 
   useEffect(() => {
-    if (
-      location.pathname === "/bands" ||
-      location.pathname === "/my-band" ||
-      location.pathname === "/calendar" ||
-      (location.pathname === "/gigs" && profile.role === "Artist")
-    ) {
-      fetch(`${API_URL}/bands`)
+    const shouldLoadMyBands =
+      Boolean(musicianId) &&
+      profile.role === "Artist" &&
+      (location.pathname === "/my-band" ||
+        location.pathname === "/bands/create" ||
+        location.pathname === "/calendar" ||
+        location.pathname === "/gigs" ||
+        location.pathname.startsWith("/bands/"));
+
+    if (shouldLoadMyBands) {
+      fetch(
+        `${API_URL}/bands?members=${encodeURIComponent(musicianId)}&limit=50`,
+      )
         .then((res) => res.json())
         .then((data) => {
-          setBands(data.data);
+          setBands((prev) => mergeBandsById(prev, data.data || []));
+        })
+        .catch((err) => console.error("Failed to load my bands:", err));
+    } else if (
+      location.pathname === "/bands" ||
+      (location.pathname === "/calendar" && profile.role === "Venue")
+    ) {
+      fetch(`${API_URL}/bands?limit=50`)
+        .then((res) => res.json())
+        .then((data) => {
+          setBands(data.data || []);
         })
         .catch((err) => console.error("Failed to load bands:", err));
     }
@@ -1601,7 +1636,14 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
         .then((res) => res.json())
         .then((data) => setMusicianDetails(data.data));
     }
-  }, [location.pathname, pathMusicianId, venueId, profile.role, currentUserId]);
+  }, [
+    location.pathname,
+    pathMusicianId,
+    venueId,
+    musicianId,
+    profile.role,
+    currentUserId,
+  ]);
 
   const saveBio = async () => {
     try {
@@ -2192,7 +2234,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
 
                 <div className="card-grid">
                   {bands
-                    .filter((band) => (band.members || []).includes(musicianId))
+                    .filter((band) => bandIncludesMusician(band, musicianId))
                     .map((band) => (
                       <div key={band._id} className="card band-card">
                         <h3>{band.name}</h3>

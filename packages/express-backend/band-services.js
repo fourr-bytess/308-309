@@ -10,8 +10,10 @@ function buildBandsQuery(filters = {}) {
   if (filters.name) {
     query.name = filters.name.toLowerCase();
   }
-  if (filters.members) {
-    query.members = { $in: filters.members.map((m) => m.toLowerCase()) };
+  if (filters.members?.length) {
+    query.members = {
+      $in: filters.members.map((memberId) => String(memberId)),
+    };
   }
   if (filters.genres?.length) {
     query.genres = { $in: filters.genres.map((g) => g.toLowerCase()) };

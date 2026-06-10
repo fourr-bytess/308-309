@@ -7,6 +7,7 @@ const BandPublicProfile = ({
   userRole,
   venueId,
   venueGigs = [],
+  ownBandIds = [],
   onStartConversation,
   onInviteToGig,
   inviteMessage = "",
@@ -80,6 +81,19 @@ const BandPublicProfile = ({
             </button>
           </div>
         )}
+        {isLoggedIn &&
+          userRole === "Artist" &&
+          !ownBandIds.includes(String(band._id)) && (
+            <div className="request-card-actions">
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() => onStartConversation(band)}
+              >
+                Message Band
+              </button>
+            </div>
+          )}
         {inviteMessage && <p className="upload-message">{inviteMessage}</p>}
         {inviteError && <p className="notification-error">{inviteError}</p>}
       </div>

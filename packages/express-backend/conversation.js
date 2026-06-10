@@ -13,7 +13,16 @@ const conversationSchema = new Schema(
     venueId: {
       type: Schema.Types.ObjectId,
       ref: "venue",
-      required: true,
+      required: function requiredVenueUnlessBandChat() {
+        return !this.otherBandId;
+      },
+      default: null,
+      index: true,
+    },
+    otherBandId: {
+      type: Schema.Types.ObjectId,
+      ref: "Band",
+      default: null,
       index: true,
     },
     gigId: {
@@ -46,7 +55,14 @@ const conversationSchema = new Schema(
 );
 
 conversationSchema.index(
-  { gigId: 1, bandId: 1, venueId: 1, bandUserId: 1, venueUserId: 1 },
+  {
+    gigId: 1,
+    bandId: 1,
+    venueId: 1,
+    otherBandId: 1,
+    bandUserId: 1,
+    venueUserId: 1,
+  },
   { unique: true },
 );
 

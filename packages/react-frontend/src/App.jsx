@@ -1229,34 +1229,67 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
   }
 
   async function handleStartBandConversation(band) {
-    if (!currentUserId || !venueId || !band?._id) {
-      setMessageError("Please log in as a venue to message this band.");
+    if (!currentUserId || !band?._id) {
+      setMessageError("Please log in to message this band.");
       return;
     }
 
-    const bandUserId = band.owner_user || band.ownerUserId;
+    const targetBandUserId =
+      band.admin_user || band.owner_user || band.ownerUserId;
 
-    if (!bandUserId) {
+    if (!targetBandUserId) {
       setMessageError("This band does not have an owner to message yet.");
+      return;
+    }
+
+    let conversationPayload = null;
+
+    if (profile.role === "Venue" && venueId) {
+      conversationPayload = {
+        bandId: band._id,
+        venueId,
+        bandUserId: String(targetBandUserId),
+        venueUserId: currentUserId,
+      };
+    } else if (profile.role === "Artist") {
+      const myBand = bands.find((item) =>
+        (item.members || []).some(
+          (memberId) => String(memberId) === String(musicianId),
+        ),
+      );
+
+      if (!myBand) {
+        setMessageError("Create or join a band before messaging other bands.");
+        return;
+      }
+
+      if (String(myBand._id) === String(band._id)) {
+        setMessageError("You cannot message your own band.");
+        return;
+      }
+
+      conversationPayload = {
+        bandId: band._id,
+        otherBandId: myBand._id,
+        bandUserId: String(targetBandUserId),
+        venueUserId: currentUserId,
+      };
+    } else {
+      setMessageError("Please log in to message this band.");
       return;
     }
 
     try {
       setMessageError("");
 
-      const conversation = await createConversation({
-        bandId: band._id,
-        venueId,
-        bandUserId: String(bandUserId),
-        venueUserId: currentUserId,
-      });
+      const conversation = await createConversation(conversationPayload);
 
       const conversationWithName = {
         ...conversation,
         otherUserDisplayName: band.name,
       };
 
-      setActiveConversation(conversation);
+      setActiveConversation(conversationWithName);
 
       const items = await getConversationMessages(conversation._id);
       setMessages(items || []);
@@ -1574,14 +1607,14 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
     try {
       const result = await updateBand(bandDetails._id, { bio: tempBio });
 
-      if (result) {
-        setBandDetails({ ...bandDetails, bio: tempBio });
+      if (result?.data) {
+        setBandDetails(result.data);
         setEditingBio(false);
         setBandUploadMessage("Bio updated successfully!");
       }
     } catch (err) {
       console.error("Update failed:", err);
-      setBandUploadMessage("Update failed.");
+      setBandUploadMessage("Failed to save bio. Please try again.");
     }
   };
 
@@ -2357,16 +2390,24 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
                               onChange={(e) => setTempBio(e.target.value)}
                             />
                             <div className="button-group">
-                              <button className="primary-btn" onClick={saveBio}>
+                              <button
+                                type="button"
+                                className="primary-btn"
+                                onClick={saveBio}
+                              >
                                 Save Bio
                               </button>
                               <button
+                                type="button"
                                 className="secondary-btn"
                                 onClick={() => setEditingBio(false)}
                               >
                                 Cancel
                               </button>
                             </div>
+                            {bandUploadMessage && (
+                              <p className="upload-message">{bandUploadMessage}</p>
+                            )}
                           </>
                         ) : (
                           <>
@@ -2494,6 +2535,7 @@ const removeGigGalleryImage = async (gigId, imageUrl) => {
               userRole={profile.role}
               venueId={venueId}
               venueGigs={venueOpenGigs}
+              ownBandIds={managedBandIds}
               onStartConversation={handleStartBandConversation}
               onInviteToGig={handleInviteBandToGig}
               inviteMessage={gigRequestMessage}

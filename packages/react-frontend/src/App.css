@@ -314,6 +314,42 @@ textarea {
   text-align: left;
 }
 
+.band-profile-popup {
+  width: 520px;
+  max-width: 95%;
+}
+
+.profile-image {
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+  margin: 0 auto 20px;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.gallery-item img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.gallery-item .secondary-btn {
+  margin-top: 8px;
+}
+
 #profile {
   display: flex;
   justify-content: center;

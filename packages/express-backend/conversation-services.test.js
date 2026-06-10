@@ -3,6 +3,7 @@ import conversationModel from "./conversation.js";
 import conversationServices from "./conversation-services.js";
 import userModel from "./user.js";
 import gigModel from "./gig.js";
+import bandModel from "./band.js";
 
 function createFindSortMock(result) {
   const sort = jest.fn().mockResolvedValue(result);
@@ -34,6 +35,7 @@ describe("Conversation Services Test Suite", () => {
 
     userModel.find = jest.fn();
     gigModel.find = jest.fn();
+    bandModel.find = jest.fn();
   });
 
   afterEach(() => {
@@ -90,6 +92,9 @@ describe("Conversation Services Test Suite", () => {
       ]);
 
       gigModel.find.mockReturnValue(gigQueryMock);
+
+      const bandQueryMock = createSelectLeanMock([]);
+      bandModel.find.mockReturnValue(bandQueryMock);
 
       const result = await conversationServices.getConversationsByUser(
         "user_123"
@@ -161,6 +166,9 @@ describe("Conversation Services Test Suite", () => {
       const gigQueryMock = createSelectLeanMock([]);
       gigModel.find.mockReturnValue(gigQueryMock);
 
+      const bandQueryMock = createSelectLeanMock([]);
+      bandModel.find.mockReturnValue(bandQueryMock);
+
       const result = await conversationServices.getConversationsByUser(
         "user_123"
       );
@@ -191,6 +199,9 @@ describe("Conversation Services Test Suite", () => {
 
       const gigQueryMock = createSelectLeanMock([]);
       gigModel.find.mockReturnValue(gigQueryMock);
+
+      const bandQueryMock = createSelectLeanMock([]);
+      bandModel.find.mockReturnValue(bandQueryMock);
 
       const result = await conversationServices.getConversationsByUser(
         "user_123"
@@ -336,11 +347,33 @@ describe("Conversation Services Test Suite", () => {
       await conversationServices.findConversationByParticipants(participants);
 
       expect(conversationModel.findOne).toHaveBeenCalledWith({
-        gigId: undefined,
+        gigId: null,
         bandId: "b1",
         venueId: "v1",
         bandUserId: "bu1",
         venueUserId: "vu1",
+      });
+    });
+
+    test("Testing findConversationByParticipants for band-to-band chat -- pass", async () => {
+      conversationModel.findOne.mockResolvedValue({});
+
+      const participants = {
+        bandId: "b1",
+        otherBandId: "b2",
+        bandUserId: "bu1",
+        venueUserId: "bu2",
+      };
+
+      await conversationServices.findConversationByParticipants(participants);
+
+      expect(conversationModel.findOne).toHaveBeenCalledWith({
+        gigId: null,
+        bandId: "b1",
+        otherBandId: "b2",
+        venueId: null,
+        bandUserId: "bu1",
+        venueUserId: "bu2",
       });
     });
   });

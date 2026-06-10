@@ -87,6 +87,14 @@ function findBandByIdAndDelete(id) {
   return bandModel.findByIdAndDelete(id);
 }
 
+function updateBandProfile(id, updateData) {
+  return bandModel.findByIdAndUpdate(
+    id,
+    { $set: updateData },
+    { new: true, runValidators: true },
+  );
+}
+
 function updateBandProfilePicture(id, profile_picture_url) {
   return bandModel.findByIdAndUpdate(
     id,
@@ -163,6 +171,7 @@ export default {
   findBandByIdAndDelete,
   addBandMember,
   removeBandMember,
+  updateBandProfile,
   updateBandProfilePicture,
   addBandGalleryImage,
   removeBandGalleryImage,

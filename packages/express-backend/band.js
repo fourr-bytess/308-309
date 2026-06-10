@@ -43,6 +43,11 @@ const BandSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    bio: {
+      type: String,
+      trim: true,
+      maxLength: 1000,
+    },
     video_urls: [{ type: String }],
   },
   { collection: "bands_list" },

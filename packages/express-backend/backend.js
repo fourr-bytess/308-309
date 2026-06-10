@@ -1099,6 +1099,38 @@ app.delete(
   }),
 );
 
+app.put(
+  "/bands/:id",
+  requireRole(["musician", "band"], async (req, res) => {
+    try {
+      if (!(await ensureBandAccess(req, res, req.params.id))) {
+        return;
+      }
+
+      const { bio } = req.body;
+      const updates = {};
+      if (bio !== undefined) updates.bio = bio;
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: "No valid fields to update" });
+      }
+
+      const updatedBand = await bandServices.updateBandProfile(
+        req.params.id,
+        updates,
+      );
+
+      if (!updatedBand) {
+        return res.status(404).json({ error: "Band not found" });
+      }
+
+      res.status(200).json({ data: updatedBand });
+    } catch (err) {
+      res.status(400).json({ error: "Failed to update band profile" });
+    }
+  }),
+);
+
 app.post(
   "/bands/:id/profile-picture",
   requireRole(["musician", "band"], async (req, res) => {
@@ -2069,9 +2101,19 @@ app.post(
   "/conversations",
   requireAuth(async (req, res) => {
     try {
-      const { gigId, bandId, venueId, bandUserId, venueUserId } = req.body;
+      const { gigId, bandId, venueId, otherBandId, bandUserId, venueUserId } =
+        req.body;
 
-      if (!bandId || !venueId || !bandUserId || !venueUserId) {
+      const isBandToBand = Boolean(otherBandId);
+
+      if (isBandToBand) {
+        if (!bandId || !bandUserId || !venueUserId) {
+          return res.status(400).json({
+            error:
+              "bandId, otherBandId, bandUserId, and venueUserId are required",
+          });
+        }
+      } else if (!bandId || !venueId || !bandUserId || !venueUserId) {
         return res.status(400).json({
           error: "bandId, venueId, bandUserId, and venueUserId are required",
         });
@@ -2089,7 +2131,8 @@ app.post(
         await conversationServices.findConversationByParticipants({
           gigId,
           bandId,
-          venueId,
+          venueId: isBandToBand ? null : venueId,
+          otherBandId: isBandToBand ? otherBandId : null,
           bandUserId: String(bandUserId),
           venueUserId: String(venueUserId),
         });
@@ -2099,9 +2142,10 @@ app.post(
       }
 
       const conversation = await conversationServices.addConversation({
-        gigId,
+        gigId: gigId || null,
         bandId,
-        venueId,
+        venueId: isBandToBand ? null : venueId,
+        otherBandId: isBandToBand ? otherBandId : null,
         bandUserId: String(bandUserId),
         venueUserId: String(venueUserId),
       });

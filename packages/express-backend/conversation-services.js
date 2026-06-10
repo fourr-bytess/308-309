@@ -1,6 +1,7 @@
 import Conversation from "./conversation.js";
-import User from "./user.js"
+import User from "./user.js";
 import Gig from "./gig.js";
+import Band from "./band.js";
 
 async function getConversationsByUser(userId) {
   const conversations = await Conversation.find({
@@ -18,19 +19,31 @@ async function getConversationsByUser(userId) {
     .lean();
 
   const gigIds = conversations
-  .map((conversation) => conversation.gigId)
-  .filter(Boolean);
+    .map((conversation) => conversation.gigId)
+    .filter(Boolean);
 
   const gigs = await Gig.find({ _id: { $in: gigIds } })
     .select("name")
     .lean();
 
+  const bandIds = conversations.flatMap((conversation) =>
+    conversation.otherBandId ? [conversation.bandId, conversation.otherBandId] : [],
+  );
+
+  const bands = await Band.find({ _id: { $in: bandIds } })
+    .select("name")
+    .lean();
+
   const gigNamesById = new Map(
-    gigs.map((gig) => [String(gig._id), gig.name])
+    gigs.map((gig) => [String(gig._id), gig.name]),
+  );
+
+  const bandNamesById = new Map(
+    bands.map((band) => [String(band._id), band.name]),
   );
 
   const namesById = new Map(
-    users.map((user) => [String(user._id), user.display_name])
+    users.map((user) => [String(user._id), user.display_name]),
   );
 
   return conversations.map((conversation) => {
@@ -39,9 +52,20 @@ async function getConversationsByUser(userId) {
         ? conversation.venueUserId
         : conversation.bandUserId;
 
+    let otherUserDisplayName = namesById.get(String(otherUserId)) || "";
+
+    if (conversation.otherBandId) {
+      const otherBandId =
+        String(conversation.bandUserId) === String(userId)
+          ? conversation.otherBandId
+          : conversation.bandId;
+      otherUserDisplayName =
+        bandNamesById.get(String(otherBandId)) || otherUserDisplayName;
+    }
+
     return {
       ...conversation.toObject(),
-      otherUserDisplayName: namesById.get(String(otherUserId)) || "",
+      otherUserDisplayName,
       gigName: gigNamesById.get(String(conversation.gigId)) || "",
     };
   });
@@ -51,10 +75,25 @@ function findConversationByParticipants({
   gigId,
   bandId,
   venueId,
+  otherBandId,
   bandUserId,
   venueUserId,
 }) {
-  return Conversation.findOne({ gigId, bandId, venueId, bandUserId, venueUserId });
+  const query = {
+    gigId: gigId || null,
+    bandId,
+    bandUserId,
+    venueUserId,
+  };
+
+  if (otherBandId) {
+    query.otherBandId = otherBandId;
+    query.venueId = null;
+  } else {
+    query.venueId = venueId;
+  }
+
+  return Conversation.findOne(query);
 }
 
 function addConversation(data) {

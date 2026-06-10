@@ -2195,13 +2195,18 @@ describe("deeper backend route coverage", () => {
       );
 
       expect(res.statusCode).toBe(201);
-      expect(mockConversationServices.addConversation).toHaveBeenCalledWith({
-        gigId: "gig1",
-        bandId: "band1",
-        venueId: "venue1",
-        bandUserId: "bandUser1",
-        venueUserId: "venueUser1",
-      });
+
+      expect(mockConversationServices.addConversation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gigId: "gig1",
+          bandId: "band1",
+          venueId: "venue1",
+          bandUserId: "bandUser1",
+          venueUserId: "venueUser1",
+          otherBandId: null,
+        })
+      );
+
       expect(res.json).toHaveBeenCalledWith({ data: created });
     });
 

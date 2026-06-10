@@ -35,14 +35,14 @@ describe("Band Services Test Suite", () => {
       );
 
       expect(bandModel.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: "midnight echo",
-          members: { $in: ["cristian stewart"] },
-          genres: { $in: ["indie rock"] },
-          locations: { $in: ["san luis obispo"] },
-          price_range: { $gte: 300, $lte: 1200 },
-        })
-      );
+      expect.objectContaining({
+        name: "midnight echo",
+        members: { $in: ["Cristian Stewart"] },
+        genres: { $in: ["indie rock"] },
+        locations: { $in: ["san luis obispo"] },
+        price_range: { $gte: 300, $lte: 1200 },
+      })
+    );
     });
 
     test("Testing band retrieval with no filters applied -- pass", async () => {

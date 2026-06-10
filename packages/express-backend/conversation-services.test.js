@@ -141,7 +141,247 @@ describe("Conversation Services Test Suite", () => {
         },
       ]);
     });
+    
+    test("Testing band-to-band conversation uses other band name -- pass", async () => {
+    const bandToBandConversation = {
+      _id: "conv_band_to_band",
+      bandId: "band_1",
+      otherBandId: "band_2",
+      bandUserId: "user_123",
+      venueUserId: "other_band_user",
+      gigId: null,
+      toObject: jest.fn().mockReturnValue({
+        _id: "conv_band_to_band",
+        bandId: "band_1",
+        otherBandId: "band_2",
+        bandUserId: "user_123",
+        venueUserId: "other_band_user",
+        gigId: null,
+        lastMessage: "Band collaboration message",
+      }),
+    };
 
+    const findSortMock = createFindSortMock([bandToBandConversation]);
+    conversationModel.find.mockReturnValue(findSortMock);
+
+    const userQueryMock = createSelectLeanMock([
+      {
+        _id: "other_band_user",
+        display_name: "Other User Name",
+      },
+    ]);
+    
+    userModel.find.mockReturnValue(userQueryMock);
+
+    const gigQueryMock = createSelectLeanMock([]);
+    gigModel.find.mockReturnValue(gigQueryMock);
+
+    const bandQueryMock = createSelectLeanMock([
+      {
+        _id: "band_1",
+        name: "Original Band",
+      },
+      {
+        _id: "band_2",
+        name: "Other Band Name",
+      },
+    ]);
+    bandModel.find.mockReturnValue(bandQueryMock);
+
+    const result = await conversationServices.getConversationsByUser("user_123");
+
+    expect(bandModel.find).toHaveBeenCalledWith({
+      _id: { $in: ["band_1", "band_2"] },
+    });
+
+    expect(bandQueryMock.select).toHaveBeenCalledWith("name");
+    expect(bandQueryMock.lean).toHaveBeenCalled();
+
+    expect(result).toEqual([
+      {
+        _id: "conv_band_to_band",
+        bandId: "band_1",
+        otherBandId: "band_2",
+        bandUserId: "user_123",
+        venueUserId: "other_band_user",
+        gigId: null,
+        lastMessage: "Band collaboration message",
+        otherUserDisplayName: "Other Band Name",
+        gigName: "",
+      },
+    ]);
+  });
+  
+  test("Testing band-to-band conversation falls back to user display name when band name is missing -- pass", async () => {
+  const bandToBandConversation = {
+    _id: "conv_band_missing_name",
+    bandId: "band_1",
+    otherBandId: "band_2",
+    bandUserId: "user_123",
+    venueUserId: "other_band_user",
+    gigId: null,
+    toObject: jest.fn().mockReturnValue({
+      _id: "conv_band_missing_name",
+      bandId: "band_1",
+      otherBandId: "band_2",
+      bandUserId: "user_123",
+      venueUserId: "other_band_user",
+      gigId: null,
+      lastMessage: "Fallback display name message",
+    }),
+  };
+
+  const findSortMock = createFindSortMock([bandToBandConversation]);
+  conversationModel.find.mockReturnValue(findSortMock);
+
+  const userQueryMock = createSelectLeanMock([
+    {
+      _id: "other_band_user",
+      display_name: "Fallback User Name",
+    },
+  ]);
+  userModel.find.mockReturnValue(userQueryMock);
+
+  const gigQueryMock = createSelectLeanMock([]);
+  gigModel.find.mockReturnValue(gigQueryMock);
+
+  
+  const bandQueryMock = createSelectLeanMock([
+    {
+      _id: "band_1",
+      name: "Original Band",
+    },
+  ]);
+  bandModel.find.mockReturnValue(bandQueryMock);
+
+  const result = await conversationServices.getConversationsByUser("user_123");
+
+  expect(result).toEqual([
+    {
+      _id: "conv_band_missing_name",
+      bandId: "band_1",
+      otherBandId: "band_2",
+      bandUserId: "user_123",
+      venueUserId: "other_band_user",
+      gigId: null,
+      lastMessage: "Fallback display name message",
+      otherUserDisplayName: "Fallback User Name",
+      gigName: "",
+    },
+  ]);
+})
+  test("Testing band-to-band conversation uses first band name for other participant -- pass", async () => {
+    const bandToBandConversation = {
+      _id: "conv_band_to_band_reverse",
+      bandId: "band_1",
+      otherBandId: "band_2",
+      bandUserId: "first_band_user",
+      venueUserId: "user_123",
+      gigId: null,
+      toObject: jest.fn().mockReturnValue({
+        _id: "conv_band_to_band_reverse",
+        bandId: "band_1",
+        otherBandId: "band_2",
+        bandUserId: "first_band_user",
+        venueUserId: "user_123",
+        gigId: null,
+        lastMessage: "Reverse band collaboration message",
+      }),
+    };
+
+    const findSortMock = createFindSortMock([bandToBandConversation]);
+    conversationModel.find.mockReturnValue(findSortMock);
+
+    const userQueryMock = createSelectLeanMock([
+      {
+        _id: "first_band_user",
+        display_name: "First Band User",
+      },
+    ]);
+    userModel.find.mockReturnValue(userQueryMock);
+
+    const gigQueryMock = createSelectLeanMock([]);
+    gigModel.find.mockReturnValue(gigQueryMock);
+
+    const bandQueryMock = createSelectLeanMock([
+      {
+        _id: "band_1",
+        name: "First Band Name",
+      },
+      {
+        _id: "band_2",
+        name: "Second Band Name",
+      },
+    ]);
+    bandModel.find.mockReturnValue(bandQueryMock);
+
+    const result = await conversationServices.getConversationsByUser("user_123");
+
+    expect(result).toEqual([
+      {
+        _id: "conv_band_to_band_reverse",
+        bandId: "band_1",
+        otherBandId: "band_2",
+        bandUserId: "first_band_user",
+        venueUserId: "user_123",
+        gigId: null,
+        lastMessage: "Reverse band collaboration message",
+        otherUserDisplayName: "First Band Name",
+        gigName: "",
+      },
+    ]);
+  });
+  test("Testing conversation with missing gig record uses empty gig name -- pass", async () => {
+  const conversationWithMissingGig = {
+    _id: "conv_missing_gig",
+    bandUserId: "user_123",
+    venueUserId: "venue_user_1",
+    gigId: "missing_gig_id",
+    toObject: jest.fn().mockReturnValue({
+      _id: "conv_missing_gig",
+      bandUserId: "user_123",
+      venueUserId: "venue_user_1",
+      gigId: "missing_gig_id",
+      lastMessage: "Gig was not found",
+    }),
+  };
+
+  const findSortMock = createFindSortMock([conversationWithMissingGig]);
+  conversationModel.find.mockReturnValue(findSortMock);
+
+  const userQueryMock = createSelectLeanMock([
+    {
+      _id: "venue_user_1",
+      display_name: "Venue User",
+    },
+  ]);
+  userModel.find.mockReturnValue(userQueryMock);
+
+  // Important: gigId exists, but the query returns no gig.
+  const gigQueryMock = createSelectLeanMock([]);
+  gigModel.find.mockReturnValue(gigQueryMock);
+
+  const bandQueryMock = createSelectLeanMock([]);
+  bandModel.find.mockReturnValue(bandQueryMock);
+
+  const result = await conversationServices.getConversationsByUser("user_123");
+
+  expect(gigModel.find).toHaveBeenCalledWith({
+    _id: { $in: ["missing_gig_id"] },
+  });
+
+  expect(result).toEqual([
+    {
+      _id: "conv_missing_gig",
+      bandUserId: "user_123",
+      venueUserId: "venue_user_1",
+      gigId: "missing_gig_id",
+      lastMessage: "Gig was not found",
+      otherUserDisplayName: "Venue User",
+      gigName: "",
+    },
+  ]);
+});
     test("gets conversations and uses empty strings when user or gig names are missing", async () => {
       const conversationWithoutGig = {
         _id: "conv3",
@@ -338,6 +578,28 @@ describe("Conversation Services Test Suite", () => {
       conversationModel.findOne.mockResolvedValue(null);
 
       const participants = {
+        bandId: "b1",
+        venueId: "v1",
+        bandUserId: "bu1",
+        venueUserId: "vu1",
+      };
+
+      await conversationServices.findConversationByParticipants(participants);
+
+      expect(conversationModel.findOne).toHaveBeenCalledWith({
+        gigId: null,
+        bandId: "b1",
+        venueId: "v1",
+        bandUserId: "bu1",
+        venueUserId: "vu1",
+      });
+    });
+
+    test("Testing findConversationByParticipants converts empty gigId to null -- pass", async () => {
+      conversationModel.findOne.mockResolvedValue(null);
+
+      const participants = {
+        gigId: "",
         bandId: "b1",
         venueId: "v1",
         bandUserId: "bu1",
